@@ -1,4 +1,4 @@
-# Deployment Lajurin v0.6.0 di Coolify
+# Deployment Lajurin v1.0.0 di Coolify
 
 ## Sebelum redeploy
 
@@ -7,10 +7,12 @@
 3. Di aplikasi, pastikan `DATABASE_URL` masih menunjuk ke database yang sama.
 4. Tambahkan persistent storage dengan mount path **`/app/data/payment-proofs`**.
 5. Tambahkan persistent storage kedua dengan mount path **`/app/data/course-files`**.
-6. Jangan gunakan `/app/uploads`; path tersebut berasal dari catatan versi lama.
-7. Jangan menghapus, membuat ulang, atau me-restart PostgreSQL hanya untuk deploy source ini.
+6. Tambahkan persistent storage ketiga dengan mount path **`/app/data/landing-media`**.
+7. Tambahkan persistent storage keempat dengan mount path **`/app/data/community-media`**.
+8. Jangan gunakan `/app/uploads`; path tersebut berasal dari catatan versi lama.
+9. Jangan menghapus, membuat ulang, atau me-restart PostgreSQL hanya untuk deploy source ini.
 
-Kedua storage dapat memakai volume berbeda. Untuk **Volume Mount** di Coolify, isi nama volume dan Destination Path; Source Path dikosongkan.
+Keempat storage dapat memakai volume berbeda. Untuk **Volume Mount** di Coolify, isi nama volume dan Destination Path; Source Path dikosongkan.
 
 ## Environment variable wajib
 
@@ -63,14 +65,44 @@ Gunakan nilai yang sama pada setiap redeploy/replica. Jangan menggantinya tanpa 
 
 ## Redeploy
 
-1. Pastikan branch yang dipakai Coolify sudah memuat source v0.6.0.
+1. Pastikan branch yang dipakai Coolify sudah memuat source v1.0.0 final yang sama dengan kandidat yang diuji di staging.
 2. Klik **Redeploy** pada aplikasi, bukan pada PostgreSQL.
 3. Proses start menjalankan seluruh migration Drizzle secara otomatis sebelum server aktif.
-4. Periksa log dan pastikan migration `0005_multi_merchant_landing` berhasil.
-5. Pastikan health check `/api/health` berstatus healthy.
-6. Login ADMIN dan buka `/admin/integrations`; StarSender dan Mailketing harus berstatus **Aktif**.
+4. Periksa log dan pastikan migration `0010_v100_production_readiness` berhasil setelah migration `0009_v090_community_inbox_automation`.
+5. Pastikan `/api/health` merespons `ok` dan health check `/api/ready` berstatus ready.
+6. Login ADMIN, buka `/admin/operations`, dan pastikan database, konfigurasi wajib, serta empat storage berstatus **Siap**.
+7. Buka `/admin/integrations`; StarSender dan Mailketing harus berstatus **Aktif** bila notifikasi diaktifkan.
 
-Tidak ada environment variable atau persistent storage baru pada v0.6.0. Migration membuat profil dasar untuk merchant lama. Setelah deploy, masing-masing merchant perlu login dan memperbarui **Dashboard usaha → Profil toko** agar nama brand serta alamat tokonya sesuai.
+Tidak ada environment variable atau storage baru pada v1.0.0. Migration menambah log webhook, rate limit, dan metadata refund tanpa mengubah harga, saldo, enrollment, atau file lama.
+
+## Strategi file dan backup
+
+- Source tidak perlu diunduh per versi; simpan hanya rilis final di GitHub.
+- Sebelum deployment final, unduh backup PostgreSQL dari Coolify dan pastikan statusnya berhasil.
+- Media landing page, file course, dan bukti pembayaran berada di volume, bukan di backup PostgreSQL. Aktifkan backup volume terpisah bila data unggahan sudah dipakai produksi.
+- Gambar komunitas juga berada di volume `/app/data/community-media`; backup database saja tidak mencadangkan gambarnya.
+- Setelah backup atau restore volume, jalankan `npm run ops:storage-manifest` dari container/checkout yang mengakses folder `data`. Simpan output manifest secara terpisah dan bandingkan `fileCount`, `totalBytes`, serta hash SHA-256 sebelum menerima transaksi.
+
+## Pemeriksaan production readiness v1.0
+
+1. Buka **Admin → Operasional** dan pastikan tidak ada item wajib berstatus Perlu tindakan.
+2. Kirim payload webhook Xendit Test Mode, lalu pastikan event tercatat sebagai `PROCESSED`.
+3. Kirim ulang payload identik; event harus dianggap duplicate dan tidak menambah enrollment, kupon, saldo, atau notifikasi.
+4. Uji lima password salah lalu pastikan login dibatasi; tunggu periode blokir atau bersihkan hanya data rate-limit staging.
+5. Unggah file berekstensi gambar tetapi isi teks; file harus ditolak.
+6. Catat refund hanya setelah dana uji dikembalikan. Pastikan status menjadi REFUNDED, enrollment pesanan dicabut, member mendapat notifikasi, dan ledger merchant berkurang sebesar net transaksi.
+7. Pastikan webhook completed lama setelah refund tidak mengaktifkan kembali pesanan.
+
+Refund v1.0 adalah pencatatan **refund penuh manual**, bukan pengiriman dana otomatis. Admin wajib mengembalikan dana melalui bank/Xendit lebih dahulu, lalu mengisi referensi dan alasan. Kupon tetap tercatat sebagai pernah digunakan untuk menjaga histori audit.
+
+## Pemeriksaan keuangan setelah deploy
+
+1. Admin membuka **Merchant** dan memastikan merchant lama berstatus Aktif.
+2. Admin membuka **Pengaturan** lalu mengonfirmasi komisi default dan minimum payout.
+3. Merchant membuka **Saldo & payout**, menyimpan rekening, dan memeriksa transaksi lama yang sudah lunas.
+4. Gunakan transaksi uji untuk memastikan bruto, komisi, net, dan saldo benar.
+5. Ajukan payout kecil pada staging; penolakan harus mengembalikan saldo, sedangkan “Sudah ditransfer” wajib memiliki referensi.
+6. Jangan menandai payout dibayar sebelum transfer bank benar-benar dilakukan. Versi ini belum mengirim uang secara otomatis.
 
 ## Pembagian dashboard v0.6.0
 
@@ -111,11 +143,39 @@ Periksa:
 - Format file adalah PDF, EPUB, ZIP, DOC/DOCX, XLS/XLSX, PPT/PPTX, atau TXT.
 - Reverse proxy Coolify tidak menetapkan batas upload di bawah 17 MB.
 
+## Jika upload media landing page gagal
+
+Periksa:
+
+- Mount path persis `/app/data/landing-media`.
+- Volume dapat ditulis oleh UID/GID `1001:1001`.
+- File adalah JPG, PNG, atau WebP maksimal 5 MB.
+- Cover publik dapat dibuka melalui `/api/landing-media/[storageKey]` setelah tersimpan.
+
+## Jika upload gambar komunitas gagal
+
+Periksa:
+
+- Mount path persis `/app/data/community-media`.
+- Volume dapat ditulis oleh UID/GID `1001:1001`.
+- File adalah JPG, PNG, atau WebP maksimal 5 MB.
+- Route `/api/community-media/[postId]` hanya dapat dibuka pengguna yang memiliki akses ke ruang tersebut.
+
+## Pemeriksaan v0.9 setelah deploy
+
+1. Merchant membuat satu ruang toko dan satu ruang produk.
+2. Member tanpa enrollment tidak dapat melihat ruang produk; member pembeli dapat melihatnya.
+3. Uji post bergambar, reaction, komentar, laporan, dan moderasi.
+4. Member membuka kelas lalu memilih **Hubungi merchant**; pastikan pesan dan notifikasi belum dibaca muncul.
+5. Merchant membuka **Pelanggan** dan memastikan hanya member produknya yang tampil.
+6. Buat automation pembayaran lunas memakai email/nomor sendiri, kemudian jalankan transaksi uji di staging.
+7. Selesaikan seluruh lesson dan pastikan automation kelas selesai hanya terkirim sekali.
+
 ## Rollback
 
 Jika aplikasi gagal setelah deploy:
 
 1. Simpan log error.
 2. Rollback source ke deployment v2 terakhir yang sehat.
-3. Jangan menghapus tabel/kolom dari migration `0002`, `0003`, maupun `0004`; versi lama dapat mengabaikannya.
+3. Jangan menghapus tabel/kolom dari migration `0002` sampai `0010`; versi lama dapat mengabaikannya.
 4. Pulihkan backup database hanya bila terbukti ada kerusakan data, bukan sebagai langkah pertama.

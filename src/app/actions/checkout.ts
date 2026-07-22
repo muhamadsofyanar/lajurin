@@ -5,10 +5,13 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { calculateDiscount } from "@/lib/discount";
+import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { dispatchOrderNotifications } from "@/lib/notifications";
-import { courses, orders, products, users } from "@/lib/schema";
+import { analyticsEvents, courses, merchantProfiles, orders, productFunnels, products, users } from "@/lib/schema";
+import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 
 export async function checkoutAction(slug: string, formData: FormData) {
   const parsed = z
@@ -18,12 +21,40 @@ export async function checkoutAction(slug: string, formData: FormData) {
       phone: z.string().trim().regex(/^\+?[0-9\s().-]{9,20}$/).transform((value) => value.replace(/[^0-9+]/g, "")),
       password: z.string().min(8).max(128),
       paymentMethod: z.enum(["XENDIT", "MANUAL_TRANSFER"]).default("MANUAL_TRANSFER"),
+      couponCode: z.string().trim().max(24).optional(),
+      orderBump: z.preprocess((value) => value === "on", z.boolean()),
+      utmSource: z.string().trim().max(100).optional(),
+      utmMedium: z.string().trim().max(100).optional(),
+      utmCampaign: z.string().trim().max(120).optional(),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/checkout/${slug}?error=Periksa+kembali+data+Anda`);
 
-  const [product] = await db.select({ product: products, courseId: courses.id }).from(products).innerJoin(courses, eq(courses.productId, products.id)).where(and(eq(products.slug, slug), eq(products.status, "PUBLISHED"))).limit(1);
+  const rateLimitKey = await currentRequestIdentity("checkout", `${slug}:${parsed.data.email}`);
+  const rateLimit = await enforceRateLimit(rateLimitKey, { limit: 8, windowMs: 15 * 60_000, blockMs: 30 * 60_000 });
+  if (rateLimit.limited) redirect(`/checkout/${slug}?error=Terlalu+banyak+percobaan+checkout.+Coba+lagi+dalam+30+menit`);
+
+  const [product] = await db.select({ product: products, courseId: courses.id }).from(products)
+    .innerJoin(courses, eq(courses.productId, products.id))
+    .innerJoin(merchantProfiles, eq(merchantProfiles.userId, products.merchantId))
+    .where(and(eq(products.slug, slug), eq(products.status, "PUBLISHED"), eq(merchantProfiles.status, "ACTIVE"))).limit(1);
   if (!product) redirect("/");
+
+  const [funnel] = await db.select().from(productFunnels).where(and(eq(productFunnels.productId, product.product.id), eq(productFunnels.isActive, true))).limit(1);
+  let bumpProduct: typeof product.product | null = null;
+  if (parsed.data.orderBump && funnel?.orderBumpProductId) {
+    const [candidate] = await db.select().from(products).where(and(
+      eq(products.id, funnel.orderBumpProductId),
+      eq(products.merchantId, product.product.merchantId),
+      eq(products.status, "PUBLISHED"),
+    )).limit(1);
+    bumpProduct = candidate ?? null;
+  }
+  const coupon = await findValidCoupon(product.product.id, parsed.data.couponCode);
+  const discountAmount = coupon ? calculateDiscount(product.product.price, coupon.discountType, coupon.discountValue) : 0;
+  const bumpAmount = bumpProduct?.price ?? 0;
+  const subtotalAmount = product.product.price + bumpAmount;
+  const finalAmount = subtotalAmount - discountAmount;
 
   let [customer] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
   if (customer) {
@@ -46,9 +77,27 @@ export async function checkoutAction(slug: string, formData: FormData) {
       customerName: parsed.data.name,
       customerEmail: parsed.data.email,
       customerPhone: parsed.data.phone,
-      amount: product.product.price,
+      amount: finalAmount,
+      subtotalAmount,
+      discountAmount,
+      couponId: coupon?.id ?? null,
+      couponCode: coupon?.code ?? null,
+      orderBumpProductId: bumpProduct?.id ?? null,
+      orderBumpAmount: bumpAmount,
+      utmSource: parsed.data.utmSource || null,
+      utmMedium: parsed.data.utmMedium || null,
+      utmCampaign: parsed.data.utmCampaign || null,
       paymentMethod: parsed.data.paymentMethod,
     }).returning();
+
+  await db.insert(analyticsEvents).values({
+    productId: product.product.id,
+    orderId: order.id,
+    event: "CHECKOUT_STARTED",
+    utmSource: parsed.data.utmSource || null,
+    utmMedium: parsed.data.utmMedium || null,
+    utmCampaign: parsed.data.utmCampaign || null,
+  }).onConflictDoNothing({ target: [analyticsEvents.orderId, analyticsEvents.event] });
 
   await createSession(customer.id);
 
@@ -63,10 +112,10 @@ export async function checkoutAction(slug: string, formData: FormData) {
     paymentSession = await createPaymentSession({
       externalId,
       customerId: customer.id,
-      amount: product.product.price,
+      amount: finalAmount,
       customerName: parsed.data.name,
       customerEmail: parsed.data.email,
-      productName: product.product.name,
+      productName: bumpProduct ? `${product.product.name} + ${bumpProduct.name}` : product.product.name,
       productUrl: `${appUrl}/p/${product.product.slug}`,
       successUrl: `${appUrl}/payment/success?order=${order.id}`,
       failureUrl: `${appUrl}/checkout/${product.product.slug}?error=Pembayaran+belum+berhasil`,

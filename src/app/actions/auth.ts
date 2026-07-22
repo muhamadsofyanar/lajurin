@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
 import { merchantProfiles, users } from "@/lib/schema";
+import { clearRateLimit, currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 import {
   createSession,
   deleteSession,
@@ -25,16 +26,24 @@ export async function loginAction(formData: FormData) {
   });
   if (!parsed.success) redirect("/login?error=Email+atau+password+tidak+valid");
 
+  const rateLimitKey = await currentRequestIdentity("login", parsed.data.email);
+  const rateLimit = await enforceRateLimit(rateLimitKey, { limit: 5, windowMs: 15 * 60_000, blockMs: 15 * 60_000 });
+  if (rateLimit.limited) redirect("/login?error=Terlalu+banyak+percobaan.+Coba+lagi+dalam+15+menit");
+
   const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
   if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     redirect("/login?error=Email+atau+password+salah");
   }
 
+  await clearRateLimit(rateLimitKey);
   await createSession(user.id);
   redirect(user.role === "ADMIN" ? "/admin" : user.role === "MEMBER" ? "/member" : "/dashboard");
 }
 
 export async function registerAction(formData: FormData) {
+  const rateLimitKey = await currentRequestIdentity("register");
+  const rateLimit = await enforceRateLimit(rateLimitKey, { limit: 5, windowMs: 60 * 60_000, blockMs: 60 * 60_000 });
+  if (rateLimit.limited) redirect("/register?error=Terlalu+banyak+pendaftaran+dari+perangkat+ini.+Coba+lagi+nanti");
   const parsed = z
     .object({
       name: z.string().trim().min(2).max(80),
@@ -48,9 +57,6 @@ export async function registerAction(formData: FormData) {
     });
 
   if (!parsed.success) redirect("/register?error=Periksa+kembali+data+pendaftaran");
-  const [exists] = await db.select({ id: users.id }).from(users).where(eq(users.email, parsed.data.email)).limit(1);
-  if (exists) redirect("/login?error=Email+sudah+terdaftar");
-
   const passwordHash = await hashPassword(parsed.data.password);
   const user = await db.transaction(async (tx) => {
     const [created] = await tx.insert(users).values({
@@ -58,7 +64,8 @@ export async function registerAction(formData: FormData) {
         email: parsed.data.email,
         passwordHash,
         role: "MERCHANT",
-      }).returning();
+      }).onConflictDoNothing({ target: users.email }).returning();
+    if (!created) return null;
     await tx.insert(merchantProfiles).values({
       userId: created.id,
       brandName: created.name,
@@ -67,6 +74,8 @@ export async function registerAction(formData: FormData) {
     });
     return created;
   });
+
+  if (!user) redirect("/login?error=Email+sudah+terdaftar");
 
   await createSession(user.id);
   redirect("/dashboard");

@@ -1,4 +1,4 @@
-# Checklist Pengujian Lajurin v0.6.0
+# Checklist Pengujian Lajurin v1.0.0
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
@@ -8,9 +8,16 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Migration `0003_course_modules_files` berhasil setelah migration sebelumnya.
 - [ ] Migration `0004_glorious_vermin` berhasil setelah migration sebelumnya.
 - [ ] Migration `0005_multi_merchant_landing` berhasil setelah migration sebelumnya.
-- [ ] Aplikasi healthy.
+- [ ] Migration `0006_multi_merchant_finance` berhasil setelah migration sebelumnya.
+- [ ] Migration `0007_ambiguous_sinister_six` berhasil setelah migration sebelumnya.
+- [ ] Migration `0008_third_namor` berhasil setelah migration `0007`.
+- [ ] Migration `0009_v090_community_inbox_automation` berhasil setelah migration `0008`.
+- [ ] Migration `0010_v100_production_readiness` berhasil setelah migration `0009`.
+- [ ] `/api/health` merespons liveness dan `/api/ready` berstatus ready.
 - [ ] Persistent storage `/app/data/payment-proofs` aktif.
 - [ ] Persistent storage `/app/data/course-files` aktif.
+- [ ] Persistent storage `/app/data/landing-media` aktif.
+- [ ] Persistent storage `/app/data/community-media` aktif.
 - [ ] Siapkan satu akun ADMIN, satu MERCHANT, dan satu MEMBER.
 - [ ] Siapkan satu produk dengan minimal tiga lesson.
 
@@ -30,6 +37,19 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Isi Profil toko dan pastikan `/m/[slug]` hanya menampilkan produk merchant tersebut.
 - [ ] Edit landing page: hero, gambar, manfaat, sasaran peserta, CTA, dan warna.
 - [ ] Pastikan perubahan landing page tampil di `/p/[slug]` tanpa mengubah materi kursus.
+- [ ] Merchant lama tetap berstatus Aktif; merchant baru berstatus Menunggu aktivasi.
+- [ ] Merchant menunggu/ditangguhkan tidak mempunyai toko atau checkout publik.
+- [ ] Merchant aktif dapat menyimpan rekening payout.
+- [ ] Bruto, komisi, pendapatan bersih, dan saldo tersedia tampil benar.
+- [ ] Payout di bawah minimum dan di atas saldo ditolak.
+- [ ] Dua permintaan payout tidak dapat memakai saldo yang sama.
+- [ ] Unggah cover dan foto pengajar tersimpan setelah redeploy.
+- [ ] Tiga template landing page dapat diganti tanpa kehilangan isi section.
+- [ ] Bonus, testimoni, FAQ, pengajar, jaminan, harga coret, dan batas promo tampil sesuai input.
+- [ ] Buat kupon persen dan nominal; validasi nilai, tanggal, kuota, aktif/nonaktif, dan kode duplikat bekerja.
+- [ ] Kupon yang sudah digunakan tidak dapat dihapus, tetapi dapat dinonaktifkan.
+- [ ] Atur order bump, upsell, dan downsell hanya dari produk merchant yang sama.
+- [ ] Dashboard Analitik hanya menampilkan produk dan transaksi merchant yang login.
 
 ## Bab/modul dan file
 
@@ -52,6 +72,13 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Checkout mewajibkan nomor WhatsApp dan menerima format `08...` atau `62...`.
 - [ ] Bukti transfer berhasil diunggah dan tetap tersedia setelah redeploy.
 - [ ] Halaman produk mengelompokkan kurikulum berdasarkan bab.
+- [ ] Parameter `utm_source`, `utm_medium`, dan `utm_campaign` diteruskan ke checkout dan tersimpan pada pesanan.
+- [ ] Kupon valid mengurangi harga produk utama; kupon tidak valid tidak mengubah harga.
+- [ ] Order bump bersifat opsional dan menambah total sesuai snapshot harga produk tambahan.
+- [ ] Pembayaran order bump mengaktifkan course utama dan course tambahan.
+- [ ] Retry webhook tidak menggandakan enrollment, redemption kupon, event purchase, atau saldo.
+- [ ] Halaman sukses menampilkan upsell dan alternatif downsell yang benar.
+- [ ] Meta/TikTok pixel hanya dimuat jika ID valid diisi; tidak ada input custom script.
 
 ## Admin
 
@@ -64,6 +91,13 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Admin melihat jumlah merchant dan produk dari seluruh merchant.
 - [ ] Hanya ADMIN memiliki menu dan halaman Konfirmasi pembayaran.
 - [ ] Merchant yang mencoba membuka `/admin/payments` dialihkan ke dashboard usaha.
+- [ ] Admin dapat mengaktifkan dan menangguhkan merchant.
+- [ ] Komisi khusus merchant mengalahkan komisi default hanya untuk transaksi baru.
+- [ ] Admin dapat memfilter transaksi lintas merchant dan mengunduh CSV.
+- [ ] Admin dapat memoderasi status produk dan melihat daftar member.
+- [ ] Admin payout wajib mengisi referensi transfer sebelum menandai Dibayar.
+- [ ] Payout ditolak membuat entry pengembalian dan memulihkan saldo merchant.
+- [ ] Audit log mencatat aktivasi merchant, perubahan komisi, payout, dan pembayaran manual.
 
 ## StarSender dan Mailketing
 
@@ -73,6 +107,8 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Persetujuan pembayaran menghasilkan email dan WhatsApp akses kelas.
 - [ ] Penolakan bukti menghasilkan email dan WhatsApp untuk unggah ulang.
 - [ ] Retry webhook Xendit tidak menggandakan pesan untuk event yang sama.
+- [ ] Retry webhook Xendit tidak menggandakan kredit saldo merchant.
+- [ ] Webhook expired yang datang setelah PAID tidak menurunkan status transaksi.
 - [ ] Log menampilkan kanal, penerima, event, waktu, jumlah percobaan, dan status.
 - [ ] Token/API key tidak tampil pada halaman admin maupun response provider yang disimpan.
 - [ ] Tombol Kirim ulang bekerja untuk status Gagal atau Dilewati setelah konfigurasi diperbaiki.
@@ -101,9 +137,64 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Setiap kartu kursus dan halaman belajar menampilkan nama merchant yang benar.
 - [ ] Profil/etalase merchant dapat dibuka dari kelas bila profil tersedia.
 
-## Komunitas dan regresi
+## Komunitas scoped dan moderasi
 
 - [ ] Member ber-enrollment dapat membuka komunitas.
-- [ ] Post, komentar, dan pinned post tetap bekerja.
+- [ ] Postingan lama tersedia pada ruang umum setelah migration.
+- [ ] Merchant dapat membuat ruang untuk seluruh pembeli dan ruang khusus satu produk.
+- [ ] Member tanpa enrollment produk tidak dapat membuka ruang produk melalui URL.
+- [ ] Merchant A tidak dapat membuka atau memoderasi ruang merchant B.
+- [ ] Post, komentar, pinned post, dan upload gambar privat bekerja.
+- [ ] Reaction pengguna bersifat satu per post dan dapat diganti/dibatalkan.
+- [ ] Member dapat melaporkan post/komentar; moderator dapat menyembunyikan atau mengabaikan laporan.
+- [ ] Gambar post tersembunyi tidak dapat dibuka member biasa, tetapi tetap dapat diperiksa moderator.
+
+## Inbox dan notifikasi aplikasi
+
+- [ ] Member dapat memulai percakapan dari kelas yang dimiliki.
+- [ ] Merchant dapat memulai percakapan hanya dengan pelanggan produknya.
+- [ ] Percakapan produk/merchant lain tidak dapat dibuka lewat URL.
+- [ ] Pesan baru menambah indikator belum dibaca dan notifikasi aplikasi penerima.
+- [ ] Membuka percakapan menandai pesan lawan bicara sebagai dibaca.
+- [ ] Admin dapat mengaudit percakapan tanpa mengubah status baca merchant/member.
+- [ ] Balasan dan reaction komunitas menghasilkan notifikasi untuk penulis, kecuali aktivitas sendiri.
+- [ ] Notifikasi transaksi muncul satu kali per pesanan/event dan dapat ditandai dibaca.
+
+## Pelanggan dan automation
+
+- [ ] Menu Pelanggan hanya menampilkan enrollment dari produk merchant yang login.
+- [ ] Filter produk dan segmen Belum mulai/Sedang belajar/Selesai sesuai progres lesson.
+- [ ] Nomor kontak diambil dari pesanan enrollment yang benar.
+- [ ] Merchant dapat membuat automation pembayaran lunas atau kelas selesai untuk semua/satu produk.
+- [ ] Minimal satu kanal wajib dipilih; produk merchant lain ditolak.
+- [ ] Variabel `{nama}`, `{produk}`, `{nama_toko}`, dan `{link_kelas}` dirender benar.
+- [ ] Mailketing/StarSender yang belum dikonfigurasi menghasilkan status Dilewati tanpa membatalkan transaksi/progres.
+- [ ] Webhook berulang tidak menggandakan delivery automation.
+- [ ] Menandai kelas belum selesai lalu selesai kembali tidak menggandakan delivery automation.
+- [ ] Riwayat automation menampilkan kanal, penerima, waktu, status, dan error.
+
+## Regresi umum
+
 - [ ] Admin, merchant, dan member diarahkan ke dashboard yang benar.
 - [ ] Logout menghapus sesi.
+
+## Production readiness v1.0
+
+- [ ] Admin → Operasional hanya dapat dibuka ADMIN dan tidak pernah menampilkan nilai secret.
+- [ ] Database, konfigurasi wajib, serta empat storage tampil Siap.
+- [ ] Security headers `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, dan HSTS tersedia.
+- [ ] Lima percobaan login gagal memicu rate limit; login valid dapat dilakukan kembali setelah masa blokir.
+- [ ] Registrasi, checkout, unggah bukti, dan analitik publik memiliki batas yang terdokumentasi.
+- [ ] File gambar/PDF palsu dengan MIME/ekstensi benar tetapi signature salah ditolak.
+- [ ] Path storage yang berisi `../` atau separator tidak dapat dibaca.
+- [ ] Webhook valid tercatat lengkap dengan request ID dan status PROCESSED.
+- [ ] Retry payload identik tidak menggandakan pembayaran, enrollment, redemption, saldo, analytics purchase, atau pesan.
+- [ ] Webhook dengan nominal/status salah tercatat REJECTED dan tidak mengubah pesanan.
+- [ ] Webhook gagal dapat diproses ulang setelah sumber gangguan diperbaiki.
+- [ ] Refund penuh hanya tersedia untuk pesanan PAID dan membutuhkan referensi serta alasan.
+- [ ] Refund mencabut seluruh enrollment yang masih terikat ke order tersebut.
+- [ ] Refund membuat ledger `REFUND` sebesar negatif net merchant, audit log, dan notifikasi member tepat satu kali.
+- [ ] Webhook completed/expired yang datang bersamaan atau setelah refund tidak mengubah status final secara salah.
+- [ ] Upload ulang bukti pembayaran menghapus file lama tanpa menghilangkan file baru.
+- [ ] `npm run ops:storage-manifest` menghasilkan jumlah, ukuran, dan SHA-256 yang sama sebelum/akhir uji restore volume.
+- [ ] `npm run test`, `npm run lint`, `npm run typecheck`, dan `npm run build` lulus dari instalasi bersih.

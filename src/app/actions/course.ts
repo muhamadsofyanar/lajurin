@@ -1,15 +1,16 @@
 "use server";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { enrollments, lessonProgress, lessons } from "@/lib/schema";
+import { dispatchMerchantAutomations } from "@/lib/automation";
 
 export async function toggleLessonCompleteAction(courseId: string, lessonId: string) {
   const user = await requireUser();
-  const [authorizedLesson] = await db.select({ id: lessons.id, position: lessons.position })
+  const [authorizedLesson] = await db.select({ id: lessons.id, position: lessons.position, enrollmentId: enrollments.id })
     .from(enrollments)
     .innerJoin(lessons, eq(enrollments.courseId, lessons.courseId))
     .where(and(
@@ -31,6 +32,11 @@ export async function toggleLessonCompleteAction(courseId: string, lessonId: str
   await db.insert(lessonProgress).values({ userId: user.id, lessonId }).onConflictDoNothing();
   const allLessons = await db.select({ id: lessons.id, position: lessons.position }).from(lessons)
     .where(eq(lessons.courseId, courseId)).orderBy(asc(lessons.position));
+  const completed = allLessons.length ? await db.select({ id: lessonProgress.id }).from(lessonProgress)
+    .where(and(eq(lessonProgress.userId, user.id), inArray(lessonProgress.lessonId, allLessons.map((lesson) => lesson.id)))) : [];
+  if (allLessons.length > 0 && completed.length === allLessons.length) {
+    await dispatchMerchantAutomations("COURSE_COMPLETED", authorizedLesson.enrollmentId);
+  }
   const next = allLessons.find((lesson) => lesson.position > authorizedLesson.position);
   revalidatePath(`/member/courses/${courseId}`);
   if (next && next.id !== lessonId) redirect(`/member/courses/${courseId}?lesson=${next.id}`);

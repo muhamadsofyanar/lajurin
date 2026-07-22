@@ -1,5 +1,91 @@
 # Changelog
 
+## 1.0.0 — 22 Juli 2026
+
+### Production readiness
+
+- Pusat **Admin → Operasional** untuk status database, konfigurasi, empat storage persisten, rate limit aktif, dan 100 webhook terakhir.
+- Endpoint liveness `/api/health` dipisahkan dari readiness `/api/ready`; health check container kini memakai readiness.
+- Log webhook Xendit dengan fingerprint idempoten, request ID, status proses, response status, payload, error, dan waktu proses.
+- Rate limit berbasis PostgreSQL untuk login, pendaftaran, checkout, unggah bukti, serta event analitik publik.
+- Refund penuh manual oleh admin setelah dana dikirim: akses enrollment dicabut, hak bersih merchant dibalik melalui ledger, member diberi notifikasi, dan tindakan masuk audit log.
+- Pemeriksaan signature JPG/PNG/WebP/PDF serta penolakan path traversal pada seluruh storage.
+- Security headers global, pembatasan sesi aktif, pembersihan sesi kedaluwarsa, dan structured log untuk webhook.
+- Manifest SHA-256 empat volume melalui `npm run ops:storage-manifest` untuk verifikasi backup/restore file.
+- Automated test untuk perhitungan komisi/diskon, signature upload, dan keamanan path storage.
+- Migration `0010_v100_production_readiness.sql` tanpa menghapus atau menulis ulang data lama.
+
+### Diperbaiki
+
+- Webhook completed/expired dan refund memakai advisory lock pesanan yang sama agar status tidak saling menimpa saat diproses bersamaan.
+- Webhook completed yang datang setelah refund tidak dapat mengaktifkan kembali pesanan atau enrollment.
+- Unggah ulang bukti pembayaran menghapus file lama setelah database berhasil diperbarui dan membersihkan file baru bila update gagal.
+- Pendaftaran email yang bersamaan tidak lagi menghasilkan error server karena konflik unique ditangani secara atomik.
+
+## 0.9.0 — 22 Juli 2026
+
+### Ditambahkan
+
+- Ruang komunitas umum, per merchant, dan per produk dengan akses berbasis enrollment.
+- Upload gambar komunitas privat melalui persistent storage `/app/data/community-media`.
+- Reaction, laporan post/komentar, antrean moderasi, sematkan, serta sembunyikan/tampilkan konten.
+- Inbox privat merchant–member yang dipisahkan per produk, status baca, dan notifikasi pesan.
+- Pusat notifikasi dalam aplikasi untuk transaksi, komunitas, inbox, dan automation.
+- Menu Pelanggan merchant dengan filter produk, segmentasi progres, aktivitas terakhir, serta pintasan percakapan.
+- Automation Mailketing/StarSender untuk pembayaran lunas dan kelas selesai, filter produk, template variabel, dan riwayat delivery.
+- Migration `0009_v090_community_inbox_automation.sql` beserta backfill postingan lama ke ruang umum.
+
+### Keamanan dan keandalan
+
+- Hak akses ruang diverifikasi ulang pada setiap Server Action dan route media, bukan hanya disembunyikan dari UI.
+- Merchant hanya dapat membuat ruang, melihat pelanggan, memulai inbox, serta membuat automation untuk produk miliknya.
+- Percakapan unik per merchant–member–produk mencegah data lintas merchant tercampur.
+- Delivery automation unik per aturan, sumber kejadian, dan kanal agar webhook/progres berulang tidak menggandakan pesan.
+- Kegagalan provider tidak membatalkan pembayaran, enrollment, progres, atau notifikasi dalam aplikasi.
+- Postingan dan komentar lama dipertahankan; migration tidak menghapus data versi sebelumnya.
+
+## 0.8.0 — 22 Juli 2026
+
+### Ditambahkan
+
+- Tiga template landing page dengan section hero video, pengajar, bonus, testimoni, FAQ, jaminan, harga coret, dan masa promo.
+- Upload cover serta foto pengajar ke persistent storage `/app/data/landing-media`.
+- Kupon persen/nominal dengan periode aktif, kuota, status, dan redemption saat transaksi lunas.
+- Order bump dalam satu transaksi serta enrollment produk utama dan produk tambahan.
+- Rekomendasi upsell dan downsell setelah pembelian sebagai transaksi baru yang tetap dapat diaudit.
+- Meta Pixel, TikTok Pixel, parameter UTM, event page view/checkout/purchase, dan dashboard analitik merchant.
+- Snapshot subtotal, diskon, kode kupon, harga order bump, serta atribusi pada pesanan dan ekspor CSV.
+- Migration `0007_ambiguous_sinister_six.sql` dan `0008_third_namor.sql`.
+
+### Keamanan dan keandalan
+
+- Penawaran funnel hanya dapat memakai produk milik merchant yang sama.
+- Input tracking hanya menerima ID provider; merchant tidak dapat menyisipkan script bebas.
+- Penggunaan kupon, enrollment bump, event purchase, dan ledger tetap idempoten terhadap retry webhook.
+- Satu order dapat memiliki beberapa enrollment tanpa menghapus constraint unik user–course.
+- Kupon yang sudah memiliki redemption tidak dapat dihapus agar jejak transaksi tetap tersedia.
+
+## 0.7.0 — 22 Juli 2026
+
+### Ditambahkan
+
+- Status merchant PENDING, ACTIVE, dan SUSPENDED beserta kontrol aktivasi admin.
+- Komisi default platform dan komisi khusus merchant dalam basis points.
+- Snapshot bruto, komisi, dan pendapatan bersih pada setiap transaksi PAID.
+- Ledger saldo merchant yang idempoten terhadap retry webhook.
+- Rekening pencairan, permintaan payout, pencadangan saldo, konfirmasi admin, dan pengembalian saldo saat ditolak.
+- Pusat admin untuk merchant, produk, member, seluruh transaksi, ekspor CSV, payout, pengaturan, dan audit log.
+- Halaman merchant **Saldo & payout** dengan rincian penjualan, saldo, payout, dan mutasi ledger.
+- Migration `0006_multi_merchant_finance.sql` dengan backfill transaksi PAID lama.
+
+### Keamanan dan keandalan
+
+- Advisory transaction lock mencegah dua payout memakai saldo yang sama.
+- Komisi disimpan sebagai snapshot sehingga perubahan tarif tidak menulis ulang transaksi lama.
+- Payout hanya ditandai dibayar oleh admin setelah referensi transfer diisi; tidak ada transfer otomatis tersembunyi.
+- Merchant tertangguh tidak memiliki toko/checkout publik, tetapi masih dapat login untuk melihat data.
+- Webhook expired yang datang terlambat tidak dapat menurunkan transaksi PAID.
+
 ## 0.6.0 — 22 Juli 2026
 
 ### Ditambahkan

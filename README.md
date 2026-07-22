@@ -1,4 +1,4 @@
-# Lajurin v0.6.0
+# Lajurin v1.0.0
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -9,19 +9,25 @@ Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 - Dashboard member: kursus aktif, pesanan yang perlu ditindaklanjuti, dan akses komunitas.
 - Isolasi multi-merchant: setiap dashboard usaha hanya membaca produk dan transaksi merchant yang login.
 - Profil toko merchant dengan URL publik `/m/[slug]`, identitas brand, kontak, dan etalase produk.
-- Editor landing page per produk untuk hero, gambar, manfaat, sasaran peserta, CTA, dan warna.
+- Editor landing page dengan tiga template, upload media, hero video, pengajar, bonus, testimoni, FAQ, jaminan, promo, dan pixel.
 - Kelas member menampilkan merchant pemilik; satu member tetap dapat mengakses pembelian dari beberapa merchant dalam satu area belajar.
 - Checkout Xendit dan transfer bank manual.
 - Unggah bukti transfer privat; hanya customer, merchant terkait, dan admin yang dapat membukanya.
 - Persetujuan admin otomatis membuat enrollment dan membuka akses kursus.
-- Komunitas eksklusif dengan postingan, komentar, dan fitur sematkan postingan bagi pengelola.
+- Komunitas scoped umum/merchant/produk dengan gambar privat, reaction, komentar, laporan, dan moderasi berbasis kepemilikan.
+- Inbox merchant–member per produk, status belum dibaca, dan pusat notifikasi dalam aplikasi.
+- Menu Pelanggan dengan segmentasi progres serta automation pembayaran lunas/kelas selesai melalui StarSender dan Mailketing.
 - E-course dengan video tertanam (YouTube, Vimeo, Loom, MP4/WebM/OGG), sidebar materi, navigasi, dan progres belajar.
 - Bab/modul bertingkat untuk mengelompokkan lesson dan mengatur urutan kurikulum.
 - File materi privat (PDF, EPUB, ZIP, Office, dan TXT) yang hanya dapat diunduh pemilik kelas, member terdaftar, atau admin.
 - Preview materi gratis, pengelolaan urutan materi, serta sertifikat setelah progres 100%.
 - Notifikasi transaksi otomatis melalui WhatsApp StarSender dan email Mailketing.
 - Dashboard integrasi admin dengan status provider, log pengiriman, error, dan kirim ulang.
+- Fondasi bisnis multi-merchant: aktivasi/penangguhan merchant, komisi default atau khusus, snapshot fee per transaksi, saldo berbasis ledger, rekening payout, permintaan pencairan, dan verifikasi payout oleh admin.
+- Pusat operasional admin untuk merchant, member, produk, transaksi lintas merchant, ekspor CSV, payout, pengaturan keuangan, dan audit log.
+- Sales funnel merchant: kupon, order bump satu transaksi, rekomendasi upsell/downsell, UTM, serta dashboard conversion rate dan atribusi kampanye.
 - Halaman produk, materi kursus, autentikasi cookie, webhook Xendit, Docker, dan health check.
+- Production readiness: rate limit, validasi signature upload, security headers, log webhook, readiness check, refund penuh tercatat, dan pusat operasional admin.
 
 ## Dokumentasi proyek
 
@@ -81,10 +87,22 @@ NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte
 3. Status pesanan berubah menjadi **Menunggu konfirmasi**.
 4. Hanya admin platform yang dapat membuka **Admin → Konfirmasi pembayaran**, memeriksa bukti, lalu menyetujui atau menolak. Merchant dapat melihat status transaksi miliknya, tetapi tidak dapat mengubah keputusan pembayaran.
 5. Jika disetujui, status menjadi **Lunas** dan kursus langsung muncul pada dashboard member.
+6. Sistem mencatat komisi dan pendapatan bersih merchant satu kali ke ledger; retry webhook tidak menggandakan saldo.
+
+## Alur payout merchant
+
+1. Admin mengaktifkan merchant dan menentukan komisi default atau khusus.
+2. Merchant menyimpan rekening di **Dashboard usaha → Saldo & payout**.
+3. Setelah saldo mencapai minimum, merchant mengajukan nominal payout.
+4. Saldo langsung dicadangkan agar tidak dapat diajukan dua kali.
+5. Admin mentransfer di bank lalu mengisi referensi dan menandai payout dibayar.
+6. Jika ditolak, saldo otomatis dikembalikan ke ledger merchant.
+
+Nilai awal yang aman adalah komisi 0% dan minimum payout Rp100.000. Admin perlu menetapkan komisi bisnis yang diinginkan sebelum menerima penjualan baru; perubahan hanya berlaku pada transaksi berikutnya.
 
 Bukti disimpan di `/app/data/payment-proofs`. Pada Docker Compose, direktori tersebut sudah memakai volume `payment_proofs`, sehingga berkas tetap tersedia setelah container dibuat ulang. Untuk deployment non-Compose, pasang persistent volume ke direktori yang sama.
 
-File pendamping course disimpan terpisah di `/app/data/course-files` dan memakai volume `course_files`. Batas satu file adalah 15 MB. Jangan menaruh kedua folder tersebut di repository GitHub.
+File pendamping course disimpan di `/app/data/course-files`, media landing page di `/app/data/landing-media`, dan gambar komunitas di `/app/data/community-media`. Ketiganya memakai volume persisten terpisah. Batas file course 15 MB, sedangkan cover/foto landing page dan gambar komunitas 5 MB. Jangan menaruh keempat folder data—termasuk bukti pembayaran—di repository GitHub.
 
 ## Xendit
 
@@ -102,15 +120,24 @@ Gunakan Test Mode sampai seluruh skenario webhook berhasil. Jika kredensial Xend
 2. Tambahkan PostgreSQL dan isi seluruh environment variable yang diperlukan.
 3. Pasang persistent volume ke `/app/data/payment-proofs` (bukan `/app/uploads`).
 4. Pasang persistent volume kedua ke `/app/data/course-files` untuk PDF/ebook/file bonus.
-5. Exposed port: `3000`; health check: `/api/health`.
-6. Deploy. Migrasi dijalankan otomatis sebelum aplikasi aktif.
-7. Jalankan seed sekali untuk membuat atau memperbarui akun admin.
-8. Buka menu ADMIN → Integrasi dan pastikan kedua provider berstatus Aktif.
+5. Pasang persistent volume ketiga ke `/app/data/landing-media` untuk cover dan foto pengajar.
+6. Pasang persistent volume keempat ke `/app/data/community-media` untuk gambar post komunitas.
+7. Exposed port: `3000`; liveness: `/api/health`; health check container: `/api/ready`.
+8. Deploy. Migrasi dijalankan otomatis sebelum aplikasi aktif.
+9. Jalankan seed sekali untuk membuat atau memperbarui akun admin.
+10. Buka menu ADMIN → Integrasi dan pastikan kedua provider berstatus Aktif.
 
 ## Pemeriksaan sebelum rilis
 
 ```bash
+npm run test
 npm run lint
 npm run typecheck
 npm run build
+```
+
+Untuk membuat manifest hash seluruh file persistent storage setelah backup/restore:
+
+```bash
+npm run ops:storage-manifest
 ```

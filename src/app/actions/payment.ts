@@ -1,16 +1,20 @@
 "use server";
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { recordPaidOrderAccounting } from "@/lib/finance";
+import { fulfillPaidOrder } from "@/lib/funnel";
 import { dispatchOrderNotifications } from "@/lib/notifications";
-import { courses, enrollments, orders, products } from "@/lib/schema";
+import { dispatchMerchantAutomations } from "@/lib/automation";
+import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, products } from "@/lib/schema";
 import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
+import { currentRequestIdentity, enforceRateLimit, verifyUploadSignature } from "@/lib/security";
 
 const proofTypes: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -21,6 +25,9 @@ const proofTypes: Record<string, string> = {
 
 export async function submitManualPaymentAction(orderId: string, formData: FormData) {
   const user = await requireUser();
+  const rateLimitKey = await currentRequestIdentity("payment-proof", `${user.id}:${orderId}`);
+  const rateLimit = await enforceRateLimit(rateLimitKey, { limit: 5, windowMs: 30 * 60_000, blockMs: 60 * 60_000 });
+  if (rateLimit.limited) redirect(`/payment/manual/${orderId}?error=Terlalu+banyak+percobaan+unggah.+Coba+lagi+nanti`);
   const parsed = z.object({
     bankName: z.string().trim().min(2).max(80),
     accountName: z.string().trim().min(2).max(100),
@@ -35,35 +42,45 @@ export async function submitManualPaymentAction(orderId: string, formData: FormD
     redirect(`/payment/manual/${orderId}?error=Lengkapi+data+dan+unggah+bukti+JPG,+PNG,+WebP,+atau+PDF+maksimal+3MB`);
   }
 
-  const [order] = await db.select({ id: orders.id }).from(orders).where(and(
+  const [order] = await db.select({ id: orders.id, previousProof: orders.manualProofUrl }).from(orders).where(and(
     eq(orders.id, orderId), eq(orders.customerId, user.id), eq(orders.paymentMethod, "MANUAL_TRANSFER"), inArray(orders.status, ["PENDING", "REJECTED"]),
   )).limit(1);
   if (!order) redirect("/member/orders?error=Pesanan+tidak+ditemukan");
 
+  const proofBuffer = Buffer.from(await proof.arrayBuffer());
+  if (!verifyUploadSignature(proofBuffer, proof.type)) {
+    redirect(`/payment/manual/${orderId}?error=Isi+file+tidak+sesuai+dengan+format+yang+dipilih`);
+  }
   const fileName = `${order.id}-${randomUUID()}${proofTypes[proof.type]}`;
   await mkdir(paymentProofDirectory, { recursive: true });
-  await writeFile(paymentProofPath(fileName), Buffer.from(await proof.arrayBuffer()), { flag: "wx" });
+  await writeFile(paymentProofPath(fileName), proofBuffer, { flag: "wx" });
 
-  await db.update(orders).set({
-    status: "AWAITING_CONFIRMATION",
-    manualProofUrl: fileName,
-    manualBankName: parsed.data.bankName,
-    manualAccountName: parsed.data.accountName,
-    manualTransferNote: parsed.data.note || null,
-    manualSubmittedAt: new Date(),
-    reviewedAt: null,
-    reviewedBy: null,
-    updatedAt: new Date(),
-  }).where(eq(orders.id, order.id));
+  try {
+    await db.update(orders).set({
+      status: "AWAITING_CONFIRMATION",
+      manualProofUrl: fileName,
+      manualBankName: parsed.data.bankName,
+      manualAccountName: parsed.data.accountName,
+      manualTransferNote: parsed.data.note || null,
+      manualSubmittedAt: new Date(),
+      reviewedAt: null,
+      reviewedBy: null,
+      updatedAt: new Date(),
+    }).where(eq(orders.id, order.id));
+  } catch (error) {
+    await unlink(paymentProofPath(fileName)).catch(() => undefined);
+    throw error;
+  }
+  if (order.previousProof && order.previousProof !== fileName) {
+    try { await unlink(paymentProofPath(order.previousProof)); } catch { /* file lama tidak menghalangi bukti baru */ }
+  }
   redirect(`/member/orders?success=Bukti+pembayaran+berhasil+dikirim`);
 }
 
 export async function reviewManualPaymentAction(orderId: string, decision: "approve" | "reject") {
   const admin = await requireAdmin();
   const parsedDecision = z.enum(["approve", "reject"]).parse(decision);
-  const [row] = await db.select({ order: orders, courseId: courses.id }).from(orders)
-    .innerJoin(products, eq(orders.productId, products.id))
-    .innerJoin(courses, eq(courses.productId, products.id))
+  const [row] = await db.select({ order: orders }).from(orders)
     .where(and(eq(orders.id, orderId), eq(orders.status, "AWAITING_CONFIRMATION"), eq(orders.paymentMethod, "MANUAL_TRANSFER"))).limit(1);
   if (!row || !row.order.customerId) redirect("/admin/payments?error=Pesanan+tidak+siap+ditinjau");
 
@@ -74,13 +91,69 @@ export async function reviewManualPaymentAction(orderId: string, decision: "appr
       reviewedAt: new Date(), reviewedBy: admin.id, updatedAt: new Date(),
     }).where(eq(orders.id, row.order.id));
     if (parsedDecision === "approve") {
-      await tx.insert(enrollments).values({ userId: row.order.customerId!, courseId: row.courseId, orderId: row.order.id })
-        .onConflictDoUpdate({ target: [enrollments.userId, enrollments.courseId], set: { orderId: row.order.id } });
+      await fulfillPaidOrder(tx, row.order.id);
+      await recordPaidOrderAccounting(tx, row.order.id);
     }
+    await tx.insert(auditLogs).values({
+      actorId: admin.id,
+      action: parsedDecision === "approve" ? "MANUAL_PAYMENT_APPROVED" : "MANUAL_PAYMENT_REJECTED",
+      entityType: "ORDER",
+      entityId: row.order.id,
+      metadata: { amount: row.order.amount },
+    });
   });
   await dispatchOrderNotifications(row.order.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
+  if (parsedDecision === "approve") await dispatchMerchantAutomations("PURCHASED", row.order.id);
   revalidatePath("/admin");
   revalidatePath("/admin/payments");
   revalidatePath("/admin/integrations");
+  revalidatePath("/admin/transactions");
+  revalidatePath("/admin/merchants");
+  revalidatePath("/dashboard/finance");
   revalidatePath("/member");
+}
+
+export async function recordFullRefundAction(orderId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const parsed = z.object({
+    reference: z.string().trim().min(3).max(120),
+    reason: z.string().trim().min(10).max(500),
+  }).safeParse({ reference: formData.get("reference"), reason: formData.get("reason") });
+  if (!parsed.success) redirect("/admin/transactions?error=Referensi+dan+alasan+refund+wajib+diisi");
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`order:${orderId}`}))`);
+    const [row] = await tx.select({ order: orders, merchantId: products.merchantId }).from(orders)
+      .innerJoin(products, eq(orders.productId, products.id)).where(eq(orders.id, orderId)).limit(1);
+    if (!row || row.order.status !== "PAID" || !row.order.customerId) throw new Error("ORDER_NOT_REFUNDABLE");
+
+    const merchantNet = row.order.merchantNetAmount ?? row.order.amount;
+    await tx.insert(merchantLedgerEntries).values({
+      merchantId: row.merchantId, orderId: row.order.id, type: "REFUND", amount: -merchantNet,
+      description: `Refund penuh ${row.order.externalId}`, createdBy: admin.id,
+    }).onConflictDoNothing({ target: [merchantLedgerEntries.orderId, merchantLedgerEntries.type] });
+    await tx.delete(enrollments).where(eq(enrollments.orderId, row.order.id));
+    await tx.update(orders).set({
+      status: "REFUNDED", refundedAt: new Date(), refundAmount: row.order.amount,
+      refundReference: parsed.data.reference, refundReason: parsed.data.reason, refundedBy: admin.id, updatedAt: new Date(),
+    }).where(and(eq(orders.id, row.order.id), eq(orders.status, "PAID")));
+    await tx.insert(auditLogs).values({
+      actorId: admin.id, action: "ORDER_FULL_REFUND_RECORDED", entityType: "ORDER", entityId: row.order.id,
+      metadata: { amount: row.order.amount, merchantNetReversed: merchantNet, reference: parsed.data.reference },
+    });
+    await tx.insert(inAppNotifications).values({
+      userId: row.order.customerId, actorId: admin.id, type: "ORDER_REFUNDED", title: "Pesanan telah direfund",
+      body: `Refund untuk ${row.order.externalId} telah dicatat.`, href: "/member/orders", dedupeKey: `order-refund:${row.order.id}`,
+    }).onConflictDoNothing({ target: inAppNotifications.dedupeKey });
+  }).catch((error) => {
+    if (error instanceof Error && error.message === "ORDER_NOT_REFUNDABLE") redirect("/admin/transactions?error=Pesanan+tidak+dapat+direfund+atau+sudah+diproses");
+    throw error;
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/transactions");
+  revalidatePath("/dashboard/finance");
+  revalidatePath("/member");
+  revalidatePath("/member/orders");
+  redirect("/admin/transactions?success=Refund+penuh+berhasil+dicatat+dan+akses+kelas+dicabut");
 }

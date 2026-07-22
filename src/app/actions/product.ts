@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
 import { courseModules, courses, lessonAttachments, lessons, products } from "@/lib/schema";
 import { courseFileDirectory, courseFilePath } from "@/lib/storage";
+import { verifyUploadSignature } from "@/lib/security";
 
 const MAX_COURSE_FILE_SIZE = 15 * 1024 * 1024;
 const allowedCourseFileExtensions = new Set([".pdf", ".epub", ".zip", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt"]);
@@ -232,8 +233,10 @@ export async function uploadLessonAttachmentAction(productId: string, lessonId: 
 
   const originalName = path.basename(file.name).replace(/[\r\n"]/g, "_").slice(0, 180) || `materi${extension}`;
   const storageKey = `${randomUUID()}${extension}`;
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  if (!verifyUploadSignature(fileBuffer, file.type)) redirect(`/dashboard/products/${productId}?error=Isi+file+tidak+sesuai+dengan+format`);
   await mkdir(courseFileDirectory, { recursive: true });
-  await writeFile(courseFilePath(storageKey), Buffer.from(await file.arrayBuffer()), { flag: "wx" });
+  await writeFile(courseFilePath(storageKey), fileBuffer, { flag: "wx" });
   try {
     await db.insert(lessonAttachments).values({
       lessonId,

@@ -31,6 +31,8 @@ services:
     volumes:
       - payment_proofs:/app/data/payment-proofs
       - course_files:/app/data/course-files
+      - landing_media:/app/data/landing-media
+      - community_media:/app/data/community-media
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,3 +41,5 @@ volumes:
   postgres_data:
   payment_proofs:
   course_files:
+  landing_media:
+  community_media:

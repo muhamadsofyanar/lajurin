@@ -1,13 +1,3 @@
-import { pool } from "@/lib/db";
-
-export async function GET() {
-  try {
-    await pool.query("SELECT 1");
-    return Response.json({ status: "ok", database: "connected" });
-  } catch {
-    return Response.json(
-      { status: "error", database: "unavailable" },
-      { status: 503 },
-    );
-  }
+export function GET() {
+  return Response.json({ status: "ok", service: "lajurin" }, { headers: { "cache-control": "no-store" } });
 }
