@@ -1,7 +1,7 @@
 export type PlatformRole = "ADMIN" | "MERCHANT" | "MEMBER";
 export type WorkspaceKind = "INTERNAL" | "EXTERNAL";
 export type WorkspaceStatus = "DRAFT" | "ACTIVE" | "SUSPENDED" | "CLOSED";
-export type WorkspaceMembershipRole = "OWNER" | "ADMIN" | "MEMBER";
+export type WorkspaceMembershipRole = "OWNER" | "ADMIN" | "FINANCE" | "STAFF" | "MEMBER";
 export type WorkspaceMembershipStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "REVOKED";
 
 export type WorkspacePermission =

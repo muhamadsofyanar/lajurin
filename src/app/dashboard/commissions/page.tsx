@@ -1,0 +1,27 @@
+import Link from "next/link";
+import { desc, eq, sql } from "drizzle-orm";
+import { submitCommissionPaymentAction } from "@/app/actions/commission";
+import { requireMerchant } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { requireFeature } from "@/lib/feature-flags";
+import { formatRupiah } from "@/lib/format";
+import { formatDate } from "@/lib/order";
+import { commissionPayments, platformReceivableEntries, platformSettings } from "@/lib/schema";
+
+const statusLabels = { SUBMITTED: "Menunggu admin", APPROVED: "Disetujui", REJECTED: "Ditolak" };
+
+export default async function CommissionPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
+  const merchant = await requireMerchant();
+  await requireFeature("COMMISSION_BILLING", merchant.id);
+  const { error, success } = await searchParams;
+  const [[{ due }], [settings], payments, ledger] = await Promise.all([
+    db.select({ due: sql<number>`coalesce(sum(${platformReceivableEntries.amount}), 0)::integer` }).from(platformReceivableEntries).where(eq(platformReceivableEntries.merchantId, merchant.id)),
+    db.select().from(platformSettings).where(eq(platformSettings.id, 1)).limit(1),
+    db.select().from(commissionPayments).where(eq(commissionPayments.merchantId, merchant.id)).orderBy(desc(commissionPayments.createdAt)).limit(20),
+    db.select().from(platformReceivableEntries).where(eq(platformReceivableEntries.merchantId, merchant.id)).orderBy(desc(platformReceivableEntries.createdAt)).limit(40),
+  ]);
+  const outstanding = Number(due);
+  const bankReady = Boolean(settings?.commissionBankName && settings.commissionAccountNumber && settings.commissionAccountHolder);
+  const hasPending = payments.some((payment) => payment.status === "SUBMITTED");
+  return <main className="app-main"><div className="shell"><div className="page-head"><div><span className="eyebrow">Keuangan</span><h1 className="display" style={{ marginTop: 12 }}>Tagihan komisi</h1><p>Tagihan berasal dari penjualan transfer langsung yang sudah dikonfirmasi.</p></div><Link className="btn" href="/dashboard/finance">Saldo & payout</Link></div>{error && <p className="alert">{error}</p>}{success && <p className="alert alert-success">{success}</p>}<section className="stats stats-4"><div className="stat stat-highlight"><span>Sisa tagihan</span><strong>{formatRupiah(outstanding)}</strong></div><div className="stat"><span>Menunggu verifikasi</span><strong>{payments.filter((item) => item.status === "SUBMITTED").length}</strong></div><div className="stat"><span>Pelunasan disetujui</span><strong>{payments.filter((item) => item.status === "APPROVED").length}</strong></div><div className="stat"><span>Mutasi ledger</span><strong>{ledger.length}</strong></div></section><div className="two-col"><section className="panel"><div className="panel-head"><h2>Kirim pelunasan</h2></div>{bankReady ? <form className="form panel-form" action={submitCommissionPaymentAction}><div className="balance-callout"><small>TRANSFER KE</small><strong>{settings!.commissionBankName} · {settings!.commissionAccountNumber}</strong><span>{settings!.commissionAccountHolder}</span></div><div className="field"><label htmlFor="commissionAmount">Nominal</label><input className="input" id="commissionAmount" name="amount" type="number" min="1" max={Math.max(1, outstanding)} defaultValue={outstanding || undefined} required disabled={outstanding <= 0 || hasPending} /></div><div className="field"><label htmlFor="commissionProof">Bukti transfer</label><input className="input file-input" id="commissionProof" name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required disabled={outstanding <= 0 || hasPending} /></div><div className="field"><label htmlFor="commissionNote">Catatan</label><textarea className="input" id="commissionNote" name="note" maxLength={500} disabled={outstanding <= 0 || hasPending} /></div><button className="btn btn-primary" type="submit" disabled={outstanding <= 0 || hasPending}>Kirim bukti</button>{hasPending && <small className="field-hint">Selesaikan verifikasi pembayaran sebelumnya terlebih dahulu.</small>}</form> : <p className="alert">Admin belum mengatur rekening penerima komisi.</p>}</section><section className="panel"><div className="panel-head"><h2>Riwayat pembayaran</h2></div>{payments.length ? payments.map((payment) => <div className="finance-row" key={payment.id}><div><strong>{formatRupiah(payment.amount)}</strong><small>{formatDate(payment.createdAt)} · {payment.destinationBank} {payment.destinationAccount}</small>{payment.adminNote && <small>Catatan admin: {payment.adminNote}</small>}</div><div><Link className="btn btn-compact" href={`/api/commission-proof/${payment.id}`} target="_blank">Bukti</Link><span className={`badge status-${payment.status.toLowerCase()}`}>{statusLabels[payment.status]}</span></div></div>) : <div className="empty"><p>Belum ada pelunasan.</p></div>}</section></div><section className="panel"><div className="panel-head"><h2>Ledger tagihan</h2><span className="muted">40 mutasi terakhir</span></div>{ledger.length ? ledger.map((entry) => <div className="finance-row" key={entry.id}><div><strong>{entry.description}</strong><small>{formatDate(entry.createdAt)}</small></div><strong className={entry.amount > 0 ? "amount-negative" : "amount-positive"}>{entry.amount > 0 ? "+" : "−"}{formatRupiah(Math.abs(entry.amount))}</strong></div>) : <div className="empty"><p>Belum ada tagihan komisi.</p></div>}</section></div></main>;
+}

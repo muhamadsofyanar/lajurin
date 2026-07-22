@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireFeature } from "@/lib/feature-flags";
 import { slugify } from "@/lib/format";
 import { merchantProfiles, productLandingPages, products } from "@/lib/schema";
 import { landingMediaDirectory, landingMediaPath } from "@/lib/storage";
@@ -79,6 +80,7 @@ export async function updateMerchantProfileAction(formData: FormData) {
 
 export async function updateLandingPageAction(productId: string, formData: FormData) {
   const merchant = await requireMerchant();
+  await requireFeature("LANDING_PAGE_BUILDER", merchant.id);
   const parsed = z.object({
     eyebrow: z.string().trim().max(80).optional(),
     heroTitle: z.string().trim().max(180).optional(),
@@ -172,6 +174,7 @@ export async function updateLandingPageAction(productId: string, formData: FormD
 
 export async function uploadLandingMediaAction(productId: string, slot: "cover" | "instructor", formData: FormData) {
   const merchant = await requireMerchant();
+  await requireFeature("LANDING_PAGE_BUILDER", merchant.id);
   const file = formData.get("file");
   if (!(file instanceof File) || !landingImageTypes[file.type] || file.size < 1 || file.size > 5 * 1024 * 1024) {
     redirect(`/dashboard/products/${productId}/landing?error=Gunakan+gambar+JPG,+PNG,+atau+WebP+maksimal+5MB`);

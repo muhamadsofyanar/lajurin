@@ -1,0 +1,16 @@
+import Link from "next/link";
+import { desc, eq, sql } from "drizzle-orm";
+import { reviewCommissionPaymentAction } from "@/app/actions/commission";
+import { db } from "@/lib/db";
+import { formatRupiah } from "@/lib/format";
+import { formatDate } from "@/lib/order";
+import { commissionPayments, merchantProfiles, platformReceivableEntries, users } from "@/lib/schema";
+
+export default async function AdminCommissionsPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
+  const { error, success } = await searchParams;
+  const [payments, receivables] = await Promise.all([
+    db.select({ payment: commissionPayments, merchantName: merchantProfiles.brandName, ownerName: users.name }).from(commissionPayments).innerJoin(users, eq(users.id, commissionPayments.merchantId)).innerJoin(merchantProfiles, eq(merchantProfiles.userId, commissionPayments.merchantId)).orderBy(desc(commissionPayments.createdAt)).limit(100),
+    db.select({ merchantId: platformReceivableEntries.merchantId, balance: sql<number>`coalesce(sum(${platformReceivableEntries.amount}), 0)::integer` }).from(platformReceivableEntries).groupBy(platformReceivableEntries.merchantId),
+  ]);
+  return <main className="app-main"><div className="shell"><div className="page-head"><div><h1 className="display">Pelunasan komisi</h1><p>Verifikasi bukti transfer merchant. Persetujuan mengurangi piutang secara atomik.</p></div></div>{error && <p className="alert">{error}</p>}{success && <p className="alert alert-success">{success}</p>}<section className="panel"><div className="panel-head"><h2>Antrean & riwayat</h2><span className="badge">{payments.filter(({ payment }) => payment.status === "SUBMITTED").length} menunggu</span></div>{payments.length ? payments.map(({ payment, merchantName, ownerName }) => { const due = Number(receivables.find((row) => row.merchantId === payment.merchantId)?.balance ?? 0); return <div className="admin-payment-card" key={payment.id}><div className="finance-row"><div><strong>{merchantName}</strong><small>{ownerName} · {formatDate(payment.createdAt)}</small><small>Tagihan saat ini {formatRupiah(due)}</small></div><div><strong>{formatRupiah(payment.amount)}</strong><span className={`badge status-${payment.status.toLowerCase()}`}>{payment.status}</span></div></div><div className="actions"><Link className="btn" href={`/api/commission-proof/${payment.id}`} target="_blank">Lihat bukti</Link>{payment.status === "SUBMITTED" && <><form className="inline-review" action={reviewCommissionPaymentAction.bind(null, payment.id, "approve")}><input className="input" name="note" required minLength={5} maxLength={500} placeholder="Catatan persetujuan" /><button className="btn btn-primary" type="submit">Setujui</button></form><form className="inline-review" action={reviewCommissionPaymentAction.bind(null, payment.id, "reject")}><input className="input" name="note" required minLength={5} maxLength={500} placeholder="Alasan penolakan" /><button className="btn btn-danger" type="submit">Tolak</button></form></>}</div>{payment.adminNote && <p className="muted">Catatan admin: {payment.adminNote}</p>}</div>; }) : <div className="empty"><p>Belum ada pembayaran komisi.</p></div>}</section></div></main>;
+}

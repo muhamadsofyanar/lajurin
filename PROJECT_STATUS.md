@@ -2,7 +2,7 @@
 
 ## Versi aktif source
 
-- Versi paket source: **1.1.0 — Workspace Foundation M1 Candidate**
+- Versi paket source: **1.3.0 — Integrated Business Suite Candidate**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
@@ -19,7 +19,7 @@
 - `WORKSPACE_FOUNDATION_ENABLED` default `false`; route dan switcher baru tidak mengubah pengalaman produksi saat flag mati.
 - Query produk, transaksi, payment, ledger, payout, enrollment, LMS, dan komunitas belum dipindahkan ke `workspace_id` pada M1.
 - Custom domain baru dimodelkan; verifikasi dan routing domain belum diaktifkan.
-- Verifikasi lokal kandidat: 12 migration file valid, 16/16 test lulus, lint, TypeScript, dan production build lulus. Migration/backfill PostgreSQL nyata menunggu staging.
+- Verifikasi lokal kandidat v1.2.0: 13 migration file valid, 19/19 test lulus, lint, TypeScript, dan production build lulus. Migration/backfill PostgreSQL nyata menunggu staging.
 
 ## Perubahan dalam pengerjaan — Sprint 1
 
@@ -29,14 +29,25 @@
 - Landing Page Builder dasar tetap tersedia dari v0.8. Custom Domain, Broadcast & Abandoned Checkout, serta Automatic Payout & Refund belum dimulai pada perubahan ini.
 - Admin dapat mengedit nama pemilik, email login, email support, status verifikasi, dan komisi merchant melalui halaman control plane yang diaudit.
 - Edit merchant v1.0.2 telah diunggah dan deployment commit `2a73b412...` berstatus healthy.
-- Schema M1 tetap backward compatible; migration terbaru source kandidat adalah `0011`.
+- Schema M1 dan direct manual settlement tetap backward compatible; migration terbaru source kandidat v1.3.0 adalah `0013`.
 
-## Keputusan pembayaran manual yang masih diblokir
+## Integrated Business Suite v1.3.0 — candidate
 
-- Rekening transfer manual saat ini berasal dari `MANUAL_BANK_*` dan merupakan rekening platform.
-- Ledger setelah pembayaran disetujui mengkredit saldo merchant untuk payout, sehingga uang dianggap diterima platform.
-- Merchant belum boleh menyetujui/menolak bukti transfer tersebut karena tidak memiliki kewenangan memeriksa mutasi rekening platform.
-- Sebelum konfirmasi merchant dapat diterapkan, desain harus menetapkan rekening penerimaan per merchant, snapshot tujuan pembayaran, settlement langsung, cara penagihan komisi, idempotensi, dan perlakuan payout/refund.
+- Feature flag database mengaktifkan modul tanpa redeploy dengan mode OFF, USERS/canary, dan ALL; seluruh flag baru default OFF.
+- Workspace team management mendukung Owner, Admin, Finance, dan Staff dengan audit serta proteksi owner terakhir.
+- Pelunasan komisi memiliki rekening tujuan platform, upload bukti privat, antrean admin, notifikasi, dan ledger atomik.
+- Landing Page Builder memiliki pusat daftar halaman; editor lengkap dan halaman publik tetap memakai model yang kompatibel.
+- Laporan penjualan mendukung periode 7/30/90 hari atau seluruh data dan ekspor CSV aman.
+- Migration aditif terbaru `0013_demonic_trish_tilby.sql`; volume baru `/app/data/commission-proofs` wajib persisten.
+- Verifikasi lokal v1.3.0: 14 migration file valid, 26/26 test lulus, lint tanpa warning, TypeScript, dan production build lulus. Migration PostgreSQL nyata tetap wajib diuji di staging.
+
+## Pembayaran manual direct — candidate
+
+- Rekening penerimaan transfer manual merchant dipisahkan dari rekening payout dan harus diaktifkan merchant.
+- Pesanan baru menyimpan snapshot tujuan serta mode `PLATFORM` atau `MERCHANT_DIRECT`; pesanan lama tetap `PLATFORM`.
+- Merchant hanya dapat meninjau `MERCHANT_DIRECT` miliknya. Admin dapat override dengan alasan dan audit log.
+- Settlement langsung tidak menambah saldo payout; komisi dicatat sebagai piutang platform dan refund membalik piutang tersebut.
+- Migration `0012` dan alur ini masih kandidat sampai regression database staging selesai.
 
 ## Fitur selesai
 
@@ -142,7 +153,7 @@
 - Webhook Xendit disimpan pada log idempoten dengan request ID, status, response, payload, serta error untuk audit operasional.
 - Advisory lock pesanan mencegah race antara webhook completed, expired, dan refund.
 - Admin memiliki halaman Operasional untuk memeriksa database, konfigurasi, storage, blokir aktif, dan webhook terbaru tanpa menampilkan secret.
-- Liveness dan readiness dipisahkan; container hanya healthy jika database, konfigurasi wajib, dan empat volume siap.
+- Liveness dan readiness dipisahkan; container hanya healthy jika database, konfigurasi wajib, dan lima volume siap.
 - Admin dapat mencatat refund penuh yang sudah dikirim; enrollment dicabut dan net merchant dibalik melalui ledger append-only.
 - Security headers global, maksimal lima sesi aktif per akun, serta cleanup sesi kedaluwarsa diterapkan.
 - Empat automated test kritis dan alat manifest SHA-256 volume tersedia.
@@ -155,7 +166,13 @@
 
 ## Database terbaru
 
-Migration terbaru: `drizzle/0011_wide_onslaught.sql`.
+Migration terbaru: `drizzle/0012_numerous_marvel_boy.sql`.
+
+Migration direct manual settlement (`0012`):
+
+1. Menambah rekening penerimaan merchant dan ledger piutang platform.
+2. Menambah settlement mode serta snapshot tujuan pada order dengan default `PLATFORM`.
+3. Tidak mengubah nominal, status, rekening tujuan, atau ledger pesanan lama.
 
 Migration Workspace Foundation M1 (`0011`):
 
@@ -200,4 +217,4 @@ Migration tidak menghapus tabel, kolom, lesson, pesanan, enrollment, atau data v
 
 ## Rekomendasi tahap berikutnya
 
-Tahap berikut adalah **validasi M1 pada staging terpisah**: jalankan migration `0011`, backfill dua kali, rekonsiliasi, negative isolation test, lalu regresi seluruh jalur legacy dengan feature flag tetap mati. Kandidat M1 belum boleh diunggah ke branch produksi. Setelah M0 dan M1 lulus, barulah settlement manual langsung ke rekening merchant serta ledger tagihan komisi dapat dikembangkan secara aditif.
+Tahap berikut adalah **validasi M1 dan migration `0012` pada staging terpisah**: backfill M1 dua kali, rekonsiliasi, negative isolation test, lalu uji transfer platform, transfer langsung, override admin, race konfirmasi, refund, Xendit, dan payout. Kandidat belum boleh dipromosikan sebelum seluruh regression lulus.

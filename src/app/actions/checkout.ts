@@ -6,11 +6,13 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { calculateDiscount } from "@/lib/discount";
+import { calculateOrderAccounting, DEFAULT_PLATFORM_FEE_BPS } from "@/lib/finance";
+import { featureEnabled } from "@/lib/feature-flags";
 import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { dispatchOrderNotifications } from "@/lib/notifications";
-import { analyticsEvents, courses, merchantProfiles, orders, productFunnels, products, users } from "@/lib/schema";
+import { analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, users } from "@/lib/schema";
 import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 
 export async function checkoutAction(slug: string, formData: FormData) {
@@ -34,11 +36,19 @@ export async function checkoutAction(slug: string, formData: FormData) {
   const rateLimit = await enforceRateLimit(rateLimitKey, { limit: 8, windowMs: 15 * 60_000, blockMs: 30 * 60_000 });
   if (rateLimit.limited) redirect(`/checkout/${slug}?error=Terlalu+banyak+percobaan+checkout.+Coba+lagi+dalam+30+menit`);
 
-  const [product] = await db.select({ product: products, courseId: courses.id }).from(products)
+  const [product] = await db.select({ product: products, courseId: courses.id, merchantFeeBps: merchantProfiles.platformFeeBps }).from(products)
     .innerJoin(courses, eq(courses.productId, products.id))
     .innerJoin(merchantProfiles, eq(merchantProfiles.userId, products.merchantId))
     .where(and(eq(products.slug, slug), eq(products.status, "PUBLISHED"), eq(merchantProfiles.status, "ACTIVE"))).limit(1);
   if (!product) redirect("/");
+
+  const directManualEnabled = parsed.data.paymentMethod === "MANUAL_TRANSFER" && await featureEnabled("DIRECT_MANUAL_PAYMENTS", product.product.merchantId);
+  const [manualAccount] = directManualEnabled
+    ? await db.select().from(merchantManualPaymentAccounts).where(and(
+        eq(merchantManualPaymentAccounts.merchantId, product.product.merchantId),
+        eq(merchantManualPaymentAccounts.isActive, true),
+      )).limit(1)
+    : [];
 
   const [funnel] = await db.select().from(productFunnels).where(and(eq(productFunnels.productId, product.product.id), eq(productFunnels.isActive, true))).limit(1);
   let bumpProduct: typeof product.product | null = null;
@@ -55,6 +65,9 @@ export async function checkoutAction(slug: string, formData: FormData) {
   const bumpAmount = bumpProduct?.price ?? 0;
   const subtotalAmount = product.product.price + bumpAmount;
   const finalAmount = subtotalAmount - discountAmount;
+  const [settings] = await db.select({ defaultFeeBps: platformSettings.defaultPlatformFeeBps })
+    .from(platformSettings).where(eq(platformSettings.id, 1)).limit(1);
+  const accounting = calculateOrderAccounting(finalAmount, product.merchantFeeBps ?? settings?.defaultFeeBps ?? DEFAULT_PLATFORM_FEE_BPS);
 
   let [customer] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
   if (customer) {
@@ -88,6 +101,11 @@ export async function checkoutAction(slug: string, formData: FormData) {
       utmMedium: parsed.data.utmMedium || null,
       utmCampaign: parsed.data.utmCampaign || null,
       paymentMethod: parsed.data.paymentMethod,
+      ...accounting,
+      settlementMode: manualAccount ? "MERCHANT_DIRECT" : "PLATFORM",
+      manualDestinationBank: manualAccount?.bankName ?? null,
+      manualDestinationAccount: manualAccount?.accountNumber ?? null,
+      manualDestinationHolder: manualAccount?.accountHolder ?? null,
     }).returning();
 
   await db.insert(analyticsEvents).values({

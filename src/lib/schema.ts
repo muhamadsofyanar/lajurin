@@ -9,6 +9,8 @@ export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", 
 export const merchantStatusEnum = pgEnum("merchant_status", ["PENDING", "ACTIVE", "SUSPENDED"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["REQUESTED", "PAID", "REJECTED"]);
 export const ledgerEntryTypeEnum = pgEnum("ledger_entry_type", ["SALE", "PAYOUT", "PAYOUT_REVERSAL", "REFUND", "ADJUSTMENT"]);
+export const paymentSettlementModeEnum = pgEnum("payment_settlement_mode", ["PLATFORM", "MERCHANT_DIRECT"]);
+export const platformReceivableEntryTypeEnum = pgEnum("platform_receivable_entry_type", ["MANUAL_SALE_FEE", "MANUAL_SALE_FEE_REVERSAL", "PAYMENT", "ADJUSTMENT"]);
 export const landingTemplateEnum = pgEnum("landing_template", ["EDITORIAL", "CREATOR", "STUDIO"]);
 export const couponDiscountTypeEnum = pgEnum("coupon_discount_type", ["PERCENT", "FIXED"]);
 export const analyticsEventEnum = pgEnum("analytics_event", ["PAGE_VIEW", "CHECKOUT_STARTED", "PURCHASE"]);
@@ -17,9 +19,11 @@ export const automationTriggerEnum = pgEnum("automation_trigger", ["PURCHASED", 
 export const webhookProcessingStatusEnum = pgEnum("webhook_processing_status", ["RECEIVED", "PROCESSED", "IGNORED", "FAILED", "REJECTED"]);
 export const workspaceKindEnum = pgEnum("workspace_kind", ["INTERNAL", "EXTERNAL"]);
 export const workspaceStatusEnum = pgEnum("workspace_status", ["DRAFT", "ACTIVE", "SUSPENDED", "CLOSED"]);
-export const workspaceMembershipRoleEnum = pgEnum("workspace_membership_role", ["OWNER", "ADMIN", "MEMBER"]);
+export const workspaceMembershipRoleEnum = pgEnum("workspace_membership_role", ["OWNER", "ADMIN", "FINANCE", "STAFF", "MEMBER"]);
 export const workspaceMembershipStatusEnum = pgEnum("workspace_membership_status", ["INVITED", "ACTIVE", "SUSPENDED", "REVOKED"]);
 export const workspaceDomainStatusEnum = pgEnum("workspace_domain_status", ["PENDING", "VERIFIED", "FAILED", "DISABLED"]);
+export const featureFlagRolloutEnum = pgEnum("feature_flag_rollout", ["OFF", "ALL", "USERS"]);
+export const commissionPaymentStatusEnum = pgEnum("commission_payment_status", ["SUBMITTED", "APPROVED", "REJECTED"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -130,9 +134,22 @@ export const platformSettings = pgTable("platform_settings", {
   id: integer("id").primaryKey().default(1),
   defaultPlatformFeeBps: integer("default_platform_fee_bps").default(0).notNull(),
   minimumPayoutAmount: integer("minimum_payout_amount").default(100000).notNull(),
+  commissionBankName: text("commission_bank_name"),
+  commissionAccountNumber: text("commission_account_number"),
+  commissionAccountHolder: text("commission_account_holder"),
   updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
   ...timestamps,
 });
+
+export const platformFeatureFlags = pgTable("platform_feature_flags", {
+  key: text("key").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  rollout: featureFlagRolloutEnum("rollout").default("OFF").notNull(),
+  audienceUserIds: jsonb("audience_user_ids").$type<string[]>().default([]).notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  ...timestamps,
+}, (table) => [index("platform_feature_flags_rollout_idx").on(table.rollout)]);
 
 export const merchantPayoutAccounts = pgTable("merchant_payout_accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -142,6 +159,16 @@ export const merchantPayoutAccounts = pgTable("merchant_payout_accounts", {
   accountHolder: text("account_holder").notNull(),
   ...timestamps,
 }, (table) => [uniqueIndex("merchant_payout_accounts_merchant_unique").on(table.merchantId)]);
+
+export const merchantManualPaymentAccounts = pgTable("merchant_manual_payment_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bankName: text("bank_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  accountHolder: text("account_holder").notNull(),
+  isActive: boolean("is_active").default(false).notNull(),
+  ...timestamps,
+}, (table) => [uniqueIndex("merchant_manual_payment_accounts_merchant_unique").on(table.merchantId)]);
 
 export const merchantPayouts = pgTable("merchant_payouts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -295,6 +322,9 @@ export const orders = pgTable("orders", {
   xenditPaymentUrl: text("xendit_invoice_url"), xenditPaymentId: text("xendit_payment_id"), paymentMethod: text("payment_method"),
   manualProofUrl: text("manual_proof_url"), manualBankName: text("manual_bank_name"), manualAccountName: text("manual_account_name"),
   manualTransferNote: text("manual_transfer_note"), manualSubmittedAt: timestamp("manual_submitted_at", { withTimezone: true }),
+  settlementMode: paymentSettlementModeEnum("settlement_mode").default("PLATFORM").notNull(),
+  manualDestinationBank: text("manual_destination_bank"), manualDestinationAccount: text("manual_destination_account"),
+  manualDestinationHolder: text("manual_destination_holder"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }), reviewedBy: uuid("reviewed_by").references(() => users.id),
   platformFeeBps: integer("platform_fee_bps"), platformFeeAmount: integer("platform_fee_amount"), merchantNetAmount: integer("merchant_net_amount"),
   paidAt: timestamp("paid_at", { withTimezone: true }), webhookPayload: jsonb("webhook_payload"), ...timestamps,
@@ -343,6 +373,39 @@ export const merchantLedgerEntries = pgTable("merchant_ledger_entries", {
   index("merchant_ledger_entries_merchant_idx").on(table.merchantId, table.createdAt),
   uniqueIndex("merchant_ledger_entries_order_type_unique").on(table.orderId, table.type),
   uniqueIndex("merchant_ledger_entries_payout_type_unique").on(table.payoutId, table.type),
+]);
+
+export const platformReceivableEntries = pgTable("platform_receivable_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+  type: platformReceivableEntryTypeEnum("type").notNull(),
+  amount: integer("amount").notNull(),
+  description: text("description").notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("platform_receivable_entries_merchant_idx").on(table.merchantId, table.createdAt),
+  uniqueIndex("platform_receivable_entries_order_type_unique").on(table.orderId, table.type),
+]);
+
+export const commissionPayments = pgTable("commission_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  amount: integer("amount").notNull(),
+  proofFileName: text("proof_file_name").notNull(),
+  destinationBank: text("destination_bank").notNull(),
+  destinationAccount: text("destination_account").notNull(),
+  destinationHolder: text("destination_holder").notNull(),
+  merchantNote: text("merchant_note"),
+  status: commissionPaymentStatusEnum("status").default("SUBMITTED").notNull(),
+  adminNote: text("admin_note"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index("commission_payments_merchant_idx").on(table.merchantId, table.createdAt),
+  index("commission_payments_status_idx").on(table.status, table.createdAt),
 ]);
 
 export const auditLogs = pgTable("audit_logs", {

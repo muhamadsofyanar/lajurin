@@ -10,7 +10,8 @@ import { db } from "@/lib/db";
 import { calculateDiscount } from "@/lib/discount";
 import { findValidCoupon } from "@/lib/funnel";
 import { formatRupiah } from "@/lib/format";
-import { merchantProfiles, productFunnels, productLandingPages, products, users } from "@/lib/schema";
+import { featureEnabled } from "@/lib/feature-flags";
+import { merchantManualPaymentAccounts, merchantProfiles, productFunnels, productLandingPages, products, users } from "@/lib/schema";
 
 type CheckoutSearch = { error?: string; coupon?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 
@@ -23,6 +24,11 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
     .leftJoin(productLandingPages, eq(productLandingPages.productId, products.id))
     .where(and(eq(products.slug, slug), eq(products.status, "PUBLISHED"), eq(merchantProfiles.status, "ACTIVE"))).limit(1);
   if (!product) notFound();
+  const directManualEnabled = await featureEnabled("DIRECT_MANUAL_PAYMENTS", product.product.merchantId);
+  const [manualAccount] = directManualEnabled ? await db.select({ id: merchantManualPaymentAccounts.id }).from(merchantManualPaymentAccounts).where(and(
+    eq(merchantManualPaymentAccounts.merchantId, product.product.merchantId),
+    eq(merchantManualPaymentAccounts.isActive, true),
+  )).limit(1) : [];
 
   const [funnel] = await db.select().from(productFunnels).where(and(eq(productFunnels.productId, product.product.id), eq(productFunnels.isActive, true))).limit(1);
   const [bumpProduct] = funnel?.orderBumpProductId ? await db.select().from(products).where(and(eq(products.id, funnel.orderBumpProductId), eq(products.merchantId, product.product.merchantId), eq(products.status, "PUBLISHED"))).limit(1) : [];
@@ -40,6 +46,6 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
 
       <form className="form" action={action}><input type="hidden" name="couponCode" value={coupon?.code ?? ""} />{trackingFields}<div className="field"><label htmlFor="name">Nama lengkap</label><input className="input" id="name" name="name" required minLength={2} autoComplete="name" /></div><div className="field"><label htmlFor="email">Email</label><input className="input" id="email" name="email" type="email" required autoComplete="email" /></div><div className="field"><label htmlFor="phone">Nomor WhatsApp</label><input className="input" id="phone" name="phone" type="tel" required minLength={9} maxLength={20} inputMode="tel" autoComplete="tel" placeholder="Contoh: 081234567890" /></div><div className="field"><label htmlFor="password">Password akun member</label><input className="input" id="password" name="password" type="password" minLength={8} required autoComplete="current-password" /><small className="muted">Jika email sudah terdaftar, masukkan password akun tersebut.</small></div>
         {bumpProduct && <label className="order-bump"><input type="checkbox" name="orderBump" /><span className="order-bump-plus"><Plus size={19} /></span><span><small>PENAWARAN TAMBAHAN</small><strong>{funnel?.bumpHeadline || `Tambahkan ${bumpProduct.name}`}</strong><p>{funnel?.bumpDescription || bumpProduct.headline}</p><b>+ {formatRupiah(bumpProduct.price)}</b></span></label>}
-        <div className="field"><label htmlFor="paymentMethod">Metode pembayaran</label><select className="input" id="paymentMethod" name="paymentMethod" defaultValue="MANUAL_TRANSFER"><option value="MANUAL_TRANSFER">Transfer bank — dikonfirmasi admin Lajurin</option><option value="XENDIT">Payment gateway Xendit</option></select></div><div className="checkout-total"><span>Total produk utama</span><strong>{formatRupiah(discountedPrice)}</strong>{bumpProduct && <small>Jika order bump dipilih, total bertambah {formatRupiah(bumpProduct.price)}.</small>}</div><button className="btn btn-primary btn-large" type="submit">Lanjut ke pembayaran</button></form>
+        <div className="field"><label htmlFor="paymentMethod">Metode pembayaran</label><select className="input" id="paymentMethod" name="paymentMethod" defaultValue="MANUAL_TRANSFER"><option value="MANUAL_TRANSFER">Transfer bank — dikonfirmasi {manualAccount ? "merchant" : "admin Lajurin"}</option><option value="XENDIT">Payment gateway Xendit</option></select></div><div className="checkout-total"><span>Total produk utama</span><strong>{formatRupiah(discountedPrice)}</strong>{bumpProduct && <small>Jika order bump dipilih, total bertambah {formatRupiah(bumpProduct.price)}.</small>}</div><button className="btn btn-primary btn-large" type="submit">Lanjut ke pembayaran</button></form>
     </div></section></main></>;
 }

@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { featureFlagDefinitions } from "@/lib/feature-flags";
 import { merchantControlUpdateSchema } from "@/lib/merchant-control";
-import { auditLogs, merchantProfiles, platformSettings, products, users } from "@/lib/schema";
+import { auditLogs, merchantProfiles, platformFeatureFlags, platformSettings, products, users } from "@/lib/schema";
 
 function merchantEditPath(merchantId: string, message: string, type: "error" | "success") {
   return `/admin/merchants/${merchantId}?${type}=${encodeURIComponent(message)}`;
@@ -147,6 +148,9 @@ export async function updatePlatformSettingsAction(formData: FormData) {
   const parsed = z.object({
     defaultFeePercent: z.coerce.number().min(0).max(100),
     minimumPayoutAmount: z.coerce.number().int().positive().max(2_000_000_000),
+    commissionBankName: z.string().trim().max(80).optional(),
+    commissionAccountNumber: z.string().trim().regex(/^\d{6,30}$/).or(z.literal("")),
+    commissionAccountHolder: z.string().trim().max(100).optional(),
   }).safeParse(Object.fromEntries(formData));
   if (!parsed.success || Math.abs(Math.round(parsed.data.defaultFeePercent * 100) - parsed.data.defaultFeePercent * 100) > 0.000001) {
     redirect("/admin/settings?error=Periksa+kembali+komisi+dan+minimum+pencairan");
@@ -157,22 +161,72 @@ export async function updatePlatformSettingsAction(formData: FormData) {
       id: 1,
       defaultPlatformFeeBps,
       minimumPayoutAmount: parsed.data.minimumPayoutAmount,
+      commissionBankName: parsed.data.commissionBankName || null,
+      commissionAccountNumber: parsed.data.commissionAccountNumber || null,
+      commissionAccountHolder: parsed.data.commissionAccountHolder || null,
       updatedBy: admin.id,
     }).onConflictDoUpdate({
       target: platformSettings.id,
-      set: { defaultPlatformFeeBps, minimumPayoutAmount: parsed.data.minimumPayoutAmount, updatedBy: admin.id, updatedAt: new Date() },
+      set: {
+        defaultPlatformFeeBps,
+        minimumPayoutAmount: parsed.data.minimumPayoutAmount,
+        commissionBankName: parsed.data.commissionBankName || null,
+        commissionAccountNumber: parsed.data.commissionAccountNumber || null,
+        commissionAccountHolder: parsed.data.commissionAccountHolder || null,
+        updatedBy: admin.id,
+        updatedAt: new Date(),
+      },
     });
     await tx.insert(auditLogs).values({
       actorId: admin.id,
       action: "PLATFORM_FINANCE_SETTINGS_UPDATED",
       entityType: "PLATFORM_SETTINGS",
       entityId: "1",
-      metadata: { defaultPlatformFeeBps, minimumPayoutAmount: parsed.data.minimumPayoutAmount },
+      metadata: { defaultPlatformFeeBps, minimumPayoutAmount: parsed.data.minimumPayoutAmount, commissionBankConfigured: Boolean(parsed.data.commissionAccountNumber) },
     });
   });
   revalidatePath("/admin/settings");
   revalidatePath("/admin/merchants");
   redirect("/admin/settings?success=Pengaturan+keuangan+berhasil+disimpan");
+}
+
+export async function updateFeatureFlagAction(flagKey: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const allowedKeys = featureFlagDefinitions.map((flag) => flag.key);
+  const parsed = z.object({
+    key: z.enum(allowedKeys as [typeof allowedKeys[number], ...typeof allowedKeys[number][]]),
+    rollout: z.enum(["OFF", "ALL", "USERS"]),
+    audienceUserIds: z.string().trim().max(5000).optional(),
+  }).safeParse({ key: flagKey, rollout: formData.get("rollout"), audienceUserIds: formData.get("audienceUserIds") });
+  if (!parsed.success) redirect("/admin/settings?error=Konfigurasi+feature+flag+tidak+valid");
+  const definition = featureFlagDefinitions.find((flag) => flag.key === parsed.data.key)!;
+  const audienceUserIds = [...new Set((parsed.data.audienceUserIds ?? "").split(/[\s,]+/).map((value) => value.trim()).filter(Boolean))];
+  if (parsed.data.rollout === "USERS" && audienceUserIds.length === 0) redirect("/admin/settings?error=Isi+minimal+satu+User+ID+untuk+mode+canary");
+  if (audienceUserIds.some((value) => !z.string().uuid().safeParse(value).success)) redirect("/admin/settings?error=Daftar+User+ID+canary+tidak+valid");
+
+  await db.transaction(async (tx) => {
+    await tx.insert(platformFeatureFlags).values({
+      key: definition.key,
+      name: definition.name,
+      description: definition.description,
+      rollout: parsed.data.rollout,
+      audienceUserIds,
+      updatedBy: admin.id,
+    }).onConflictDoUpdate({
+      target: platformFeatureFlags.key,
+      set: { rollout: parsed.data.rollout, audienceUserIds, updatedBy: admin.id, updatedAt: new Date() },
+    });
+    await tx.insert(auditLogs).values({
+      actorId: admin.id,
+      action: "FEATURE_FLAG_UPDATED",
+      entityType: "FEATURE_FLAG",
+      entityId: definition.key,
+      metadata: { rollout: parsed.data.rollout, audienceCount: audienceUserIds.length },
+    });
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/dashboard");
+  redirect(`/admin/settings?success=${encodeURIComponent(`${definition.name} berhasil diperbarui`)}`);
 }
 
 export async function updateProductStatusAdminAction(productId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {

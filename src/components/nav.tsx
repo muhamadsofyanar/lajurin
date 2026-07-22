@@ -4,6 +4,7 @@ import { Brand } from "@/components/brand";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
 import { unreadNotificationCount } from "@/lib/in-app-notifications";
+import { enabledFeatureMap } from "@/lib/feature-flags";
 import { WorkspaceSwitcher } from "@/modules/workspace/presentation/workspace-switcher";
 
 type NavItem = { href: string; label: string };
@@ -25,6 +26,7 @@ const roleLinks = {
     ],
     secondary: [
       { href: "/admin/payments", label: "Konfirmasi pembayaran" },
+      { href: "/admin/commissions", label: "Pelunasan komisi" },
       { href: "/admin/payouts", label: "Payout merchant" },
       { href: "/admin/products", label: "Produk platform" },
       { href: "/admin/members", label: "Member platform" },
@@ -64,12 +66,21 @@ export async function Nav({ app = false }: { app?: boolean }) {
   const dashboard = user?.role === "ADMIN" ? "/admin" : user?.role === "MEMBER" ? "/member" : "/dashboard";
   const dashboardLabel = user?.role === "ADMIN" ? "Admin" : user?.role === "MERCHANT" ? "Dashboard usaha" : "Kelas saya";
   const unread = user ? await unreadNotificationCount(user.id) : 0;
+  const flags = user?.role === "MERCHANT" ? await enabledFeatureMap(user.id) : null;
 
   if (!app || !user) {
     return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
   }
 
   const navigation = roleLinks[user.role];
+  const featureLinks: NavItem[] = user.role === "MERCHANT" && flags ? [
+    flags.DIRECT_MANUAL_PAYMENTS && { href: "/dashboard/payments", label: "Konfirmasi transfer" },
+    flags.LANDING_PAGE_BUILDER && { href: "/dashboard/landing-pages", label: "Landing Page Builder" },
+    flags.SALES_REPORTS && { href: "/dashboard/reports", label: "Laporan penjualan" },
+    flags.COMMISSION_BILLING && { href: "/dashboard/commissions", label: "Tagihan komisi" },
+    flags.WORKSPACE_TEAMS && { href: "/dashboard/team", label: "Tim workspace" },
+  ].filter((item): item is NavItem => Boolean(item)) : [];
+  const secondaryLinks: readonly NavItem[] = [...navigation.secondary, ...featureLinks];
   const initial = user.name.trim().slice(0, 1).toUpperCase();
   const roleLabel = user.role === "ADMIN" ? "Administrator" : user.role === "MERCHANT" ? "Merchant" : "Member";
   const additionalLinks = user.role === "MEMBER" ? [] : commonLinks;
@@ -80,10 +91,10 @@ export async function Nav({ app = false }: { app?: boolean }) {
 
       <div className="app-nav-desktop">
         <div className="app-primary-links">{navigation.primary.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}</div>
-        {(navigation.secondary.length > 0 || additionalLinks.length > 0) && <details className="nav-popover nav-more">
+        {(secondaryLinks.length > 0 || additionalLinks.length > 0) && <details className="nav-popover nav-more">
           <summary>Lainnya <ChevronDown size={15} /></summary>
           <div className="nav-popover-panel nav-more-panel">
-            {navigation.secondary.length > 0 && <section><span className="nav-section-label">{navigation.sectionLabel}</span><MenuLinks items={navigation.secondary} /></section>}
+            {secondaryLinks.length > 0 && <section><span className="nav-section-label">{navigation.sectionLabel}</span><MenuLinks items={secondaryLinks} /></section>}
             {additionalLinks.length > 0 && <section><span className="nav-section-label">Belajar & komunikasi</span><MenuLinks items={additionalLinks} /></section>}
           </div>
         </details>}
@@ -109,7 +120,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
         <div className="mobile-nav-panel">
           <div className="mobile-account"><span className="nav-avatar large">{initial}</span><span><strong>{user.name}</strong><small>{roleLabel}</small></span></div>
           <section><span className="nav-section-label">Menu utama</span><div className="mobile-nav-grid"><MenuLinks items={navigation.primary} /></div></section>
-          {navigation.secondary.length > 0 && <section><span className="nav-section-label">{navigation.sectionLabel}</span><div className="mobile-nav-grid"><MenuLinks items={navigation.secondary} /></div></section>}
+          {secondaryLinks.length > 0 && <section><span className="nav-section-label">{navigation.sectionLabel}</span><div className="mobile-nav-grid"><MenuLinks items={secondaryLinks} /></div></section>}
           {additionalLinks.length > 0 && <section><span className="nav-section-label">Belajar & komunikasi</span><div className="mobile-nav-grid"><MenuLinks items={additionalLinks} /></div></section>}
           <WorkspaceSwitcher userId={user.id} />
           <Link className="mobile-notification-link" href="/notifications"><span>Notifikasi</span>{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}</Link>

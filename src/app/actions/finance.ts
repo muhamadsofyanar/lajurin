@@ -6,10 +6,40 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin, requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireFeature } from "@/lib/feature-flags";
 import { DEFAULT_MINIMUM_PAYOUT } from "@/lib/finance";
-import { auditLogs, merchantLedgerEntries, merchantPayoutAccounts, merchantPayouts, merchantProfiles, platformSettings } from "@/lib/schema";
+import { auditLogs, merchantLedgerEntries, merchantManualPaymentAccounts, merchantPayoutAccounts, merchantPayouts, merchantProfiles, platformSettings } from "@/lib/schema";
 
 class FinanceActionError extends Error {}
+
+export async function updateManualPaymentAccountAction(formData: FormData) {
+  const merchant = await requireMerchant();
+  await requireFeature("DIRECT_MANUAL_PAYMENTS", merchant.id);
+  const parsed = z.object({
+    bankName: z.string().trim().min(2).max(80),
+    accountNumber: z.string().trim().regex(/^[0-9]{6,30}$/),
+    accountHolder: z.string().trim().min(2).max(100),
+    isActive: z.preprocess((value) => value === "on", z.boolean()),
+  }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect("/dashboard/finance?error=Periksa+kembali+rekening+penerimaan+transfer+manual");
+
+  await db.transaction(async (tx) => {
+    await tx.insert(merchantManualPaymentAccounts).values({ merchantId: merchant.id, ...parsed.data })
+      .onConflictDoUpdate({
+        target: merchantManualPaymentAccounts.merchantId,
+        set: { ...parsed.data, updatedAt: new Date() },
+      });
+    await tx.insert(auditLogs).values({
+      actorId: merchant.id,
+      action: "MANUAL_PAYMENT_ACCOUNT_UPDATED",
+      entityType: "MERCHANT",
+      entityId: merchant.id,
+      metadata: { bankName: parsed.data.bankName, accountHolder: parsed.data.accountHolder, isActive: parsed.data.isActive },
+    });
+  });
+  revalidatePath("/dashboard/finance");
+  redirect("/dashboard/finance?success=Rekening+penerimaan+manual+berhasil+disimpan");
+}
 
 export async function updatePayoutAccountAction(formData: FormData) {
   const merchant = await requireMerchant();

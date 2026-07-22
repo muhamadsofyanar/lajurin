@@ -1,4 +1,4 @@
-# Lajurin v1.0.0
+# Lajurin v1.3.0
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -28,6 +28,11 @@ Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 - Sales funnel merchant: kupon, order bump satu transaksi, rekomendasi upsell/downsell, UTM, serta dashboard conversion rate dan atribusi kampanye.
 - Halaman produk, materi kursus, autentikasi cookie, webhook Xendit, Docker, dan health check.
 - Production readiness: rate limit, validasi signature upload, security headers, log webhook, readiness check, refund penuh tercatat, dan pusat operasional admin.
+- Feature flag berbasis database dengan mode nonaktif, canary per User ID, atau aktif untuk semua tanpa redeploy.
+- Workspace team management dengan peran Owner, Admin, Finance, dan Staff serta proteksi owner terakhir.
+- Pelunasan tagihan komisi: rekening platform, upload bukti privat, antrean admin, audit log, dan pengurangan piutang atomik.
+- Landing Page Builder terpusat untuk mengelola seluruh halaman penjualan merchant.
+- Laporan penjualan berperiode dengan ringkasan bruto, net, komisi, metode pembayaran, performa produk, dan ekspor CSV aman.
 
 ## Dokumentasi proyek
 
@@ -83,11 +88,11 @@ NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte
 ## Alur transfer manual
 
 1. Pembeli memilih **Transfer bank — konfirmasi manual** pada checkout.
-2. Pembeli mentransfer nominal yang tampil lalu mengunggah bukti pembayaran.
-3. Status pesanan berubah menjadi **Menunggu konfirmasi**.
-4. Hanya admin platform yang dapat membuka **Admin → Konfirmasi pembayaran**, memeriksa bukti, lalu menyetujui atau menolak. Merchant dapat melihat status transaksi miliknya, tetapi tidak dapat mengubah keputusan pembayaran.
+2. Jika merchant mengaktifkan rekening penerimaan manual, pembeli mentransfer langsung ke rekening merchant. Jika belum, rekening platform dari `MANUAL_BANK_*` tetap menjadi fallback.
+3. Tujuan transfer disimpan sebagai snapshot pada pesanan, sehingga perubahan rekening tidak mengubah transaksi lama.
+4. Transfer langsung ditinjau merchant pemilik produk. Admin dapat override dengan alasan yang tercatat. Transfer ke rekening platform tetap hanya ditinjau admin.
 5. Jika disetujui, status menjadi **Lunas** dan kursus langsung muncul pada dashboard member.
-6. Sistem mencatat komisi dan pendapatan bersih merchant satu kali ke ledger; retry webhook tidak menggandakan saldo.
+6. Transfer platform mengkredit saldo payout merchant. Transfer langsung tidak mengkredit payout; komisi platform dicatat sebagai piutang merchant secara idempoten.
 
 ## Alur payout merchant
 

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { updateLandingPageAction, uploadLandingMediaAction } from "@/app/actions/merchant";
 import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireFeature } from "@/lib/feature-flags";
 import { productLandingPages, products } from "@/lib/schema";
 
 function localDateTime(value: Date | null | undefined) {
@@ -18,6 +19,7 @@ export default async function LandingPageEditor({ params, searchParams }: {
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const merchant = await requireMerchant();
+  await requireFeature("LANDING_PAGE_BUILDER", merchant.id);
   const { id } = await params;
   const { error, success } = await searchParams;
   const [row] = await db.select({ product: products, landing: productLandingPages }).from(products)

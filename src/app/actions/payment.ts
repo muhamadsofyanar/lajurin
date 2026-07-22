@@ -6,13 +6,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireAdmin, requireMerchant, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { recordPaidOrderAccounting } from "@/lib/finance";
+import { featureEnabled, requireFeature } from "@/lib/feature-flags";
 import { fulfillPaidOrder } from "@/lib/funnel";
 import { dispatchOrderNotifications } from "@/lib/notifications";
 import { dispatchMerchantAutomations } from "@/lib/automation";
-import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, products } from "@/lib/schema";
+import { canReviewManualPayment, requiresAdminOverrideReason } from "@/lib/manual-payment";
+import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, platformReceivableEntries, products } from "@/lib/schema";
 import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
 import { currentRequestIdentity, enforceRateLimit, verifyUploadSignature } from "@/lib/security";
 
@@ -42,10 +44,17 @@ export async function submitManualPaymentAction(orderId: string, formData: FormD
     redirect(`/payment/manual/${orderId}?error=Lengkapi+data+dan+unggah+bukti+JPG,+PNG,+WebP,+atau+PDF+maksimal+3MB`);
   }
 
-  const [order] = await db.select({ id: orders.id, previousProof: orders.manualProofUrl }).from(orders).where(and(
+  const [order] = await db.select({
+    id: orders.id,
+    externalId: orders.externalId,
+    previousProof: orders.manualProofUrl,
+    settlementMode: orders.settlementMode,
+    merchantId: products.merchantId,
+  }).from(orders).innerJoin(products, eq(orders.productId, products.id)).where(and(
     eq(orders.id, orderId), eq(orders.customerId, user.id), eq(orders.paymentMethod, "MANUAL_TRANSFER"), inArray(orders.status, ["PENDING", "REJECTED"]),
   )).limit(1);
   if (!order) redirect("/member/orders?error=Pesanan+tidak+ditemukan");
+  const notifyMerchant = await featureEnabled("BASIC_NOTIFICATIONS", order.merchantId);
 
   const proofBuffer = Buffer.from(await proof.arrayBuffer());
   if (!verifyUploadSignature(proofBuffer, proof.type)) {
@@ -56,17 +65,37 @@ export async function submitManualPaymentAction(orderId: string, formData: FormD
   await writeFile(paymentProofPath(fileName), proofBuffer, { flag: "wx" });
 
   try {
-    await db.update(orders).set({
-      status: "AWAITING_CONFIRMATION",
-      manualProofUrl: fileName,
-      manualBankName: parsed.data.bankName,
-      manualAccountName: parsed.data.accountName,
-      manualTransferNote: parsed.data.note || null,
-      manualSubmittedAt: new Date(),
-      reviewedAt: null,
-      reviewedBy: null,
-      updatedAt: new Date(),
-    }).where(eq(orders.id, order.id));
+    await db.transaction(async (tx) => {
+      await tx.update(orders).set({
+        status: "AWAITING_CONFIRMATION",
+        manualProofUrl: fileName,
+        manualBankName: parsed.data.bankName,
+        manualAccountName: parsed.data.accountName,
+        manualTransferNote: parsed.data.note || null,
+        manualSubmittedAt: new Date(),
+        reviewedAt: null,
+        reviewedBy: null,
+        updatedAt: new Date(),
+      }).where(eq(orders.id, order.id));
+      await tx.insert(auditLogs).values({
+        actorId: user.id,
+        action: "MANUAL_PAYMENT_PROOF_SUBMITTED",
+        entityType: "ORDER",
+        entityId: order.id,
+        metadata: { settlementMode: order.settlementMode },
+      });
+      if (order.settlementMode === "MERCHANT_DIRECT" && notifyMerchant) {
+        await tx.insert(inAppNotifications).values({
+          userId: order.merchantId,
+          actorId: user.id,
+          type: "MANUAL_PAYMENT_SUBMITTED",
+          title: "Bukti transfer menunggu konfirmasi",
+          body: `Pesanan ${order.externalId} telah mengunggah bukti transfer.`,
+          href: "/dashboard/payments",
+          dedupeKey: `manual-proof:${order.id}:${fileName}`,
+        });
+      }
+    });
   } catch (error) {
     await unlink(paymentProofPath(fileName)).catch(() => undefined);
     throw error;
@@ -77,40 +106,110 @@ export async function submitManualPaymentAction(orderId: string, formData: FormD
   redirect(`/member/orders?success=Bukti+pembayaran+berhasil+dikirim`);
 }
 
-export async function reviewManualPaymentAction(orderId: string, decision: "approve" | "reject") {
+export async function reviewManualPaymentAction(orderId: string, decision: "approve" | "reject", formData: FormData) {
   const admin = await requireAdmin();
-  const parsedDecision = z.enum(["approve", "reject"]).parse(decision);
-  const [row] = await db.select({ order: orders }).from(orders)
-    .where(and(eq(orders.id, orderId), eq(orders.status, "AWAITING_CONFIRMATION"), eq(orders.paymentMethod, "MANUAL_TRANSFER"))).limit(1);
-  if (!row || !row.order.customerId) redirect("/admin/payments?error=Pesanan+tidak+siap+ditinjau");
-
-  await db.transaction(async (tx) => {
-    await tx.update(orders).set({
-      status: parsedDecision === "approve" ? "PAID" : "REJECTED",
-      paidAt: parsedDecision === "approve" ? new Date() : null,
-      reviewedAt: new Date(), reviewedBy: admin.id, updatedAt: new Date(),
-    }).where(eq(orders.id, row.order.id));
-    if (parsedDecision === "approve") {
-      await fulfillPaidOrder(tx, row.order.id);
-      await recordPaidOrderAccounting(tx, row.order.id);
-    }
-    await tx.insert(auditLogs).values({
-      actorId: admin.id,
-      action: parsedDecision === "approve" ? "MANUAL_PAYMENT_APPROVED" : "MANUAL_PAYMENT_REJECTED",
-      entityType: "ORDER",
-      entityId: row.order.id,
-      metadata: { amount: row.order.amount },
-    });
+  const parsed = z.object({ reason: z.string().trim().max(500).optional() }).safeParse({
+    reason: formData.get("reason") || undefined,
   });
-  await dispatchOrderNotifications(row.order.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
-  if (parsedDecision === "approve") await dispatchMerchantAutomations("PURCHASED", row.order.id);
+  if (!parsed.success) redirect("/admin/payments?error=Alasan+tidak+valid");
+  return reviewManualPayment({ reviewerId: admin.id, reviewerRole: "ADMIN", orderId, decision, reason: parsed.data.reason ?? null });
+}
+
+class ManualPaymentReviewError extends Error {}
+
+async function reviewManualPayment(input: {
+  reviewerId: string;
+  reviewerRole: "ADMIN" | "MERCHANT";
+  orderId: string;
+  decision: "approve" | "reject";
+  reason: string | null;
+}) {
+  const parsedDecision = z.enum(["approve", "reject"]).parse(input.decision);
+  const destination = input.reviewerRole === "ADMIN" ? "/admin/payments" : "/dashboard/payments";
+  let reviewedOrder: { id: string; amount: number };
+
+  try {
+    reviewedOrder = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`order:${input.orderId}`}))`);
+      const [row] = await tx.select({ order: orders, merchantId: products.merchantId }).from(orders)
+        .innerJoin(products, eq(orders.productId, products.id))
+        .where(and(eq(orders.id, input.orderId), eq(orders.paymentMethod, "MANUAL_TRANSFER"))).limit(1);
+      if (!row || !row.order.customerId || row.order.status !== "AWAITING_CONFIRMATION") {
+        throw new ManualPaymentReviewError("Pesanan sudah diproses atau tidak siap ditinjau");
+      }
+      if (!canReviewManualPayment({
+        reviewerRole: input.reviewerRole,
+        reviewerId: input.reviewerId,
+        merchantId: row.merchantId,
+        settlementMode: row.order.settlementMode,
+      })) throw new ManualPaymentReviewError("Anda tidak berhak meninjau pembayaran ini");
+      if (requiresAdminOverrideReason(input.reviewerRole, row.order.settlementMode) && (!input.reason || input.reason.length < 10)) {
+        throw new ManualPaymentReviewError("Alasan override admin minimal 10 karakter");
+      }
+      if (parsedDecision === "reject" && (!input.reason || input.reason.length < 5)) {
+        throw new ManualPaymentReviewError("Alasan penolakan minimal 5 karakter");
+      }
+
+      const [updated] = await tx.update(orders).set({
+        status: parsedDecision === "approve" ? "PAID" : "REJECTED",
+        paidAt: parsedDecision === "approve" ? new Date() : null,
+        reviewedAt: new Date(), reviewedBy: input.reviewerId, updatedAt: new Date(),
+      }).where(and(eq(orders.id, row.order.id), eq(orders.status, "AWAITING_CONFIRMATION"))).returning({ id: orders.id });
+      if (!updated) throw new ManualPaymentReviewError("Pesanan sudah diproses oleh pengguna lain");
+
+      if (parsedDecision === "approve") {
+        await fulfillPaidOrder(tx, row.order.id);
+        await recordPaidOrderAccounting(tx, row.order.id);
+      }
+      await tx.insert(auditLogs).values({
+        actorId: input.reviewerId,
+        action: parsedDecision === "approve" ? "MANUAL_PAYMENT_APPROVED" : "MANUAL_PAYMENT_REJECTED",
+        entityType: "ORDER",
+        entityId: row.order.id,
+        metadata: {
+          amount: row.order.amount,
+          reviewerRole: input.reviewerRole,
+          settlementMode: row.order.settlementMode,
+          reason: input.reason,
+          adminOverride: input.reviewerRole === "ADMIN" && row.order.settlementMode === "MERCHANT_DIRECT",
+        },
+      });
+      return { id: row.order.id, amount: row.order.amount };
+    });
+  } catch (error) {
+    if (error instanceof ManualPaymentReviewError) redirect(`${destination}?error=${encodeURIComponent(error.message)}`);
+    throw error;
+  }
+
+  await dispatchOrderNotifications(reviewedOrder.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
+  if (parsedDecision === "approve") await dispatchMerchantAutomations("PURCHASED", reviewedOrder.id);
   revalidatePath("/admin");
   revalidatePath("/admin/payments");
   revalidatePath("/admin/integrations");
   revalidatePath("/admin/transactions");
   revalidatePath("/admin/merchants");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/payments");
   revalidatePath("/dashboard/finance");
   revalidatePath("/member");
+  revalidatePath("/member/orders");
+  redirect(`${destination}?success=Pembayaran+manual+berhasil+${parsedDecision === "approve" ? "disetujui" : "ditolak"}`);
+}
+
+export async function reviewMerchantManualPaymentAction(orderId: string, decision: "approve" | "reject", formData: FormData) {
+  const merchant = await requireMerchant();
+  await requireFeature("DIRECT_MANUAL_PAYMENTS", merchant.id);
+  const parsed = z.object({ reason: z.string().trim().max(500).optional() }).safeParse({
+    reason: formData.get("reason") || undefined,
+  });
+  if (!parsed.success) redirect("/dashboard/payments?error=Alasan+tidak+valid");
+  return reviewManualPayment({
+    reviewerId: merchant.id,
+    reviewerRole: "MERCHANT",
+    orderId,
+    decision,
+    reason: parsed.data.reason ?? null,
+  });
 }
 
 export async function recordFullRefundAction(orderId: string, formData: FormData) {
@@ -128,10 +227,18 @@ export async function recordFullRefundAction(orderId: string, formData: FormData
     if (!row || row.order.status !== "PAID" || !row.order.customerId) throw new Error("ORDER_NOT_REFUNDABLE");
 
     const merchantNet = row.order.merchantNetAmount ?? row.order.amount;
-    await tx.insert(merchantLedgerEntries).values({
-      merchantId: row.merchantId, orderId: row.order.id, type: "REFUND", amount: -merchantNet,
-      description: `Refund penuh ${row.order.externalId}`, createdBy: admin.id,
-    }).onConflictDoNothing({ target: [merchantLedgerEntries.orderId, merchantLedgerEntries.type] });
+    if (row.order.settlementMode === "MERCHANT_DIRECT") {
+      const fee = row.order.platformFeeAmount ?? 0;
+      if (fee > 0) await tx.insert(platformReceivableEntries).values({
+        merchantId: row.merchantId, orderId: row.order.id, type: "MANUAL_SALE_FEE_REVERSAL", amount: -fee,
+        description: `Pembalikan komisi refund ${row.order.externalId}`, createdBy: admin.id,
+      }).onConflictDoNothing({ target: [platformReceivableEntries.orderId, platformReceivableEntries.type] });
+    } else {
+      await tx.insert(merchantLedgerEntries).values({
+        merchantId: row.merchantId, orderId: row.order.id, type: "REFUND", amount: -merchantNet,
+        description: `Refund penuh ${row.order.externalId}`, createdBy: admin.id,
+      }).onConflictDoNothing({ target: [merchantLedgerEntries.orderId, merchantLedgerEntries.type] });
+    }
     await tx.delete(enrollments).where(eq(enrollments.orderId, row.order.id));
     await tx.update(orders).set({
       status: "REFUNDED", refundedAt: new Date(), refundAmount: row.order.amount,
@@ -139,7 +246,7 @@ export async function recordFullRefundAction(orderId: string, formData: FormData
     }).where(and(eq(orders.id, row.order.id), eq(orders.status, "PAID")));
     await tx.insert(auditLogs).values({
       actorId: admin.id, action: "ORDER_FULL_REFUND_RECORDED", entityType: "ORDER", entityId: row.order.id,
-      metadata: { amount: row.order.amount, merchantNetReversed: merchantNet, reference: parsed.data.reference },
+      metadata: { amount: row.order.amount, merchantNetReversed: row.order.settlementMode === "PLATFORM" ? merchantNet : 0, feeReceivableReversed: row.order.settlementMode === "MERCHANT_DIRECT" ? row.order.platformFeeAmount ?? 0 : 0, settlementMode: row.order.settlementMode, reference: parsed.data.reference },
     });
     await tx.insert(inAppNotifications).values({
       userId: row.order.customerId, actorId: admin.id, type: "ORDER_REFUNDED", title: "Pesanan telah direfund",

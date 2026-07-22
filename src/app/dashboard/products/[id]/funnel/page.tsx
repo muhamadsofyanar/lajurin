@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createCouponAction, deleteCouponAction, toggleCouponAction, updateFunnelAction } from "@/app/actions/funnel";
 import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { featureEnabled } from "@/lib/feature-flags";
 import { formatRupiah } from "@/lib/format";
 import { coupons, productFunnels, products } from "@/lib/schema";
 
@@ -26,10 +27,11 @@ export default async function FunnelPage({ params, searchParams }: {
     db.select().from(products).where(and(eq(products.merchantId, merchant.id), ne(products.id, id))).orderBy(products.name),
   ]);
   if (!product) notFound();
+  const landingBuilderEnabled = await featureEnabled("LANDING_PAGE_BUILDER", merchant.id);
   const options = <><option value="">Tidak digunakan</option>{offers.map((offer) => <option key={offer.id} value={offer.id}>{offer.name} — {formatRupiah(offer.price)}</option>)}</>;
 
   return <main className="app-main"><div className="shell funnel-shell">
-    <div className="page-head"><div><span className="eyebrow">Sales funnel</span><h1 className="display" style={{ marginTop: 12 }}>{product.name}</h1><p>Atur kupon, penawaran tambahan checkout, dan rekomendasi setelah pembelian.</p></div><div className="actions"><Link className="btn" href={`/dashboard/products/${product.id}`}>Kembali</Link><Link className="btn" href={`/dashboard/products/${product.id}/landing`}>Landing page</Link><Link className="btn btn-primary" href={`/p/${product.slug}`} target="_blank">Lihat publik <ExternalLink size={15} /></Link></div></div>
+    <div className="page-head"><div><span className="eyebrow">Sales funnel</span><h1 className="display" style={{ marginTop: 12 }}>{product.name}</h1><p>Atur kupon, penawaran tambahan checkout, dan rekomendasi setelah pembelian.</p></div><div className="actions"><Link className="btn" href={`/dashboard/products/${product.id}`}>Kembali</Link>{landingBuilderEnabled && <Link className="btn" href={`/dashboard/products/${product.id}/landing`}>Landing page</Link>}<Link className="btn btn-primary" href={`/p/${product.slug}`} target="_blank">Lihat publik <ExternalLink size={15} /></Link></div></div>
     {error && <p className="alert">{error}</p>}{success && <p className="alert alert-success">{success}</p>}
     <div className="funnel-layout"><section className="stack">
       <section className="panel form-panel"><div className="panel-head" style={{ margin: -24, marginBottom: 24 }}><h2><GitBranch size={19} /> Rangkaian penawaran</h2></div><form className="form" action={updateFunnelAction.bind(null, product.id)}>

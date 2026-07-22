@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { merchantLedgerEntries, merchantProfiles, orders, platformSettings, products } from "@/lib/schema";
+import { merchantLedgerEntries, merchantProfiles, orders, platformReceivableEntries, platformSettings, products } from "@/lib/schema";
 
 export type AppTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -24,6 +24,7 @@ export async function recordPaidOrderAccounting(tx: AppTransaction, orderId: str
     savedFeeBps: orders.platformFeeBps,
     savedFeeAmount: orders.platformFeeAmount,
     savedNetAmount: orders.merchantNetAmount,
+    settlementMode: orders.settlementMode,
     merchantId: products.merchantId,
     merchantFeeBps: merchantProfiles.platformFeeBps,
   }).from(orders)
@@ -45,7 +46,19 @@ export async function recordPaidOrderAccounting(tx: AppTransaction, orderId: str
     : calculateOrderAccounting(row.amount, row.merchantFeeBps ?? settings?.defaultFeeBps ?? DEFAULT_PLATFORM_FEE_BPS);
 
   await tx.update(orders).set({ ...accounting, updatedAt: new Date() }).where(eq(orders.id, orderId));
-  if (accounting.merchantNetAmount > 0) {
+  if (row.settlementMode === "MERCHANT_DIRECT") {
+    if (accounting.platformFeeAmount > 0) {
+      await tx.insert(platformReceivableEntries).values({
+        merchantId: row.merchantId,
+        orderId,
+        type: "MANUAL_SALE_FEE",
+        amount: accounting.platformFeeAmount,
+        description: `Komisi transfer langsung ${row.externalId}`,
+      }).onConflictDoNothing({
+        target: [platformReceivableEntries.orderId, platformReceivableEntries.type],
+      });
+    }
+  } else if (accounting.merchantNetAmount > 0) {
     await tx.insert(merchantLedgerEntries).values({
       merchantId: row.merchantId,
       orderId,

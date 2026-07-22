@@ -1,6 +1,20 @@
-# Checklist Pengujian Lajurin v1.1.0 Candidate
+# Checklist Pengujian Lajurin v1.3.0 Candidate
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
+
+## Integrated Business Suite v1.3.0
+
+- [ ] Migration `0013` berhasil dan enam feature flag muncul dalam status OFF.
+- [ ] Admin dapat mengubah flag ke USERS dan ALL tanpa redeploy; User ID di luar canary tetap tidak melihat modul.
+- [ ] Owner dapat menambah pengguna terdaftar sebagai Admin, Finance, atau Staff.
+- [ ] Owner aktif terakhir tidak dapat diturunkan, ditangguhkan, atau dicabut.
+- [ ] Transfer langsung hanya dipakai saat flag aktif dan rekening merchant aktif; saat flag mati checkout memakai rekening platform.
+- [ ] Merchant mengunggah bukti pelunasan komisi; file hanya dapat dibuka merchant tersebut dan admin.
+- [ ] Admin menyetujui pelunasan satu kali; ledger piutang berkurang dan klik ulang ditolak.
+- [ ] Penolakan pelunasan tidak mengubah ledger dan mengirim notifikasi kepada merchant.
+- [ ] Landing Page Builder menampilkan seluruh produk, editor menyimpan konten, dan pratinjau publik sesuai.
+- [ ] Laporan 7/30/90 hari dan seluruh periode menghitung bruto, net, komisi, serta metode pembayaran dengan benar.
+- [ ] Ekspor CSV hanya memuat transaksi merchant aktif dan aman terhadap formula injection.
 
 ## Persiapan
 
@@ -13,6 +27,7 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Migration `0008_third_namor` berhasil setelah migration `0007`.
 - [ ] Migration `0009_v090_community_inbox_automation` berhasil setelah migration `0008`.
 - [ ] Migration `0011_wide_onslaught` berhasil setelah migration `0010`.
+- [ ] Migration `0012_numerous_marvel_boy` berhasil setelah migration `0011` dan aman dijalankan ulang.
 - [ ] Feature flag Workspace tetap `false` pada baseline regression.
 
 ## Workspace Foundation M1
@@ -30,6 +45,7 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Custom domain belum memengaruhi routing produksi.
 - [ ] `/api/health` merespons liveness dan `/api/ready` berstatus ready.
 - [ ] Persistent storage `/app/data/payment-proofs` aktif.
+- [ ] Persistent storage `/app/data/commission-proofs` aktif.
 - [ ] Persistent storage `/app/data/course-files` aktif.
 - [ ] Persistent storage `/app/data/landing-media` aktif.
 - [ ] Persistent storage `/app/data/community-media` aktif.
@@ -55,6 +71,9 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Merchant lama tetap berstatus Aktif; merchant baru berstatus Menunggu aktivasi.
 - [ ] Merchant menunggu/ditangguhkan tidak mempunyai toko atau checkout publik.
 - [ ] Merchant aktif dapat menyimpan rekening payout.
+- [ ] Merchant dapat menyimpan dan mengaktifkan rekening penerimaan transfer manual yang terpisah dari rekening payout.
+- [ ] Merchant hanya melihat dan meninjau bukti transfer langsung untuk produk miliknya.
+- [ ] Merchant tidak dapat meninjau transfer rekening platform atau transaksi merchant lain.
 - [ ] Bruto, komisi, pendapatan bersih, dan saldo tersedia tampil benar.
 - [ ] Payout di bawah minimum dan di atas saldo ditolak.
 - [ ] Dua permintaan payout tidak dapat memakai saldo yang sama.
@@ -92,6 +111,8 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Order bump bersifat opsional dan menambah total sesuai snapshot harga produk tambahan.
 - [ ] Pembayaran order bump mengaktifkan course utama dan course tambahan.
 - [ ] Retry webhook tidak menggandakan enrollment, redemption kupon, event purchase, atau saldo.
+- [ ] Pesanan menyimpan snapshot rekening tujuan; perubahan rekening merchant tidak mengubah pesanan lama.
+- [ ] Persetujuan transfer langsung tidak menambah saldo payout dan hanya membuat satu piutang komisi.
 - [ ] Halaman sukses menampilkan upsell dan alternatif downsell yang benar.
 - [ ] Meta/TikTok pixel hanya dimuat jika ID valid diisi; tidak ada input custom script.
 
@@ -104,9 +125,11 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Menu Integrasi hanya dapat dibuka ADMIN.
 - [ ] Status StarSender dan Mailketing tampil Aktif ketika environment variable lengkap.
 - [ ] Admin melihat jumlah merchant dan produk dari seluruh merchant.
-- [ ] Hanya ADMIN memiliki menu dan halaman Konfirmasi pembayaran.
+- [ ] Admin memiliki antrean seluruh pembayaran manual; merchant memiliki antrean terbatas untuk transfer langsung miliknya.
 - [ ] Merchant yang mencoba membuka `/admin/payments` dialihkan ke dashboard usaha.
 - [ ] Merchant tidak dapat menyetujui transfer ke rekening platform; antrean konfirmasi tetap hanya tersedia untuk ADMIN.
+- [ ] Override admin pada transfer langsung ditolak tanpa alasan minimal 10 karakter dan tercatat di audit log.
+- [ ] Dua konfirmasi bersamaan tidak dapat menggandakan enrollment, saldo, atau piutang komisi.
 - [ ] Admin dapat mengaktifkan dan menangguhkan merchant.
 - [ ] Admin dapat membuka halaman Edit data merchant dan mengubah nama pemilik, email login, email support, status verifikasi, serta komisi.
 - [ ] Email login merchant dinormalisasi ke huruf kecil dan email yang sudah digunakan akun lain ditolak.
@@ -210,7 +233,7 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 ## Production readiness v1.0
 
 - [ ] Admin → Operasional hanya dapat dibuka ADMIN dan tidak pernah menampilkan nilai secret.
-- [ ] Database, konfigurasi wajib, serta empat storage tampil Siap.
+- [ ] Database, konfigurasi wajib, serta lima storage tampil Siap.
 - [ ] Security headers `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, dan HSTS tersedia.
 - [ ] Lima percobaan login gagal memicu rate limit; login valid dapat dilakukan kembali setelah masa blokir.
 - [ ] Registrasi, checkout, unggah bukti, dan analitik publik memiliki batas yang terdokumentasi.

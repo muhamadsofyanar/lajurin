@@ -4,6 +4,8 @@ import type { WorkspaceContext, WorkspaceMembershipRole, WorkspaceMembershipStat
 const permissionsByRole: Record<WorkspaceMembershipRole, readonly WorkspacePermission[]> = {
   OWNER: ["workspace.read", "workspace.manage", "workspace.members.manage", "workspace.billing.manage"],
   ADMIN: ["workspace.read", "workspace.manage", "workspace.members.manage"],
+  FINANCE: ["workspace.read", "workspace.billing.manage"],
+  STAFF: ["workspace.read"],
   MEMBER: ["workspace.read"],
 };
 

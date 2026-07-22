@@ -1,6 +1,7 @@
 import path from "node:path";
 
 export const paymentProofDirectory = path.join(process.cwd(), "data", "payment-proofs");
+export const commissionProofDirectory = path.join(process.cwd(), "data", "commission-proofs");
 export const courseFileDirectory = path.join(process.cwd(), "data", "course-files");
 export const landingMediaDirectory = path.join(process.cwd(), "data", "landing-media");
 export const communityMediaDirectory = path.join(process.cwd(), "data", "community-media");
@@ -21,6 +22,10 @@ export function paymentProofPath(fileName: string) {
   return safeStoragePath(paymentProofDirectory, fileName);
 }
 
+export function commissionProofPath(fileName: string) {
+  return safeStoragePath(commissionProofDirectory, fileName);
+}
+
 export function courseFilePath(storageKey: string) {
   return safeStoragePath(courseFileDirectory, storageKey);
 }
@@ -33,4 +38,4 @@ export function communityMediaPath(storageKey: string) {
   return safeStoragePath(communityMediaDirectory, storageKey);
 }
 
-export const persistentStorageDirectories = [paymentProofDirectory, courseFileDirectory, landingMediaDirectory, communityMediaDirectory] as const;
+export const persistentStorageDirectories = [paymentProofDirectory, commissionProofDirectory, courseFileDirectory, landingMediaDirectory, communityMediaDirectory] as const;

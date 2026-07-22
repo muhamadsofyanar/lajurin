@@ -1,6 +1,6 @@
-# Deployment Lajurin dan Workspace Foundation M1 Candidate
+# Deployment Lajurin v1.3.0 Integrated Candidate
 
-> Migration M1 dan backfill hanya dijalankan pada staging sampai exit criteria M0/M1 lulus. Jangan mengaktifkan flag Workspace atau mengunggah kandidat 1.1.0 ke branch produksi hanya berdasarkan hasil build lokal.
+> Migration `0011`–`0013` dan backfill hanya dijalankan pada staging sampai exit criteria lulus. Jangan mengaktifkan modul finansial hanya berdasarkan hasil build lokal.
 
 ## Sebelum redeploy
 
@@ -8,13 +8,14 @@
 2. Pastikan backup berstatus berhasil sebelum melanjutkan.
 3. Di aplikasi, pastikan `DATABASE_URL` masih menunjuk ke database yang sama.
 4. Tambahkan persistent storage dengan mount path **`/app/data/payment-proofs`**.
-5. Tambahkan persistent storage kedua dengan mount path **`/app/data/course-files`**.
-6. Tambahkan persistent storage ketiga dengan mount path **`/app/data/landing-media`**.
-7. Tambahkan persistent storage keempat dengan mount path **`/app/data/community-media`**.
-8. Jangan gunakan `/app/uploads`; path tersebut berasal dari catatan versi lama.
-9. Jangan menghapus, membuat ulang, atau me-restart PostgreSQL hanya untuk deploy source ini.
+5. Tambahkan persistent storage dengan mount path **`/app/data/commission-proofs`**.
+6. Tambahkan persistent storage dengan mount path **`/app/data/course-files`**.
+7. Tambahkan persistent storage dengan mount path **`/app/data/landing-media`**.
+8. Tambahkan persistent storage dengan mount path **`/app/data/community-media`**.
+9. Jangan gunakan `/app/uploads`; path tersebut berasal dari catatan versi lama.
+10. Jangan menghapus, membuat ulang, atau me-restart PostgreSQL hanya untuk deploy source ini.
 
-Keempat storage dapat memakai volume berbeda. Untuk **Volume Mount** di Coolify, isi nama volume dan Destination Path; Source Path dikosongkan.
+Kelima storage dapat memakai volume berbeda. Untuk **Volume Mount** di Coolify, isi nama volume dan Destination Path; Source Path dikosongkan.
 
 ## Environment variable wajib
 
@@ -72,7 +73,7 @@ Gunakan nilai yang sama pada setiap redeploy/replica. Jangan menggantinya tanpa 
 3. Proses start menjalankan seluruh migration Drizzle secara otomatis sebelum server aktif.
 4. Untuk kandidat M1 di staging, periksa log dan pastikan migration `0011_wide_onslaught` berhasil setelah migration `0010_v100_production_readiness`.
 5. Pastikan `/api/health` merespons `ok` dan health check `/api/ready` berstatus ready.
-6. Login ADMIN, buka `/admin/operations`, dan pastikan database, konfigurasi wajib, serta empat storage berstatus **Siap**.
+6. Login ADMIN, buka `/admin/operations`, dan pastikan database, konfigurasi wajib, serta lima storage berstatus **Siap**.
 7. Buka `/admin/integrations`; StarSender dan Mailketing harus berstatus **Aktif** bila notifikasi diaktifkan.
 
 Tidak ada environment variable atau storage baru pada v1.0.0. Migration menambah log webhook, rate limit, dan metadata refund tanpa mengubah harga, saldo, enrollment, atau file lama.

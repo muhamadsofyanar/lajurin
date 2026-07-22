@@ -38,6 +38,7 @@ services:
       WORKSPACE_CANARY_USER_IDS: ${WORKSPACE_CANARY_USER_IDS:-}
     volumes:
       - payment_proofs_staging:/app/data/payment-proofs
+      - commission_proofs_staging:/app/data/commission-proofs
       - course_files_staging:/app/data/course-files
       - landing_media_staging:/app/data/landing-media
       - community_media_staging:/app/data/community-media
@@ -48,6 +49,7 @@ services:
 volumes:
   postgres_staging_data:
   payment_proofs_staging:
+  commission_proofs_staging:
   course_files_staging:
   landing_media_staging:
   community_media_staging:

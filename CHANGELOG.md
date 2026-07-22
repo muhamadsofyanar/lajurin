@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.3.0 — 23 Juli 2026
+
+### Integrated Business Suite (candidate)
+
+- Menambah feature flag database untuk Workspace, transfer langsung, tagihan komisi, Landing Page Builder, laporan, dan notifikasi dasar. Seluruh flag baru default `OFF` dan dapat diaktifkan global atau canary per User ID tanpa redeploy.
+- Menambah manajemen anggota Workspace dengan peran Owner, Admin, Finance, dan Staff; perubahan peran/status memiliki audit log dan melindungi owner aktif terakhir.
+- Menambah pelunasan komisi merchant: snapshot rekening tujuan platform, bukti privat, antrean verifikasi admin, notifikasi, advisory lock, dan pengurangan ledger piutang secara atomik.
+- Menambah halaman pusat Landing Page Builder yang memakai editor dan halaman publik yang sudah kompatibel.
+- Menambah laporan penjualan 7/30/90 hari atau seluruh periode beserta ekspor CSV yang melindungi formula injection.
+- Transfer langsung merchant hanya digunakan bila feature flag aktif; bila nonaktif, transfer manual tetap memakai rekening platform dan jalur lama.
+- Menambah migration aditif `0013_demonic_trish_tilby.sql` dan volume persisten `commission-proofs`.
+
+## 1.2.0 — 23 Juli 2026
+
+### Direct manual settlement (candidate)
+
+- Merchant dapat menyimpan dan mengaktifkan rekening penerimaan transfer manual yang terpisah dari rekening payout.
+- Checkout menyimpan snapshot rekening tujuan dan settlement mode pada setiap pesanan; seluruh pesanan lama tetap `PLATFORM`.
+- Merchant dapat menyetujui atau menolak bukti untuk transfer langsung miliknya. Admin tetap dapat override dengan alasan wajib dan audit log.
+- Advisory lock dan conditional update mencegah konfirmasi ganda.
+- Transfer langsung tidak mengkredit saldo payout. Komisi dicatat ke ledger piutang platform secara idempoten dan dibalik ketika refund dicatat.
+- Xendit serta transfer ke rekening platform tetap memakai alur lama.
+- Menambah migration aditif `0012_numerous_marvel_boy.sql`.
+
 ## 1.1.0 — 23 Juli 2026
 
 ### Workspace Foundation M1 (candidate)
