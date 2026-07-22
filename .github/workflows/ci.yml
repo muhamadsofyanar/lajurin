@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://lajurin_ci:lajurin_ci@localhost:5432/lajurin_ci
+  APP_URL: http://localhost:3000
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
+  NOTIFICATIONS_ENABLED: "false"
+  MANUAL_BANK_NAME: CI
+  MANUAL_BANK_ACCOUNT: "0000000000"
+  MANUAL_BANK_HOLDER: CI
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run config:check
+      - run: npm run verify
+
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: lajurin_ci
+          POSTGRES_USER: lajurin_ci
+          POSTGRES_PASSWORD: lajurin_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lajurin_ci -d lajurin_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run migrations:check
+      - run: npm run migrations:test
