@@ -24,9 +24,16 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3000}
       XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
+      MANUAL_BANK_NAME: ${MANUAL_BANK_NAME:-BCA}
+      MANUAL_BANK_ACCOUNT: ${MANUAL_BANK_ACCOUNT:-1234567890}
+      MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-PT Lajurin Indonesia}
+      MANUAL_PAYMENT_DIR: /app/data/payment-proofs
+    volumes:
+      - payment_proofs:/app/data/payment-proofs
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
   postgres_data:
+  payment_proofs:

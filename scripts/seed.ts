@@ -6,7 +6,10 @@ import { courses, lessons, products, users } from "../src/lib/schema";
 
 async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@lajurin.id").toLowerCase();
-  const passwordHash = await hash(process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!", 12);
+  if (!process.env.SEED_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD.length < 12) {
+    throw new Error("SEED_ADMIN_PASSWORD wajib diisi minimal 12 karakter.");
+  }
+  const passwordHash = await hash(process.env.SEED_ADMIN_PASSWORD, 12);
   const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   const [admin] = existing
     ? await db.update(users).set({ role: "ADMIN", updatedAt: new Date() }).where(eq(users.id, existing.id)).returning()

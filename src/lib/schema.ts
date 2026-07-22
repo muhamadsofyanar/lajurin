@@ -1,8 +1,8 @@
-import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["ADMIN", "MERCHANT", "MEMBER"]);
 export const productStatusEnum = pgEnum("product_status", ["DRAFT", "PUBLISHED", "ARCHIVED"]);
-export const orderStatusEnum = pgEnum("order_status", ["PENDING", "PAID", "EXPIRED", "FAILED", "REFUNDED"]);
+export const orderStatusEnum = pgEnum("order_status", ["PENDING", "AWAITING_CONFIRMATION", "PAID", "REJECTED", "EXPIRED", "FAILED", "REFUNDED"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -41,6 +41,9 @@ export const orders = pgTable("orders", {
   customerId: uuid("customer_id").references(() => users.id), customerName: text("customer_name").notNull(), customerEmail: text("customer_email").notNull(),
   amount: integer("amount").notNull(), status: orderStatusEnum("status").default("PENDING").notNull(), xenditSessionId: text("xendit_invoice_id"),
   xenditPaymentUrl: text("xendit_invoice_url"), xenditPaymentId: text("xendit_payment_id"), paymentMethod: text("payment_method"),
+  manualProofUrl: text("manual_proof_url"), manualBankName: text("manual_bank_name"), manualAccountName: text("manual_account_name"),
+  manualTransferNote: text("manual_transfer_note"), manualSubmittedAt: timestamp("manual_submitted_at", { withTimezone: true }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }), reviewedBy: uuid("reviewed_by").references(() => users.id),
   paidAt: timestamp("paid_at", { withTimezone: true }), webhookPayload: jsonb("webhook_payload"), ...timestamps,
 }, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
 
@@ -49,5 +52,16 @@ export const enrollments = pgTable("enrollments", {
   courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }), orderId: uuid("order_id").notNull().references(() => orders.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("enrollments_user_course_unique").on(table.userId, table.courseId), uniqueIndex("enrollments_order_unique").on(table.orderId)]);
+
+export const communityPosts = pgTable("community_posts", {
+  id: uuid("id").primaryKey().defaultRandom(), authorId: uuid("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), content: text("content").notNull(), isPinned: boolean("is_pinned").default(false).notNull(), ...timestamps,
+}, (table) => [index("community_posts_created_idx").on(table.createdAt)]);
+
+export const communityComments = pgTable("community_comments", {
+  id: uuid("id").primaryKey().defaultRandom(), postId: uuid("post_id").notNull().references(() => communityPosts.id, { onDelete: "cascade" }),
+  authorId: uuid("author_id").notNull().references(() => users.id, { onDelete: "cascade" }), content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("community_comments_post_idx").on(table.postId, table.createdAt)]);
 
 export type User = typeof users.$inferSelect;

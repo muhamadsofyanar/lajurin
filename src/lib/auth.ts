@@ -64,3 +64,9 @@ export async function requireMerchant() {
   if (user.role !== "MERCHANT" && user.role !== "ADMIN") redirect("/member");
   return user;
 }
+
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") redirect(user.role === "MEMBER" ? "/member" : "/dashboard");
+  return user;
+}

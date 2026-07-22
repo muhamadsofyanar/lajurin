@@ -30,7 +30,7 @@ export async function loginAction(formData: FormData) {
   }
 
   await createSession(user.id);
-  redirect(user.role === "MEMBER" ? "/member" : "/dashboard");
+  redirect(user.role === "ADMIN" ? "/admin" : user.role === "MEMBER" ? "/member" : "/dashboard");
 }
 
 export async function registerAction(formData: FormData) {

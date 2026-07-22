@@ -5,7 +5,7 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/auth";
+import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { courses, orders, products, users } from "@/lib/schema";
 
@@ -15,6 +15,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
       name: z.string().trim().min(2).max(80),
       email: z.string().email().transform((value) => value.toLowerCase().trim()),
       password: z.string().min(8).max(128),
+      paymentMethod: z.enum(["XENDIT", "MANUAL_TRANSFER"]).default("MANUAL_TRANSFER"),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/checkout/${slug}?error=Periksa+kembali+data+Anda`);
@@ -43,7 +44,14 @@ export async function checkoutAction(slug: string, formData: FormData) {
       customerName: parsed.data.name,
       customerEmail: parsed.data.email,
       amount: product.product.price,
+      paymentMethod: parsed.data.paymentMethod,
     }).returning();
+
+  await createSession(customer.id);
+
+  if (parsed.data.paymentMethod === "MANUAL_TRANSFER") {
+    redirect(`/payment/manual/${order.id}`);
+  }
 
   const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   let paymentSession;
