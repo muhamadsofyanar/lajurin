@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0 — 23 Juli 2026
+
+### Workspace Foundation M1 (candidate)
+
+- Menambah model `workspaces`, membership multi-workspace, branding, aktivasi modul, domain, dan compatibility link merchant lama secara aditif.
+- Menambah policy terpusat untuk read/manage/member/billing serta proteksi owner aktif terakhir.
+- Menambah resolver active workspace yang selalu memverifikasi membership dan status workspace server-side; cookie hanya menjadi referensi.
+- Menambah backfill merchant lama per-record transaction yang idempoten, resumable, dan memakai advisory lock, serta laporan rekonsiliasi terpisah.
+- Menambah `workspace_id` dan `request_id` opsional pada audit log agar operasi M1 memiliki actor dan workspace context.
+- Menambah route dan switcher Workspace canary di balik `WORKSPACE_FOUNDATION_ENABLED` dan daftar UUID eksplisit `WORKSPACE_CANARY_USER_IDS`.
+- Menambah migration aditif `0011_wide_onslaught.sql`; tabel dan kolom legacy tidak dihapus atau dipindahkan.
+
+Feature flag default nonaktif. Produk, order, payment, ledger, payout, enrollment, komunitas, serta LMS masih memakai jalur legacy sampai cutover M2 disetujui. Kandidat M1 tidak boleh dipromosikan ke produksi sebelum gate M0, backfill staging, rekonsiliasi, dan regression test lulus.
+
 ## 1.0.2 — 23 Juli 2026
 
 ### Ditambahkan

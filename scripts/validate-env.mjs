@@ -49,6 +49,18 @@ for (const name of ["MANUAL_BANK_NAME", "MANUAL_BANK_ACCOUNT", "MANUAL_BANK_HOLD
 
 configuredPair("XENDIT_SECRET_KEY", "XENDIT_WEBHOOK_TOKEN");
 
+const workspaceFoundationEnabled = process.env.WORKSPACE_FOUNDATION_ENABLED?.trim().toLowerCase();
+if (workspaceFoundationEnabled && !new Set(["true", "false"]).has(workspaceFoundationEnabled)) {
+  errors.push("WORKSPACE_FOUNDATION_ENABLED harus true atau false");
+}
+if (workspaceFoundationEnabled === "true") {
+  const canaryIds = (process.env.WORKSPACE_CANARY_USER_IDS ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  if (!canaryIds.length) errors.push("WORKSPACE_CANARY_USER_IDS wajib diisi saat Workspace Foundation aktif");
+  if (canaryIds.some((value) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))) {
+    errors.push("WORKSPACE_CANARY_USER_IDS harus berisi UUID dipisahkan koma");
+  }
+}
+
 if (process.env.NOTIFICATIONS_ENABLED === "true") {
   required("STARSENDER_API_KEY");
   required("MAILKETING_API_TOKEN");

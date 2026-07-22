@@ -1,4 +1,4 @@
-# Checklist Pengujian Lajurin v1.0.2
+# Checklist Pengujian Lajurin v1.1.0 Candidate
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
@@ -12,7 +12,22 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Migration `0007_ambiguous_sinister_six` berhasil setelah migration sebelumnya.
 - [ ] Migration `0008_third_namor` berhasil setelah migration `0007`.
 - [ ] Migration `0009_v090_community_inbox_automation` berhasil setelah migration `0008`.
-- [ ] Migration `0010_v100_production_readiness` berhasil setelah migration `0009`.
+- [ ] Migration `0011_wide_onslaught` berhasil setelah migration `0010`.
+- [ ] Feature flag Workspace tetap `false` pada baseline regression.
+
+## Workspace Foundation M1
+
+- [ ] `npm run workspace:backfill` membuat tepat satu workspace dan satu OWNER aktif per merchant legacy.
+- [ ] Menjalankan backfill kedua kali menghasilkan `created=0` dan tidak menambah membership/link.
+- [ ] `npm run workspace:reconcile` lulus tanpa missing owner, orphan, atau branding mismatch.
+- [ ] User dengan membership pada dua workspace hanya melihat workspace miliknya.
+- [ ] User workspace A tidak dapat membuka slug workspace B.
+- [ ] Membership SUSPENDED/REVOKED dan workspace DRAFT/SUSPENDED/CLOSED ditolak resolver.
+- [ ] Owner aktif terakhir tidak dapat diturunkan atau dinonaktifkan.
+- [ ] Switcher tidak muncul ketika flag mati, user tidak termasuk canary, atau user hanya memiliki satu workspace.
+- [ ] Cookie active workspace yang dipalsukan ditolak karena membership diverifikasi ulang di database.
+- [ ] Product, order, ledger, payout, enrollment, LMS, komunitas, dan dashboard legacy tidak berubah saat flag mati.
+- [ ] Custom domain belum memengaruhi routing produksi.
 - [ ] `/api/health` merespons liveness dan `/api/ready` berstatus ready.
 - [ ] Persistent storage `/app/data/payment-proofs` aktif.
 - [ ] Persistent storage `/app/data/course-files` aktif.

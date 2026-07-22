@@ -4,6 +4,7 @@ import { Brand } from "@/components/brand";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
 import { unreadNotificationCount } from "@/lib/in-app-notifications";
+import { WorkspaceSwitcher } from "@/modules/workspace/presentation/workspace-switcher";
 
 type NavItem = { href: string; label: string };
 
@@ -96,6 +97,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
           <summary><span className="nav-avatar">{initial}</span><span className="nav-account-copy"><strong>{user.name}</strong><small>{roleLabel}</small></span><ChevronDown size={15} /></summary>
           <div className="nav-popover-panel nav-account-panel">
             <div className="nav-account-card"><span className="nav-avatar large">{initial}</span><span><strong>{user.name}</strong><small>{roleLabel}</small></span></div>
+            <WorkspaceSwitcher userId={user.id} />
             <Link className="nav-menu-link" href={dashboard}>Buka {dashboardLabel}</Link>
             <form action={logoutAction}><button className="nav-logout" type="submit">Keluar dari akun</button></form>
           </div>
@@ -109,6 +111,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
           <section><span className="nav-section-label">Menu utama</span><div className="mobile-nav-grid"><MenuLinks items={navigation.primary} /></div></section>
           {navigation.secondary.length > 0 && <section><span className="nav-section-label">{navigation.sectionLabel}</span><div className="mobile-nav-grid"><MenuLinks items={navigation.secondary} /></div></section>}
           {additionalLinks.length > 0 && <section><span className="nav-section-label">Belajar & komunikasi</span><div className="mobile-nav-grid"><MenuLinks items={additionalLinks} /></div></section>}
+          <WorkspaceSwitcher userId={user.id} />
           <Link className="mobile-notification-link" href="/notifications"><span>Notifikasi</span>{unread > 0 && <b>{unread > 99 ? "99+" : unread}</b>}</Link>
           <form action={logoutAction}><button className="nav-logout mobile-logout" type="submit">Keluar dari akun</button></form>
         </div>

@@ -767,3 +767,20 @@ a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #
   .dashboard-product-row { padding-inline:15px; }
   .dashboard-product-icon { width:36px; height:36px; }
 }
+.nav-workspace-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-workspace-option small {
+  color: var(--green, #163d2d);
+  font-weight: 800;
+}

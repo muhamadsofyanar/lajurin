@@ -2,11 +2,24 @@
 
 ## Versi aktif source
 
-- Versi paket: **1.0.2 — Sprint 1 Merchant Control Candidate**
+- Versi paket source: **1.1.0 — Workspace Foundation M1 Candidate**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
 - Deployment pengguna: Coolify, domain `legaone.id`
+- Produksi terakhir terpantau sehat pada commit `2a73b412a7d156b9c8c2fae03c77a921ed76af1c` tanggal 23 Juli 2026; kandidat M1 lokal belum termasuk deployment tersebut.
+
+## Workspace Foundation M1 — candidate
+
+- Schema Workspace ditambahkan secara aditif melalui migration `0011_wide_onslaught.sql`.
+- Merchant legacy dapat di-backfill menjadi satu workspace EXTERNAL, satu membership OWNER aktif, branding tersalin, dan compatibility link unik.
+- Backfill berjalan per merchant, memakai transaction dan advisory lock, dapat dilanjutkan, serta aman dijalankan ulang.
+- Resolver active workspace memverifikasi user, membership, dan status workspace server-side.
+- Workspace switcher hanya muncul untuk akun dengan minimal dua workspace yang tercantum eksplisit sebagai canary.
+- `WORKSPACE_FOUNDATION_ENABLED` default `false`; route dan switcher baru tidak mengubah pengalaman produksi saat flag mati.
+- Query produk, transaksi, payment, ledger, payout, enrollment, LMS, dan komunitas belum dipindahkan ke `workspace_id` pada M1.
+- Custom domain baru dimodelkan; verifikasi dan routing domain belum diaktifkan.
+- Verifikasi lokal kandidat: 12 migration file valid, 16/16 test lulus, lint, TypeScript, dan production build lulus. Migration/backfill PostgreSQL nyata menunggu staging.
 
 ## Perubahan dalam pengerjaan — Sprint 1
 
@@ -15,8 +28,8 @@
 - Tampilan responsif Dashboard sudah dipromosikan melalui Coolify pada 23 Juli 2026 dan healthcheck produksi berhasil.
 - Landing Page Builder dasar tetap tersedia dari v0.8. Custom Domain, Broadcast & Abandoned Checkout, serta Automatic Payout & Refund belum dimulai pada perubahan ini.
 - Admin dapat mengedit nama pemilik, email login, email support, status verifikasi, dan komisi merchant melalui halaman control plane yang diaudit.
-- Edit merchant v1.0.2 masih berstatus kandidat dan belum dipromosikan ke produksi.
-- Schema dan migration tetap kompatibel; migration terbaru tetap `0010`.
+- Edit merchant v1.0.2 telah diunggah dan deployment commit `2a73b412...` berstatus healthy.
+- Schema M1 tetap backward compatible; migration terbaru source kandidat adalah `0011`.
 
 ## Keputusan pembayaran manual yang masih diblokir
 
@@ -142,7 +155,14 @@
 
 ## Database terbaru
 
-Migration terbaru: `drizzle/0010_v100_production_readiness.sql`.
+Migration terbaru: `drizzle/0011_wide_onslaught.sql`.
+
+Migration Workspace Foundation M1 (`0011`):
+
+1. Menambah lima enum Workspace dan enam tabel M1 tanpa menghapus struktur lama.
+2. Menambah `workspace_id` dan `request_id` nullable pada audit log.
+3. Menambah foreign key restrict, unique compatibility links, dan index membership/domain/module.
+4. Tidak memindahkan atau menulis ulang product, order, payment, ledger, payout, enrollment, maupun konten.
 
 Migration v1.0.0 (`0010`):
 
@@ -180,4 +200,4 @@ Migration tidak menghapus tabel, kolom, lesson, pesanan, enrollment, atau data v
 
 ## Rekomendasi tahap berikutnya
 
-Tahap berikut adalah **validasi staging dan rollout kandidat v1.0.2**. Uji edit merchant oleh ADMIN, navigasi ADMIN/MERCHANT/MEMBER pada desktop serta ponsel, lalu lanjutkan regresi checkout manual/Xendit Test Mode, refund, payout, komunitas, inbox, automation, dan backup–restore volume sebelum redeploy produksi satu kali. Konfirmasi manual oleh merchant tetap diblokir sampai desain settlement langsung disetujui.
+Tahap berikut adalah **validasi M1 pada staging terpisah**: jalankan migration `0011`, backfill dua kali, rekonsiliasi, negative isolation test, lalu regresi seluruh jalur legacy dengan feature flag tetap mati. Kandidat M1 belum boleh diunggah ke branch produksi. Setelah M0 dan M1 lulus, barulah settlement manual langsung ke rekening merchant serta ledger tagihan komisi dapat dikembangkan secara aditif.

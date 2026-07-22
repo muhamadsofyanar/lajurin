@@ -1,4 +1,6 @@
-# Deployment Lajurin v1.0.0 di Coolify
+# Deployment Lajurin dan Workspace Foundation M1 Candidate
+
+> Migration M1 dan backfill hanya dijalankan pada staging sampai exit criteria M0/M1 lulus. Jangan mengaktifkan flag Workspace atau mengunggah kandidat 1.1.0 ke branch produksi hanya berdasarkan hasil build lokal.
 
 ## Sebelum redeploy
 
@@ -68,12 +70,32 @@ Gunakan nilai yang sama pada setiap redeploy/replica. Jangan menggantinya tanpa 
 1. Pastikan branch yang dipakai Coolify sudah memuat source v1.0.0 final yang sama dengan kandidat yang diuji di staging.
 2. Klik **Redeploy** pada aplikasi, bukan pada PostgreSQL.
 3. Proses start menjalankan seluruh migration Drizzle secara otomatis sebelum server aktif.
-4. Periksa log dan pastikan migration `0010_v100_production_readiness` berhasil setelah migration `0009_v090_community_inbox_automation`.
+4. Untuk kandidat M1 di staging, periksa log dan pastikan migration `0011_wide_onslaught` berhasil setelah migration `0010_v100_production_readiness`.
 5. Pastikan `/api/health` merespons `ok` dan health check `/api/ready` berstatus ready.
 6. Login ADMIN, buka `/admin/operations`, dan pastikan database, konfigurasi wajib, serta empat storage berstatus **Siap**.
 7. Buka `/admin/integrations`; StarSender dan Mailketing harus berstatus **Aktif** bila notifikasi diaktifkan.
 
 Tidak ada environment variable atau storage baru pada v1.0.0. Migration menambah log webhook, rate limit, dan metadata refund tanpa mengubah harga, saldo, enrollment, atau file lama.
+
+## Rollout Workspace Foundation M1 di staging
+
+Mulai dengan flag mati:
+
+```env
+WORKSPACE_FOUNDATION_ENABLED=false
+WORKSPACE_CANARY_USER_IDS=
+WORKSPACE_BACKFILL_BATCH_SIZE=50
+```
+
+Setelah backup–restore staging terverifikasi dan migration `0011` selesai, jalankan dari checkout staging yang sudah `npm ci`:
+
+```bash
+npm run workspace:backfill
+npm run workspace:backfill
+npm run workspace:reconcile
+```
+
+Run kedua wajib tidak membuat workspace baru. Setelah rekonsiliasi dan regression test lulus, masukkan UUID akun internal secara eksplisit ke `WORKSPACE_CANARY_USER_IDS`, lalu aktifkan flag hanya pada staging. Jangan menebak akun internal dari domain email. Untuk rollback aplikasi, matikan flag; tabel M1 tetap dipertahankan dan tidak dihapus.
 
 ## Strategi file dan backup
 
@@ -177,5 +199,5 @@ Jika aplikasi gagal setelah deploy:
 
 1. Simpan log error.
 2. Rollback source ke deployment v2 terakhir yang sehat.
-3. Jangan menghapus tabel/kolom dari migration `0002` sampai `0010`; versi lama dapat mengabaikannya.
+3. Jangan menghapus tabel/kolom dari migration `0002` sampai `0011`; versi lama dapat mengabaikan tabel M1 saat feature flag mati.
 4. Pulihkan backup database hanya bila terbukti ada kerusakan data, bukan sebagai langkah pertama.

@@ -34,6 +34,8 @@ services:
       MANUAL_BANK_NAME: ${MANUAL_BANK_NAME:-STAGING ONLY}
       MANUAL_BANK_ACCOUNT: ${MANUAL_BANK_ACCOUNT:-0000000000}
       MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-STAGING ONLY}
+      WORKSPACE_FOUNDATION_ENABLED: ${WORKSPACE_FOUNDATION_ENABLED:-false}
+      WORKSPACE_CANARY_USER_IDS: ${WORKSPACE_CANARY_USER_IDS:-}
     volumes:
       - payment_proofs_staging:/app/data/payment-proofs
       - course_files_staging:/app/data/course-files

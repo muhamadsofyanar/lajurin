@@ -15,6 +15,11 @@ export const analyticsEventEnum = pgEnum("analytics_event", ["PAGE_VIEW", "CHECK
 export const communityReportStatusEnum = pgEnum("community_report_status", ["OPEN", "RESOLVED", "DISMISSED"]);
 export const automationTriggerEnum = pgEnum("automation_trigger", ["PURCHASED", "COURSE_COMPLETED"]);
 export const webhookProcessingStatusEnum = pgEnum("webhook_processing_status", ["RECEIVED", "PROCESSED", "IGNORED", "FAILED", "REJECTED"]);
+export const workspaceKindEnum = pgEnum("workspace_kind", ["INTERNAL", "EXTERNAL"]);
+export const workspaceStatusEnum = pgEnum("workspace_status", ["DRAFT", "ACTIVE", "SUSPENDED", "CLOSED"]);
+export const workspaceMembershipRoleEnum = pgEnum("workspace_membership_role", ["OWNER", "ADMIN", "MEMBER"]);
+export const workspaceMembershipStatusEnum = pgEnum("workspace_membership_status", ["INVITED", "ACTIVE", "SUSPENDED", "REVOKED"]);
+export const workspaceDomainStatusEnum = pgEnum("workspace_domain_status", ["PENDING", "VERIFIED", "FAILED", "DISABLED"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -43,6 +48,82 @@ export const merchantProfiles = pgTable("merchant_profiles", {
 }, (table) => [
   uniqueIndex("merchant_profiles_user_unique").on(table.userId),
   uniqueIndex("merchant_profiles_slug_unique").on(table.slug),
+]);
+
+// Workspace Foundation M1 is additive. Legacy merchant ownership remains the
+// production path until a later per-use-case cutover is approved.
+export const workspaces = pgTable("workspaces", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  kind: workspaceKindEnum("kind").default("EXTERNAL").notNull(),
+  status: workspaceStatusEnum("status").default("DRAFT").notNull(),
+  createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("workspaces_slug_unique").on(table.slug),
+  index("workspaces_status_idx").on(table.status, table.createdAt),
+]);
+
+export const workspaceMemberships = pgTable("workspace_memberships", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  role: workspaceMembershipRoleEnum("role").default("MEMBER").notNull(),
+  status: workspaceMembershipStatusEnum("status").default("INVITED").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("workspace_memberships_workspace_user_unique").on(table.workspaceId, table.userId),
+  index("workspace_memberships_user_status_idx").on(table.userId, table.status),
+  index("workspace_memberships_workspace_status_idx").on(table.workspaceId, table.status),
+]);
+
+export const workspaceBranding = pgTable("workspace_branding", {
+  workspaceId: uuid("workspace_id").primaryKey().references(() => workspaces.id, { onDelete: "restrict" }),
+  displayName: text("display_name").notNull(),
+  logoUrl: text("logo_url"),
+  accentColor: text("accent_color").default("#163d2d").notNull(),
+  supportEmail: text("support_email"),
+  whatsapp: text("whatsapp"),
+  ...timestamps,
+});
+
+export const workspaceModules = pgTable("workspace_modules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+  moduleKey: text("module_key").notNull(),
+  enabled: boolean("enabled").default(false).notNull(),
+  settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("workspace_modules_workspace_key_unique").on(table.workspaceId, table.moduleKey),
+  index("workspace_modules_workspace_enabled_idx").on(table.workspaceId, table.enabled),
+]);
+
+export const workspaceDomains = pgTable("workspace_domains", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+  hostname: text("hostname").notNull(),
+  status: workspaceDomainStatusEnum("status").default("PENDING").notNull(),
+  verificationTokenHash: text("verification_token_hash").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  isPrimary: boolean("is_primary").default(false).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("workspace_domains_hostname_unique").on(table.hostname),
+  index("workspace_domains_workspace_status_idx").on(table.workspaceId, table.status),
+]);
+
+export const legacyMerchantWorkspaceLinks = pgTable("legacy_merchant_workspace_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantProfileId: uuid("merchant_profile_id").notNull().references(() => merchantProfiles.id, { onDelete: "restrict" }),
+  legacyMerchantUserId: uuid("legacy_merchant_user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("legacy_workspace_links_profile_unique").on(table.merchantProfileId),
+  uniqueIndex("legacy_workspace_links_user_unique").on(table.legacyMerchantUserId),
+  uniqueIndex("legacy_workspace_links_workspace_unique").on(table.workspaceId),
 ]);
 
 export const platformSettings = pgTable("platform_settings", {
@@ -267,12 +348,17 @@ export const merchantLedgerEntries = pgTable("merchant_ledger_entries", {
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "restrict" }),
+  requestId: text("request_id"),
   action: text("action").notNull(),
   entityType: text("entity_type").notNull(),
   entityId: text("entity_id").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("audit_logs_created_idx").on(table.createdAt)]);
+}, (table) => [
+  index("audit_logs_created_idx").on(table.createdAt),
+  index("audit_logs_workspace_created_idx").on(table.workspaceId, table.createdAt),
+]);
 
 export const webhookEvents = pgTable("webhook_events", {
   id: uuid("id").primaryKey().defaultRandom(),

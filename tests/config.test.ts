@@ -39,3 +39,16 @@ test("credential Xendit harus diaktifkan berpasangan", () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /XENDIT_SECRET_KEY dan XENDIT_WEBHOOK_TOKEN harus diisi bersama/);
 });
+
+test("Workspace Foundation hanya aktif dengan UUID canary eksplisit", () => {
+  const missingCanary = validate({ ...validEnvironment, WORKSPACE_FOUNDATION_ENABLED: "true" });
+  assert.equal(missingCanary.status, 1);
+  assert.match(missingCanary.stderr, /WORKSPACE_CANARY_USER_IDS wajib diisi/);
+
+  const invalidCanary = validate({ ...validEnvironment, WORKSPACE_FOUNDATION_ENABLED: "true", WORKSPACE_CANARY_USER_IDS: "owner@example.com" });
+  assert.equal(invalidCanary.status, 1);
+  assert.match(invalidCanary.stderr, /harus berisi UUID/);
+
+  const validCanary = validate({ ...validEnvironment, WORKSPACE_FOUNDATION_ENABLED: "true", WORKSPACE_CANARY_USER_IDS: "123e4567-e89b-42d3-a456-426614174000" });
+  assert.equal(validCanary.status, 0);
+});

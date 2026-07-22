@@ -6,7 +6,10 @@ if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL wajib diisi.");
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 const database = drizzle(pool);
-const requiredTables = ["users", "merchant_profiles", "products", "orders", "enrollments", "merchant_ledger_entries", "webhook_events"];
+const requiredTables = [
+  "users", "merchant_profiles", "products", "orders", "enrollments", "merchant_ledger_entries", "webhook_events",
+  "workspaces", "workspace_memberships", "workspace_branding", "workspace_modules", "workspace_domains", "legacy_merchant_workspace_links",
+];
 
 try {
   await migrate(database, { migrationsFolder: "./drizzle" });

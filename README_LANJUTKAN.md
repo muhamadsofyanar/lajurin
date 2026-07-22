@@ -7,15 +7,18 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 1.0.2 dengan migration 0010. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Konfirmasi transfer, payout, serta pencatatan refund hanya ADMIN selama rekening manual masih rekening platform. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook dan refund harus memakai lock pesanan dan tetap idempoten. Konfirmasi manual oleh merchant baru boleh dibangun setelah rekening penerimaan per merchant, settlement, komisi, payout, dan refund diputuskan melalui desain arsitektur. Setiap rilis baru wajib memperbarui dokumen serah-terima.
+Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi kandidat terakhir seharusnya 1.1.0 dengan migration 0011; Workspace Foundation masih default nonaktif dan belum boleh dipromosikan sebelum gate M0/M1 lulus. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Konfirmasi transfer, payout, serta pencatatan refund hanya ADMIN selama rekening manual masih rekening platform. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook dan refund harus memakai lock pesanan dan tetap idempoten. Konfirmasi manual oleh merchant baru dibangun setelah Workspace Foundation stabil dan desain settlement langsung diterapkan secara aditif. Setiap rilis baru wajib memperbarui dokumen serah-terima.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `1.0.2` atau lebih baru.
-- Migration terbaru minimal `drizzle/0010_v100_production_readiness.sql`.
+- `package.json` memiliki versi `1.1.0` atau lebih baru.
+- Migration terbaru minimal `drizzle/0011_wide_onslaught.sql`.
+- Ada `src/modules/workspace`, `src/platform/auth/workspace-context.ts`, dan `src/platform/feature-flags/workspace.ts`.
+- Ada tabel `workspaces`, `workspaceMemberships`, `workspaceBranding`, `workspaceModules`, `workspaceDomains`, dan `legacyMerchantWorkspaceLinks`.
+- Feature flag Workspace default nonaktif dan canary memakai UUID eksplisit.
 - Ada tabel `lessonProgress` pada `src/lib/schema.ts`.
 - Ada `src/components/video-player.tsx`.
 - Ada tabel `courseModules` dan `lessonAttachments` pada `src/lib/schema.ts`.

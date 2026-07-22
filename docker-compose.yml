@@ -33,6 +33,8 @@ services:
       MANUAL_BANK_NAME: ${MANUAL_BANK_NAME:-BCA}
       MANUAL_BANK_ACCOUNT: ${MANUAL_BANK_ACCOUNT:-1234567890}
       MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-PT Lajurin Indonesia}
+      WORKSPACE_FOUNDATION_ENABLED: ${WORKSPACE_FOUNDATION_ENABLED:-false}
+      WORKSPACE_CANARY_USER_IDS: ${WORKSPACE_CANARY_USER_IDS:-}
     volumes:
       - payment_proofs:/app/data/payment-proofs
       - course_files:/app/data/course-files
