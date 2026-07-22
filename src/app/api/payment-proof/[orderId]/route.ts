@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { orders, products } from "@/lib/schema";
+import { paymentProofPath } from "@/lib/storage";
 
 const contentTypes: Record<string, string> = { ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".pdf": "application/pdf" };
 
@@ -16,9 +17,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ord
   if (user.role !== "ADMIN" && row.order.customerId !== user.id && row.merchantId !== user.id) return new Response("Forbidden", { status: 403 });
   const fileName = path.basename(row.order.manualProofUrl);
   if (fileName !== row.order.manualProofUrl) return new Response("Invalid file", { status: 400 });
-  const uploadDir = process.env.MANUAL_PAYMENT_DIR || "/tmp/lajurin-payment-proofs";
   try {
-    const data = await readFile(path.join(/*turbopackIgnore: true*/ uploadDir, fileName));
+    const data = await readFile(paymentProofPath(fileName));
     return new Response(data, { headers: { "Content-Type": contentTypes[path.extname(fileName).toLowerCase()] || "application/octet-stream", "Content-Disposition": `inline; filename="${fileName}"`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
   } catch {
     return new Response("File not found", { status: 404 });

@@ -1,4 +1,4 @@
-# Lajurin
+# Lajurin v0.3.0
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -11,7 +11,17 @@ Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 - Unggah bukti transfer privat; hanya customer, merchant terkait, dan admin yang dapat membukanya.
 - Persetujuan admin otomatis membuat enrollment dan membuka akses kursus.
 - Komunitas eksklusif dengan postingan, komentar, dan fitur sematkan postingan bagi pengelola.
+- E-course dengan video tertanam (YouTube, Vimeo, Loom, MP4/WebM/OGG), sidebar materi, navigasi, dan progres belajar.
+- Preview materi gratis, pengelolaan urutan materi, serta sertifikat setelah progres 100%.
 - Halaman produk, materi kursus, autentikasi cookie, webhook Xendit, Docker, dan health check.
+
+## Dokumentasi proyek
+
+- `PROJECT_STATUS.md` — status versi, fitur selesai, dan backlog.
+- `DEPLOYMENT.md` — backup, environment variable, migration, storage, dan redeploy Coolify.
+- `CHANGELOG.md` — riwayat perubahan per versi.
+- `TESTING_CHECKLIST.md` — pengujian admin, merchant, dan member.
+- `README_LANJUTKAN.md` — instruksi ketika melanjutkan lewat akun ChatGPT lain.
 
 ## Menjalankan secara lokal
 
@@ -40,11 +50,13 @@ XENDIT_WEBHOOK_TOKEN=token_verifikasi_webhook_xendit
 MANUAL_BANK_NAME=BCA
 MANUAL_BANK_ACCOUNT=1234567890
 MANUAL_BANK_HOLDER=PT Lajurin Indonesia
-MANUAL_PAYMENT_DIR=/app/data/payment-proofs
 
 # Akun administrator pertama
 SEED_ADMIN_EMAIL=admin@lajurin.id
 SEED_ADMIN_PASSWORD=password-kuat-minimal-12-karakter
+
+# Stabilkan Server Actions saat redeploy
+NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte
 ```
 
 ## Alur transfer manual
@@ -55,7 +67,7 @@ SEED_ADMIN_PASSWORD=password-kuat-minimal-12-karakter
 4. Admin membuka **Dashboard → Konfirmasi pembayaran**, memeriksa bukti, lalu menyetujui atau menolak.
 5. Jika disetujui, status menjadi **Lunas** dan kursus langsung muncul pada dashboard member.
 
-Bukti disimpan di `MANUAL_PAYMENT_DIR`. Pada Docker Compose, direktori tersebut sudah memakai volume `payment_proofs`, sehingga berkas tetap tersedia setelah container dibuat ulang. Untuk deployment non-Compose, pasang persistent volume ke direktori yang sama.
+Bukti disimpan di `/app/data/payment-proofs`. Pada Docker Compose, direktori tersebut sudah memakai volume `payment_proofs`, sehingga berkas tetap tersedia setelah container dibuat ulang. Untuk deployment non-Compose, pasang persistent volume ke direktori yang sama.
 
 ## Xendit
 
@@ -71,7 +83,7 @@ Gunakan Test Mode sampai seluruh skenario webhook berhasil. Jika kredensial Xend
 
 1. Hubungkan repository sebagai resource Dockerfile.
 2. Tambahkan PostgreSQL dan isi seluruh environment variable yang diperlukan.
-3. Pasang persistent volume ke `/app/data/payment-proofs`.
+3. Pasang persistent volume ke `/app/data/payment-proofs` (bukan `/app/uploads`).
 4. Exposed port: `3000`; health check: `/api/health`.
 5. Deploy. Migrasi dijalankan otomatis sebelum aplikasi aktif.
 6. Jalankan seed sekali untuk membuat atau memperbarui akun admin.

@@ -33,8 +33,20 @@ export const courses = pgTable("courses", {
 
 export const lessons = pgTable("lessons", {
   id: uuid("id").primaryKey().defaultRandom(), courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
-  title: text("title").notNull(), content: text("content").notNull(), videoUrl: text("video_url"), position: integer("position").notNull(), ...timestamps,
+  title: text("title").notNull(), content: text("content").notNull(), videoUrl: text("video_url"),
+  isPreview: boolean("is_preview").default(false).notNull(), position: integer("position").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("lessons_position_unique").on(table.courseId, table.position)]);
+
+export const lessonProgress = pgTable("lesson_progress", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("lesson_progress_user_lesson_unique").on(table.userId, table.lessonId),
+  index("lesson_progress_user_idx").on(table.userId, table.completedAt),
+]);
 
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(), externalId: text("external_id").notNull(), productId: uuid("product_id").notNull().references(() => products.id),

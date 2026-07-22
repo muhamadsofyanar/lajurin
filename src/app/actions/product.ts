@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
@@ -15,6 +15,11 @@ const productSchema = z.object({
   description: z.string().trim().min(20).max(3000),
   price: z.coerce.number().int().min(10000).max(100000000),
 });
+
+const optionalVideoUrl = z.union([
+  z.literal(""),
+  z.string().url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol), "URL video harus memakai HTTP atau HTTPS"),
+]).optional();
 
 async function uniqueSlug(name: string) {
   const base = slugify(name) || "produk";
@@ -61,7 +66,8 @@ export async function addLessonAction(productId: string, formData: FormData) {
     .object({
       title: z.string().trim().min(3).max(150),
       content: z.string().trim().min(10).max(20000),
-      videoUrl: z.union([z.literal(""), z.string().url()]).optional(),
+      videoUrl: optionalVideoUrl,
+      isPreview: z.preprocess((value) => value === "on", z.boolean()),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/dashboard/products/${productId}?error=Materi+belum+valid`);
@@ -74,7 +80,74 @@ export async function addLessonAction(productId: string, formData: FormData) {
       title: parsed.data.title,
       content: parsed.data.content,
       videoUrl: parsed.data.videoUrl || null,
+      isPreview: parsed.data.isPreview,
       position: course.lessonCount + 1,
+  });
+  revalidatePath(`/dashboard/products/${productId}`);
+}
+
+export async function updateLessonAction(productId: string, lessonId: string, formData: FormData) {
+  const merchant = await requireMerchant();
+  const parsed = z.object({
+    title: z.string().trim().min(3).max(150),
+    content: z.string().trim().min(10).max(20000),
+    videoUrl: optionalVideoUrl,
+    isPreview: z.preprocess((value) => value === "on", z.boolean()),
+  }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) redirect(`/dashboard/products/${productId}?error=Materi+belum+valid`);
+
+  const [ownedLesson] = await db.select({ id: lessons.id }).from(lessons)
+    .innerJoin(courses, eq(lessons.courseId, courses.id))
+    .innerJoin(products, eq(courses.productId, products.id))
+    .where(and(eq(lessons.id, lessonId), eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
+  if (!ownedLesson) redirect("/dashboard");
+
+  await db.update(lessons).set({
+    title: parsed.data.title,
+    content: parsed.data.content,
+    videoUrl: parsed.data.videoUrl || null,
+    isPreview: parsed.data.isPreview,
+    updatedAt: new Date(),
+  }).where(eq(lessons.id, lessonId));
+  revalidatePath(`/dashboard/products/${productId}`);
+}
+
+export async function moveLessonAction(productId: string, lessonId: string, direction: "up" | "down") {
+  const merchant = await requireMerchant();
+  const [ownedCourse] = await db.select({ id: courses.id }).from(courses)
+    .innerJoin(products, eq(courses.productId, products.id))
+    .where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
+  if (!ownedCourse) redirect("/dashboard");
+
+  const orderedLessons = await db.select({ id: lessons.id, position: lessons.position }).from(lessons)
+    .where(eq(lessons.courseId, ownedCourse.id)).orderBy(asc(lessons.position));
+  const index = orderedLessons.findIndex((lesson) => lesson.id === lessonId);
+  const target = orderedLessons[index + (direction === "up" ? -1 : 1)];
+  const lesson = orderedLessons[index];
+  if (!lesson || !target) return;
+
+  await db.update(lessons).set({
+    position: sql<number>`case when ${lessons.id} = ${lesson.id} then ${target.position} when ${lessons.id} = ${target.id} then ${lesson.position} else ${lessons.position} end`,
+    updatedAt: new Date(),
+  }).where(and(eq(lessons.courseId, ownedCourse.id), inArray(lessons.id, [lesson.id, target.id])));
+  revalidatePath(`/dashboard/products/${productId}`);
+}
+
+export async function deleteLessonAction(productId: string, lessonId: string) {
+  const merchant = await requireMerchant();
+  const [ownedLesson] = await db.select({ id: lessons.id, courseId: lessons.courseId }).from(lessons)
+    .innerJoin(courses, eq(lessons.courseId, courses.id))
+    .innerJoin(products, eq(courses.productId, products.id))
+    .where(and(eq(lessons.id, lessonId), eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
+  if (!ownedLesson) redirect("/dashboard");
+
+  await db.transaction(async (tx) => {
+    await tx.delete(lessons).where(eq(lessons.id, lessonId));
+    const remaining = await tx.select({ id: lessons.id }).from(lessons)
+      .where(eq(lessons.courseId, ownedLesson.courseId)).orderBy(asc(lessons.position));
+    for (const [index, lesson] of remaining.entries()) {
+      await tx.update(lessons).set({ position: index + 1, updatedAt: new Date() }).where(eq(lessons.id, lesson.id));
+    }
   });
   revalidatePath(`/dashboard/products/${productId}`);
 }

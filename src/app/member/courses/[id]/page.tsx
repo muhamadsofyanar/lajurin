@@ -1,16 +1,67 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
-import { and, asc, eq } from "drizzle-orm";
+import { Award, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, ListVideo } from "lucide-react";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { toggleLessonCompleteAction } from "@/app/actions/course";
+import { VideoPlayer } from "@/components/video-player";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { courses, enrollments, lessons } from "@/lib/schema";
+import { courses, enrollments, lessonProgress, lessons } from "@/lib/schema";
 
-export default async function CoursePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CoursePage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ lesson?: string }>;
+}) {
   const user = await requireUser();
   const { id } = await params;
-  const [row] = await db.select({ course: courses }).from(enrollments).innerJoin(courses, eq(enrollments.courseId, courses.id)).where(and(eq(enrollments.userId, user.id), eq(enrollments.courseId, id))).limit(1);
+  const { lesson: requestedLessonId } = await searchParams;
+  const [row] = await db.select({ course: courses }).from(enrollments)
+    .innerJoin(courses, eq(enrollments.courseId, courses.id))
+    .where(and(eq(enrollments.userId, user.id), eq(enrollments.courseId, id))).limit(1);
   if (!row) notFound();
+
   const courseLessons = await db.select().from(lessons).where(eq(lessons.courseId, row.course.id)).orderBy(asc(lessons.position));
-  return <main className="app-main"><div className="shell" style={{maxWidth:860}}><div className="page-head"><div><Link className="muted" href="/member">← Semua kursus</Link><h1 className="display" style={{marginTop:14}}>{row.course.title}</h1><p>{row.course.description}</p></div></div><div className="stack">{courseLessons.map((lesson) => <article className="panel form-panel" key={lesson.id}><small style={{color:"var(--lime-dark)",fontWeight:900}}>MATERI {lesson.position}</small><h2 style={{margin:"8px 0 14px"}}>{lesson.title}</h2>{lesson.videoUrl && <a className="btn" href={lesson.videoUrl} target="_blank" rel="noreferrer" style={{marginBottom:16}}>Buka video <ExternalLink size={15} /></a>}<p style={{whiteSpace:"pre-wrap",lineHeight:1.8,color:"var(--muted)"}}>{lesson.content}</p></article>)}</div></div></main>;
+  const progressRows = courseLessons.length ? await db.select({ lessonId: lessonProgress.lessonId }).from(lessonProgress)
+    .where(and(eq(lessonProgress.userId, user.id), inArray(lessonProgress.lessonId, courseLessons.map((lesson) => lesson.id)))) : [];
+  const completedIds = new Set(progressRows.map((progress) => progress.lessonId));
+  const selectedLesson = courseLessons.find((lesson) => lesson.id === requestedLessonId)
+    ?? courseLessons.find((lesson) => !completedIds.has(lesson.id))
+    ?? courseLessons[0];
+  const selectedIndex = selectedLesson ? courseLessons.findIndex((lesson) => lesson.id === selectedLesson.id) : -1;
+  const previousLesson = selectedIndex > 0 ? courseLessons[selectedIndex - 1] : null;
+  const nextLesson = selectedIndex >= 0 && selectedIndex < courseLessons.length - 1 ? courseLessons[selectedIndex + 1] : null;
+  const completedCount = completedIds.size;
+  const progressPercent = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
+
+  return <main className="app-main course-page"><div className="course-shell">
+    <div className="course-topbar">
+      <div><Link className="muted course-back" href="/member">← Semua kursus</Link><h1 className="display">{row.course.title}</h1></div>
+      <div className="course-progress-summary"><div><span>{completedCount} dari {courseLessons.length} materi selesai</span><strong>{progressPercent}%</strong></div><div className="progress-track"><span style={{ width: `${progressPercent}%` }} /></div></div>
+    </div>
+
+    {courseLessons.length && selectedLesson ? <div className="course-learning-layout">
+      <aside className="course-sidebar panel">
+        <div className="course-sidebar-head"><ListVideo size={18} /><strong>Daftar materi</strong></div>
+        <nav aria-label="Daftar materi kursus">{courseLessons.map((lesson) => {
+          const complete = completedIds.has(lesson.id);
+          const active = lesson.id === selectedLesson.id;
+          return <Link className={`course-lesson-link ${active ? "active" : ""}`} href={`/member/courses/${id}?lesson=${lesson.id}`} key={lesson.id} aria-current={active ? "page" : undefined}>
+            {complete ? <CheckCircle2 size={19} /> : <Circle size={19} />}<span><small>MATERI {lesson.position}</small><strong>{lesson.title}</strong></span>
+          </Link>;
+        })}</nav>
+      </aside>
+
+      <article className="course-content panel">
+        <div className="lesson-heading"><div><span className="eyebrow">Materi {selectedLesson.position} dari {courseLessons.length}</span><h2 className="display">{selectedLesson.title}</h2></div>{completedIds.has(selectedLesson.id) && <span className="lesson-complete-badge"><Check size={16} /> Selesai</span>}</div>
+        {selectedLesson.videoUrl && <VideoPlayer url={selectedLesson.videoUrl} title={selectedLesson.title} />}
+        <div className="lesson-copy">{selectedLesson.content}</div>
+        <div className="lesson-actions">
+          <div>{previousLesson && <Link className="btn" href={`/member/courses/${id}?lesson=${previousLesson.id}`}><ChevronLeft size={17} /> Sebelumnya</Link>}</div>
+          <form action={toggleLessonCompleteAction.bind(null, id, selectedLesson.id)}><button className={`btn ${completedIds.has(selectedLesson.id) ? "" : "btn-lime"}`} type="submit">{completedIds.has(selectedLesson.id) ? "Batalkan selesai" : "Tandai selesai"}{!completedIds.has(selectedLesson.id) && <Check size={17} />}</button></form>
+          <div>{nextLesson && <Link className="btn" href={`/member/courses/${id}?lesson=${nextLesson.id}`}>Berikutnya <ChevronRight size={17} /></Link>}</div>
+        </div>
+        {progressPercent === 100 && <div className="course-finished"><Award size={30} /><div><strong>Selamat, kelas ini sudah selesai!</strong><p>Anda dapat membuka sertifikat penyelesaian.</p></div><Link className="btn btn-primary" href={`/member/courses/${id}/certificate`}>Lihat sertifikat</Link></div>}
+      </article>
+    </div> : <section className="panel empty"><h2>Materi belum tersedia</h2><p>Pengelola kelas belum menambahkan materi.</p></section>}
+  </div></main>;
 }

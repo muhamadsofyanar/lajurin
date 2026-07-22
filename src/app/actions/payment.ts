@@ -2,7 +2,6 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
@@ -10,6 +9,7 @@ import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { courses, enrollments, orders, products } from "@/lib/schema";
+import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
 
 const proofTypes: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -40,9 +40,8 @@ export async function submitManualPaymentAction(orderId: string, formData: FormD
   if (!order) redirect("/member/orders?error=Pesanan+tidak+ditemukan");
 
   const fileName = `${order.id}-${randomUUID()}${proofTypes[proof.type]}`;
-  const uploadDir = process.env.MANUAL_PAYMENT_DIR || "/tmp/lajurin-payment-proofs";
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(path.join(/*turbopackIgnore: true*/ uploadDir, fileName), Buffer.from(await proof.arrayBuffer()), { flag: "wx" });
+  await mkdir(paymentProofDirectory, { recursive: true });
+  await writeFile(paymentProofPath(fileName), Buffer.from(await proof.arrayBuffer()), { flag: "wx" });
 
   await db.update(orders).set({
     status: "AWAITING_CONFIRMATION",
