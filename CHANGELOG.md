@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 — 22 Juli 2026
+
+### Diperbaiki
+
+- Navigasi desktop diringkas menjadi empat tujuan utama, menu sekunder terkelompok, notifikasi, dan menu akun agar header tidak lagi padat.
+- Navigasi tablet dan ponsel menggunakan panel vertikal dengan target sentuh yang jelas; daftar menu tidak lagi meluber atau bergulir horizontal.
+- Kepala halaman dashboard berubah menjadi susunan vertikal pada layar kecil dan tombol aksi tersusun dalam grid dua kolom.
+- Seluruh rute admin, merchant, member, komunitas, inbox, notifikasi, dan logout tetap tersedia sesuai role.
+
 ## 1.0.0 — 22 Juli 2026
 
 ### Production readiness

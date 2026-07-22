@@ -1,4 +1,4 @@
-# Checklist Pengujian Lajurin v1.0.0
+# Checklist Pengujian Lajurin v1.0.1
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
@@ -177,6 +177,10 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 
 - [ ] Admin, merchant, dan member diarahkan ke dashboard yang benar.
 - [ ] Logout menghapus sesi.
+- [ ] Desktop 1280/1440 px menampilkan empat menu utama tanpa bertabrakan dengan logo, notifikasi, atau menu akun.
+- [ ] Menu Lainnya menampilkan seluruh tautan sekunder sesuai role dan tidak keluar dari viewport.
+- [ ] Tablet dan ponsel 320/375/390/768 px menampilkan tombol Menu dan panel vertikal tanpa horizontal overflow.
+- [ ] Empat tombol aksi pada kepala dashboard tersusun 2 × 2 pada layar sempit dan tetap dapat disentuh.
 
 ## Production readiness v1.0
 

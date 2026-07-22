@@ -2,7 +2,7 @@
 
 ## Versi aktif source
 
-- Versi paket: **1.0.0 — Production Readiness**
+- Versi paket: **1.0.1 — Responsive Navigation Patch**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
@@ -117,6 +117,12 @@
 - Security headers global, maksimal lima sesi aktif per akun, serta cleanup sesi kedaluwarsa diterapkan.
 - Empat automated test kritis dan alat manifest SHA-256 volume tersedia.
 
+### Responsive navigation v1.0.1
+
+- Header desktop menampilkan empat menu utama sesuai role, menu sekunder terkelompok, notifikasi, dan menu akun.
+- Tablet dan ponsel menggunakan panel navigasi vertikal tanpa horizontal overflow.
+- Kepala dashboard dan tombol aksi menyesuaikan layar sempit tanpa mengubah rute maupun hak akses.
+
 ## Database terbaru
 
 Migration terbaru: `drizzle/0010_v100_production_readiness.sql`.
@@ -157,4 +163,4 @@ Migration tidak menghapus tabel, kolom, lesson, pesanan, enrollment, atau data v
 
 ## Rekomendasi tahap berikutnya
 
-Tahap berikut bukan penambahan fitur: **validasi staging dan rollout v1.0.0**. Jalankan migration pada salinan database, uji dua merchant, checkout/manual/Xendit Test Mode, refund, payout, komunitas, inbox, automation, backup–restore volume, lalu masukkan source final yang sama ke GitHub dan redeploy produksi satu kali.
+Tahap berikut bukan penambahan fitur: **validasi staging dan rollout patch v1.0.1**. Uji navigasi ADMIN, MERCHANT, dan MEMBER pada desktop serta ponsel, lalu lanjutkan regresi checkout/manual/Xendit Test Mode, refund, payout, komunitas, inbox, automation, dan backup–restore volume sebelum redeploy produksi satu kali.

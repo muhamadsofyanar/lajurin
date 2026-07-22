@@ -7,7 +7,7 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 1.0.0 dengan migration 0010. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Konfirmasi transfer, payout, serta pencatatan refund hanya ADMIN. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook dan refund harus memakai lock pesanan dan tetap idempoten. Tahap berikut adalah validasi staging serta rollout final, bukan menambah fitur sebelum alur kritis lolos. Setiap rilis baru wajib memperbarui dokumen serah-terima.
+Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 1.0.1 dengan migration 0010. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Konfirmasi transfer, payout, serta pencatatan refund hanya ADMIN. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook dan refund harus memakai lock pesanan dan tetap idempoten. Tahap berikut adalah validasi staging serta rollout final, bukan menambah fitur sebelum alur kritis lolos. Setiap rilis baru wajib memperbarui dokumen serah-terima.
 ```
 
 ## Cara memastikan source benar
