@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { compare, hash } from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { and, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { sessions, users } from "@/lib/schema";
 
@@ -25,7 +25,13 @@ export async function createSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_AGE_SECONDS * 1000);
 
-  await db.insert(sessions).values({ userId, tokenHash: hashToken(token), expiresAt });
+  await db.transaction(async (tx) => {
+    await tx.delete(sessions).where(lt(sessions.expiresAt, new Date()));
+    await tx.insert(sessions).values({ userId, tokenHash: hashToken(token), expiresAt });
+    const activeSessions = await tx.select({ id: sessions.id }).from(sessions)
+      .where(eq(sessions.userId, userId)).orderBy(desc(sessions.createdAt));
+    if (activeSessions.length > 5) await tx.delete(sessions).where(inArray(sessions.id, activeSessions.slice(5).map((session) => session.id)));
+  });
 
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -61,7 +67,7 @@ export async function requireUser() {
 
 export async function requireMerchant() {
   const user = await requireUser();
-  if (user.role !== "MERCHANT" && user.role !== "ADMIN") redirect("/member");
+  if (user.role !== "MERCHANT") redirect(user.role === "ADMIN" ? "/admin" : "/member");
   return user;
 }
 

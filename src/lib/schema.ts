@@ -6,6 +6,15 @@ export const orderStatusEnum = pgEnum("order_status", ["PENDING", "AWAITING_CONF
 export const notificationChannelEnum = pgEnum("notification_channel", ["EMAIL", "WHATSAPP"]);
 export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "SENT", "FAILED", "SKIPPED"]);
+export const merchantStatusEnum = pgEnum("merchant_status", ["PENDING", "ACTIVE", "SUSPENDED"]);
+export const payoutStatusEnum = pgEnum("payout_status", ["REQUESTED", "PAID", "REJECTED"]);
+export const ledgerEntryTypeEnum = pgEnum("ledger_entry_type", ["SALE", "PAYOUT", "PAYOUT_REVERSAL", "REFUND", "ADJUSTMENT"]);
+export const landingTemplateEnum = pgEnum("landing_template", ["EDITORIAL", "CREATOR", "STUDIO"]);
+export const couponDiscountTypeEnum = pgEnum("coupon_discount_type", ["PERCENT", "FIXED"]);
+export const analyticsEventEnum = pgEnum("analytics_event", ["PAGE_VIEW", "CHECKOUT_STARTED", "PURCHASE"]);
+export const communityReportStatusEnum = pgEnum("community_report_status", ["OPEN", "RESOLVED", "DISMISSED"]);
+export const automationTriggerEnum = pgEnum("automation_trigger", ["PURCHASED", "COURSE_COMPLETED"]);
+export const webhookProcessingStatusEnum = pgEnum("webhook_processing_status", ["RECEIVED", "PROCESSED", "IGNORED", "FAILED", "REJECTED"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -28,10 +37,49 @@ export const merchantProfiles = pgTable("merchant_profiles", {
   supportEmail: text("support_email"),
   whatsapp: text("whatsapp"),
   accentColor: text("accent_color").default("#163d2d").notNull(),
+  status: merchantStatusEnum("status").default("PENDING").notNull(),
+  platformFeeBps: integer("platform_fee_bps"),
   ...timestamps,
 }, (table) => [
   uniqueIndex("merchant_profiles_user_unique").on(table.userId),
   uniqueIndex("merchant_profiles_slug_unique").on(table.slug),
+]);
+
+export const platformSettings = pgTable("platform_settings", {
+  id: integer("id").primaryKey().default(1),
+  defaultPlatformFeeBps: integer("default_platform_fee_bps").default(0).notNull(),
+  minimumPayoutAmount: integer("minimum_payout_amount").default(100000).notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  ...timestamps,
+});
+
+export const merchantPayoutAccounts = pgTable("merchant_payout_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bankName: text("bank_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  accountHolder: text("account_holder").notNull(),
+  ...timestamps,
+}, (table) => [uniqueIndex("merchant_payout_accounts_merchant_unique").on(table.merchantId)]);
+
+export const merchantPayouts = pgTable("merchant_payouts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(),
+  status: payoutStatusEnum("status").default("REQUESTED").notNull(),
+  bankName: text("bank_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  accountHolder: text("account_holder").notNull(),
+  merchantNote: text("merchant_note"),
+  adminNote: text("admin_note"),
+  transferReference: text("transfer_reference"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index("merchant_payouts_merchant_idx").on(table.merchantId, table.createdAt),
+  index("merchant_payouts_status_idx").on(table.status, table.createdAt),
 ]);
 
 export const sessions = pgTable("sessions", {
@@ -57,8 +105,52 @@ export const productLandingPages = pgTable("product_landing_pages", {
   audienceText: text("audience_text"),
   ctaText: text("cta_text").default("Dapatkan akses").notNull(),
   accentColor: text("accent_color"),
+  template: landingTemplateEnum("template").default("EDITORIAL").notNull(),
+  heroVideoUrl: text("hero_video_url"),
+  instructorName: text("instructor_name"),
+  instructorRole: text("instructor_role"),
+  instructorBio: text("instructor_bio"),
+  instructorImageUrl: text("instructor_image_url"),
+  bonusesText: text("bonuses_text"),
+  testimonialsText: text("testimonials_text"),
+  faqText: text("faq_text"),
+  guaranteeTitle: text("guarantee_title"),
+  guaranteeText: text("guarantee_text"),
+  compareAtPrice: integer("compare_at_price"),
+  promoEndsAt: timestamp("promo_ends_at", { withTimezone: true }),
+  facebookPixelId: text("facebook_pixel_id"),
+  tiktokPixelId: text("tiktok_pixel_id"),
   ...timestamps,
 }, (table) => [uniqueIndex("product_landing_pages_product_unique").on(table.productId)]);
+
+export const coupons = pgTable("coupons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  discountType: couponDiscountTypeEnum("discount_type").notNull(),
+  discountValue: integer("discount_value").notNull(),
+  maxRedemptions: integer("max_redemptions"),
+  redemptionCount: integer("redemption_count").default(0).notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("coupons_product_code_unique").on(table.productId, table.code),
+  index("coupons_product_active_idx").on(table.productId, table.isActive),
+]);
+
+export const productFunnels = pgTable("product_funnels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  orderBumpProductId: uuid("order_bump_product_id").references(() => products.id, { onDelete: "set null" }),
+  upsellProductId: uuid("upsell_product_id").references(() => products.id, { onDelete: "set null" }),
+  downsellProductId: uuid("downsell_product_id").references(() => products.id, { onDelete: "set null" }),
+  bumpHeadline: text("bump_headline"),
+  bumpDescription: text("bump_description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [uniqueIndex("product_funnels_product_unique").on(table.productId)]);
 
 export const courses = pgTable("courses", {
   id: uuid("id").primaryKey().defaultRandom(), productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
@@ -115,12 +207,101 @@ export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(), externalId: text("external_id").notNull(), productId: uuid("product_id").notNull().references(() => products.id),
   customerId: uuid("customer_id").references(() => users.id), customerName: text("customer_name").notNull(), customerEmail: text("customer_email").notNull(), customerPhone: text("customer_phone"),
   amount: integer("amount").notNull(), status: orderStatusEnum("status").default("PENDING").notNull(), xenditSessionId: text("xendit_invoice_id"),
+  subtotalAmount: integer("subtotal_amount"), discountAmount: integer("discount_amount").default(0).notNull(),
+  couponId: uuid("coupon_id").references(() => coupons.id, { onDelete: "set null" }), couponCode: text("coupon_code"),
+  orderBumpProductId: uuid("order_bump_product_id").references(() => products.id, { onDelete: "set null" }), orderBumpAmount: integer("order_bump_amount").default(0).notNull(),
+  utmSource: text("utm_source"), utmMedium: text("utm_medium"), utmCampaign: text("utm_campaign"),
   xenditPaymentUrl: text("xendit_invoice_url"), xenditPaymentId: text("xendit_payment_id"), paymentMethod: text("payment_method"),
   manualProofUrl: text("manual_proof_url"), manualBankName: text("manual_bank_name"), manualAccountName: text("manual_account_name"),
   manualTransferNote: text("manual_transfer_note"), manualSubmittedAt: timestamp("manual_submitted_at", { withTimezone: true }),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }), reviewedBy: uuid("reviewed_by").references(() => users.id),
+  platformFeeBps: integer("platform_fee_bps"), platformFeeAmount: integer("platform_fee_amount"), merchantNetAmount: integer("merchant_net_amount"),
   paidAt: timestamp("paid_at", { withTimezone: true }), webhookPayload: jsonb("webhook_payload"), ...timestamps,
+  refundedAt: timestamp("refunded_at", { withTimezone: true }), refundAmount: integer("refund_amount"), refundReference: text("refund_reference"),
+  refundReason: text("refund_reason"), refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
 }, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
+
+export const couponRedemptions = pgTable("coupon_redemptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  couponId: uuid("coupon_id").notNull().references(() => coupons.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  customerId: uuid("customer_id").references(() => users.id, { onDelete: "set null" }),
+  discountAmount: integer("discount_amount").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("coupon_redemptions_order_unique").on(table.orderId),
+  index("coupon_redemptions_coupon_idx").on(table.couponId, table.createdAt),
+]);
+
+export const analyticsEvents = pgTable("analytics_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+  event: analyticsEventEnum("event").notNull(),
+  visitorId: text("visitor_id"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("analytics_events_product_event_idx").on(table.productId, table.event, table.createdAt),
+  uniqueIndex("analytics_events_order_purchase_unique").on(table.orderId, table.event),
+]);
+
+export const merchantLedgerEntries = pgTable("merchant_ledger_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+  payoutId: uuid("payout_id").references(() => merchantPayouts.id, { onDelete: "set null" }),
+  type: ledgerEntryTypeEnum("type").notNull(),
+  amount: integer("amount").notNull(),
+  description: text("description").notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("merchant_ledger_entries_merchant_idx").on(table.merchantId, table.createdAt),
+  uniqueIndex("merchant_ledger_entries_order_type_unique").on(table.orderId, table.type),
+  uniqueIndex("merchant_ledger_entries_payout_type_unique").on(table.payoutId, table.type),
+]);
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("audit_logs_created_idx").on(table.createdAt)]);
+
+export const webhookEvents = pgTable("webhook_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").default("XENDIT").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  requestId: text("request_id").notNull(),
+  eventName: text("event_name"),
+  externalId: text("external_id"),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+  status: webhookProcessingStatusEnum("status").default("RECEIVED").notNull(),
+  responseStatus: integer("response_status"),
+  payload: jsonb("payload"),
+  errorMessage: text("error_message"),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("webhook_events_fingerprint_unique").on(table.provider, table.fingerprint),
+  index("webhook_events_created_idx").on(table.createdAt),
+  index("webhook_events_order_idx").on(table.orderId, table.createdAt),
+  index("webhook_events_status_idx").on(table.status, table.createdAt),
+]);
+
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").default(1).notNull(),
+  windowStartedAt: timestamp("window_started_at", { withTimezone: true }).defaultNow().notNull(),
+  blockedUntil: timestamp("blocked_until", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("rate_limits_blocked_idx").on(table.blockedUntil), index("rate_limits_updated_idx").on(table.updatedAt)]);
 
 export const notificationDeliveries = pgTable("notification_deliveries", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -142,21 +323,93 @@ export const notificationDeliveries = pgTable("notification_deliveries", {
   index("notification_deliveries_order_idx").on(table.orderId, table.createdAt),
 ]);
 
+export const inAppNotifications = pgTable("in_app_notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  href: text("href"),
+  dedupeKey: text("dedupe_key"),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("in_app_notifications_user_idx").on(table.userId, table.readAt, table.createdAt),
+  uniqueIndex("in_app_notifications_dedupe_unique").on(table.dedupeKey),
+]);
+
 export const enrollments = pgTable("enrollments", {
   id: uuid("id").primaryKey().defaultRandom(), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }), orderId: uuid("order_id").notNull().references(() => orders.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [uniqueIndex("enrollments_user_course_unique").on(table.userId, table.courseId), uniqueIndex("enrollments_order_unique").on(table.orderId)]);
+}, (table) => [uniqueIndex("enrollments_user_course_unique").on(table.userId, table.courseId), index("enrollments_order_idx").on(table.orderId)]);
+
+export const communitySpaces = pgTable("community_spaces", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").references(() => users.id, { onDelete: "cascade" }),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), description: text("description"), isArchived: boolean("is_archived").default(false).notNull(), ...timestamps,
+}, (table) => [
+  index("community_spaces_merchant_idx").on(table.merchantId, table.isArchived),
+  index("community_spaces_product_idx").on(table.productId, table.isArchived),
+]);
 
 export const communityPosts = pgTable("community_posts", {
   id: uuid("id").primaryKey().defaultRandom(), authorId: uuid("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  title: text("title").notNull(), content: text("content").notNull(), isPinned: boolean("is_pinned").default(false).notNull(), ...timestamps,
-}, (table) => [index("community_posts_created_idx").on(table.createdAt)]);
+  spaceId: uuid("space_id").references(() => communitySpaces.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), content: text("content").notNull(), imageStorageKey: text("image_storage_key"),
+  isPinned: boolean("is_pinned").default(false).notNull(), isHidden: boolean("is_hidden").default(false).notNull(),
+  hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }), hiddenAt: timestamp("hidden_at", { withTimezone: true }), ...timestamps,
+}, (table) => [index("community_posts_created_idx").on(table.createdAt), index("community_posts_space_idx").on(table.spaceId, table.isPinned, table.createdAt)]);
 
 export const communityComments = pgTable("community_comments", {
   id: uuid("id").primaryKey().defaultRandom(), postId: uuid("post_id").notNull().references(() => communityPosts.id, { onDelete: "cascade" }),
   authorId: uuid("author_id").notNull().references(() => users.id, { onDelete: "cascade" }), content: text("content").notNull(),
+  isHidden: boolean("is_hidden").default(false).notNull(), hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("community_comments_post_idx").on(table.postId, table.createdAt)]);
+
+export const communityReactions = pgTable("community_reactions", {
+  id: uuid("id").primaryKey().defaultRandom(), postId: uuid("post_id").notNull().references(() => communityPosts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), reaction: text("reaction").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("community_reactions_post_user_unique").on(table.postId, table.userId), index("community_reactions_post_idx").on(table.postId)]);
+
+export const communityReports = pgTable("community_reports", {
+  id: uuid("id").primaryKey().defaultRandom(), reporterId: uuid("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  postId: uuid("post_id").references(() => communityPosts.id, { onDelete: "cascade" }),
+  commentId: uuid("comment_id").references(() => communityComments.id, { onDelete: "cascade" }),
+  reason: text("reason").notNull(), status: communityReportStatusEnum("status").default("OPEN").notNull(),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }), reviewedAt: timestamp("reviewed_at", { withTimezone: true }), ...timestamps,
+}, (table) => [index("community_reports_status_idx").on(table.status, table.createdAt), index("community_reports_post_idx").on(table.postId)]);
+
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(), merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull().references(() => users.id, { onDelete: "cascade" }), productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  ...timestamps,
+}, (table) => [uniqueIndex("conversations_participants_product_unique").on(table.merchantId, table.memberId, table.productId), index("conversations_merchant_idx").on(table.merchantId, table.updatedAt), index("conversations_member_idx").on(table.memberId, table.updatedAt)]);
+
+export const conversationMessages = pgTable("conversation_messages", {
+  id: uuid("id").primaryKey().defaultRandom(), conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }), body: text("body").notNull(),
+  readAt: timestamp("read_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("conversation_messages_conversation_idx").on(table.conversationId, table.createdAt), index("conversation_messages_unread_idx").on(table.conversationId, table.readAt)]);
+
+export const automationRules = pgTable("automation_rules", {
+  id: uuid("id").primaryKey().defaultRandom(), merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }), name: text("name").notNull(),
+  trigger: automationTriggerEnum("trigger").notNull(), sendEmail: boolean("send_email").default(true).notNull(), sendWhatsapp: boolean("send_whatsapp").default(false).notNull(),
+  emailSubject: text("email_subject"), messageTemplate: text("message_template").notNull(), isActive: boolean("is_active").default(true).notNull(), ...timestamps,
+}, (table) => [index("automation_rules_merchant_trigger_idx").on(table.merchantId, table.trigger, table.isActive)]);
+
+export const automationDeliveries = pgTable("automation_deliveries", {
+  id: uuid("id").primaryKey().defaultRandom(), ruleId: uuid("rule_id").notNull().references(() => automationRules.id, { onDelete: "cascade" }),
+  sourceKey: text("source_key").notNull(), userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  channel: notificationChannelEnum("channel").notNull(), recipient: text("recipient").notNull(), provider: text("provider").notNull(),
+  status: notificationStatusEnum("status").default("PENDING").notNull(), attemptCount: integer("attempt_count").default(0).notNull(),
+  responseCode: integer("response_code"), providerResponse: jsonb("provider_response"), errorMessage: text("error_message"), sentAt: timestamp("sent_at", { withTimezone: true }), ...timestamps,
+}, (table) => [uniqueIndex("automation_deliveries_rule_source_channel_unique").on(table.ruleId, table.sourceKey, table.channel), index("automation_deliveries_status_idx").on(table.status, table.createdAt)]);
 
 export type User = typeof users.$inferSelect;

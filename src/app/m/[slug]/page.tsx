@@ -12,13 +12,13 @@ import { merchantProfiles, products } from "@/lib/schema";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const [profile] = await db.select({ brandName: merchantProfiles.brandName, headline: merchantProfiles.headline }).from(merchantProfiles).where(eq(merchantProfiles.slug, slug)).limit(1);
+  const [profile] = await db.select({ brandName: merchantProfiles.brandName, headline: merchantProfiles.headline }).from(merchantProfiles).where(and(eq(merchantProfiles.slug, slug), eq(merchantProfiles.status, "ACTIVE"))).limit(1);
   return profile ? { title: profile.brandName, description: profile.headline ?? `Produk digital dari ${profile.brandName}` } : {};
 }
 
 export default async function MerchantStorePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [profile] = await db.select().from(merchantProfiles).where(eq(merchantProfiles.slug, slug)).limit(1);
+  const [profile] = await db.select().from(merchantProfiles).where(and(eq(merchantProfiles.slug, slug), eq(merchantProfiles.status, "ACTIVE"))).limit(1);
   if (!profile) notFound();
   const productRows = await db.select().from(products).where(and(eq(products.merchantId, profile.userId), eq(products.status, "PUBLISHED"))).orderBy(desc(products.createdAt));
   const style = { "--merchant-accent": profile.accentColor } as CSSProperties;

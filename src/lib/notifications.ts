@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { formatRupiah } from "@/lib/format";
 import { notificationDeliveries, orders, products } from "@/lib/schema";
+import { createInAppNotification } from "@/lib/in-app-notifications";
 
 export type NotificationEvent = "ORDER_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_REJECTED";
 type NotificationChannel = "EMAIL" | "WHATSAPP";
@@ -36,7 +37,7 @@ function escapeHtml(value: string) {
   })[character]!);
 }
 
-function normalizedPhone(value: string | null) {
+export function normalizedPhone(value: string | null) {
   if (!value) return null;
   const digits = value.replace(/\D/g, "");
   if (digits.startsWith("0")) return `62${digits.slice(1)}`;
@@ -129,6 +130,21 @@ async function sendStarSender(input: { recipient: string; body: string }) {
   return { responseCode: response.status, providerResponse };
 }
 
+export async function sendExternalNotification(input: {
+  channel: NotificationChannel;
+  recipient: string;
+  subject: string;
+  text: string;
+}) {
+  return input.channel === "EMAIL"
+    ? sendMailketing({
+        recipient: input.recipient,
+        subject: input.subject,
+        content: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(input.subject)}</h2><p>${escapeHtml(input.text).replace(/\n/g, "<br>")}</p><p><a href="${escapeHtml(appUrl())}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">Buka Lajurin</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Lajurin.</p></div>`,
+      })
+    : sendStarSender({ recipient: input.recipient, body: input.text });
+}
+
 class ProviderError extends Error {
   constructor(message: string, readonly responseCode: number, readonly providerResponse: unknown) {
     super(message);
@@ -198,6 +214,16 @@ export async function dispatchOrderNotifications(orderId: string, event: Notific
       paymentMethod: row.order.paymentMethod,
       paymentUrl: row.order.xenditPaymentUrl,
     });
+    if (row.order.customerId) {
+      await createInAppNotification({
+        userId: row.order.customerId,
+        type: event,
+        title: copy.subject,
+        body: copy.text,
+        href: copy.actionUrl.replace(appUrl(), "") || "/member",
+        dedupeKey: `order:${orderId}:${event}`,
+      });
+    }
     const phone = normalizedPhone(row.order.customerPhone);
     const candidates: Array<{ channel: NotificationChannel; recipient: string | null; provider: string; active: boolean }> = [
       { channel: "EMAIL", recipient: row.order.customerEmail, provider: "MAILKETING", active: config.mailketingActive },
