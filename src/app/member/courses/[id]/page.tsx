@@ -6,7 +6,7 @@ import { toggleLessonCompleteAction } from "@/app/actions/course";
 import { VideoPlayer } from "@/components/video-player";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { courseModules, courses, enrollments, lessonAttachments, lessonProgress, lessons } from "@/lib/schema";
+import { courseModules, courses, enrollments, lessonAttachments, lessonProgress, lessons, merchantProfiles, products, users } from "@/lib/schema";
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -20,8 +20,11 @@ export default async function CoursePage({ params, searchParams }: {
   const user = await requireUser();
   const { id } = await params;
   const { lesson: requestedLessonId } = await searchParams;
-  const [row] = await db.select({ course: courses }).from(enrollments)
+  const [row] = await db.select({ course: courses, merchantName: users.name, merchantBrand: merchantProfiles.brandName, merchantSlug: merchantProfiles.slug }).from(enrollments)
     .innerJoin(courses, eq(enrollments.courseId, courses.id))
+    .innerJoin(products, eq(courses.productId, products.id))
+    .innerJoin(users, eq(products.merchantId, users.id))
+    .leftJoin(merchantProfiles, eq(merchantProfiles.userId, products.merchantId))
     .where(and(eq(enrollments.userId, user.id), eq(enrollments.courseId, id))).limit(1);
   if (!row) notFound();
 
@@ -53,7 +56,7 @@ export default async function CoursePage({ params, searchParams }: {
 
   return <main className="app-main course-page"><div className="course-shell">
     <div className="course-topbar">
-      <div><Link className="muted course-back" href="/member">← Semua kursus</Link><h1 className="display">{row.course.title}</h1></div>
+      <div><Link className="muted course-back" href="/member">← Semua kursus</Link><h1 className="display">{row.course.title}</h1><p className="course-owner">Dikelola oleh {row.merchantSlug ? <Link href={`/m/${row.merchantSlug}`}>{row.merchantBrand ?? row.merchantName}</Link> : row.merchantName}</p></div>
       <div className="course-progress-summary"><div><span>{completedCount} dari {courseLessons.length} materi selesai</span><strong>{progressPercent}%</strong></div><div className="progress-track"><span style={{ width: `${progressPercent}%` }} /></div></div>
     </div>
 

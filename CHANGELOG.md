@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.6.0 — 22 Juli 2026
+
+### Ditambahkan
+
+- Profil toko satu-per-merchant dengan identitas brand, slug publik, kontak, logo URL, dan warna.
+- Etalase merchant publik di `/m/[slug]`.
+- Editor landing page per produk dan landing page publik dengan hero, gambar, manfaat, sasaran peserta, CTA, kurikulum, harga, dan identitas merchant.
+- Identitas merchant pada checkout, kartu kursus member, dan halaman belajar.
+- Migration `0005_multi_merchant_landing.sql` yang juga membuat profil dasar untuk merchant lama.
+
+### Diperjelas dan diamankan
+
+- Dashboard merchant diberi label “Dashboard usaha” dan tetap difilter berdasarkan merchant yang login.
+- “Kelas Saya” tetap satu area lintas merchant karena merupakan perpustakaan milik member, bukan dashboard penjual.
+- Dashboard admin menampilkan agregat seluruh merchant.
+- Aksi setujui/tolak transfer tetap hanya menggunakan `requireAdmin`; merchant tidak mendapat kontrol konfirmasi.
+- Navigasi membedakan area Admin, Dashboard usaha, dan Kelas Saya.
+
+## 0.5.0 — 22 Juli 2026
+
+### Ditambahkan
+
+- Integrasi WhatsApp StarSender melalui API key device.
+- Integrasi email transaksional Mailketing melalui API token dan sender terverifikasi.
+- Nomor WhatsApp wajib pada checkout baru.
+- Notifikasi otomatis untuk pesanan dibuat, pembayaran disetujui, dan pembayaran ditolak.
+- Template pesan dengan tautan pembayaran, unggah bukti, atau akses kelas sesuai konteks.
+- Tabel log pengiriman dengan status, jumlah percobaan, response provider, dan detail error.
+- Halaman ADMIN Integrasi dengan indikator konfigurasi, ringkasan, riwayat, dan kirim ulang.
+- Migration `0004_glorious_vermin.sql`.
+
+### Keamanan dan keandalan
+
+- Token provider hanya dibaca dari environment variable dan tidak dikirim ke browser.
+- Pengiriman dibuat idempoten per pesanan, kanal, dan event untuk mencegah duplikasi webhook.
+- Timeout provider dibatasi 10 detik; kegagalan notifikasi tidak menggagalkan transaksi.
+- Respons provider dibatasi ukurannya dan tidak mencatat header/token.
+
 ## 0.4.0 — 22 Juli 2026
 
 ### Ditambahkan

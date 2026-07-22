@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { dispatchOrderNotifications } from "@/lib/notifications";
 import { courses, enrollments, orders, products } from "@/lib/schema";
 
 type PaymentSessionWebhook = {
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       }).where(eq(orders.id, order.order.id));
       await tx.insert(enrollments).values({ userId: order.order.customerId!, courseId: order.courseId!, orderId: order.order.id }).onConflictDoUpdate({ target: [enrollments.userId, enrollments.courseId], set: { orderId: order.order.id } });
     });
+    await dispatchOrderNotifications(order.order.id, "PAYMENT_APPROVED");
   } else if (payload.event === "payment_session.expired") {
     await db.update(orders).set({ status: "EXPIRED", webhookPayload: payload, updatedAt: new Date() }).where(eq(orders.id, order.order.id));
   }

@@ -8,6 +8,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { dispatchOrderNotifications } from "@/lib/notifications";
 import { courses, enrollments, orders, products } from "@/lib/schema";
 import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
 
@@ -77,7 +78,9 @@ export async function reviewManualPaymentAction(orderId: string, decision: "appr
         .onConflictDoUpdate({ target: [enrollments.userId, enrollments.courseId], set: { orderId: row.order.id } });
     }
   });
+  await dispatchOrderNotifications(row.order.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
   revalidatePath("/admin");
   revalidatePath("/admin/payments");
+  revalidatePath("/admin/integrations");
   revalidatePath("/member");
 }

@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
+import { dispatchOrderNotifications } from "@/lib/notifications";
 import { courses, orders, products, users } from "@/lib/schema";
 
 export async function checkoutAction(slug: string, formData: FormData) {
@@ -14,6 +15,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
     .object({
       name: z.string().trim().min(2).max(80),
       email: z.string().email().transform((value) => value.toLowerCase().trim()),
+      phone: z.string().trim().regex(/^\+?[0-9\s().-]{9,20}$/).transform((value) => value.replace(/[^0-9+]/g, "")),
       password: z.string().min(8).max(128),
       paymentMethod: z.enum(["XENDIT", "MANUAL_TRANSFER"]).default("MANUAL_TRANSFER"),
     })
@@ -43,6 +45,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
       customerId: customer.id,
       customerName: parsed.data.name,
       customerEmail: parsed.data.email,
+      customerPhone: parsed.data.phone,
       amount: product.product.price,
       paymentMethod: parsed.data.paymentMethod,
     }).returning();
@@ -50,6 +53,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
   await createSession(customer.id);
 
   if (parsed.data.paymentMethod === "MANUAL_TRANSFER") {
+    await dispatchOrderNotifications(order.id, "ORDER_CREATED");
     redirect(`/payment/manual/${order.id}`);
   }
 
@@ -73,5 +77,6 @@ export async function checkoutAction(slug: string, formData: FormData) {
   }
 
   await db.update(orders).set({ xenditSessionId: paymentSession.payment_session_id, xenditPaymentUrl: paymentSession.payment_link_url, updatedAt: new Date() }).where(eq(orders.id, order.id));
+  await dispatchOrderNotifications(order.id, "ORDER_CREATED");
   redirect(paymentSession.payment_link_url);
 }

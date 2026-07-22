@@ -29,6 +29,20 @@
       "when": 1784691576795,
       "tag": "0003_course_modules_files",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784692854594,
+      "tag": "0004_glorious_vermin",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784693759576,
+      "tag": "0005_multi_merchant_landing",
+      "breakpoints": true
     }
   ]
 }

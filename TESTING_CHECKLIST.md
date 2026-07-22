@@ -1,4 +1,4 @@
-# Checklist Pengujian Lajurin v0.4.0
+# Checklist Pengujian Lajurin v0.6.0
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
@@ -6,6 +6,8 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 
 - [ ] Backup PostgreSQL berhasil.
 - [ ] Migration `0003_course_modules_files` berhasil setelah migration sebelumnya.
+- [ ] Migration `0004_glorious_vermin` berhasil setelah migration sebelumnya.
+- [ ] Migration `0005_multi_merchant_landing` berhasil setelah migration sebelumnya.
 - [ ] Aplikasi healthy.
 - [ ] Persistent storage `/app/data/payment-proofs` aktif.
 - [ ] Persistent storage `/app/data/course-files` aktif.
@@ -23,6 +25,11 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Ubah urutan lesson ke atas dan ke bawah.
 - [ ] Hapus satu lesson uji dan pastikan urutan tetap berlanjut 1, 2, 3.
 - [ ] Terbitkan produk.
+- [ ] Buat dua akun merchant dan pastikan masing-masing dashboard usaha hanya menampilkan produk sendiri.
+- [ ] Pastikan merchant A tidak dapat membuka URL edit produk atau landing page merchant B.
+- [ ] Isi Profil toko dan pastikan `/m/[slug]` hanya menampilkan produk merchant tersebut.
+- [ ] Edit landing page: hero, gambar, manfaat, sasaran peserta, CTA, dan warna.
+- [ ] Pastikan perubahan landing page tampil di `/p/[slug]` tanpa mengubah materi kursus.
 
 ## Bab/modul dan file
 
@@ -42,6 +49,7 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Lesson non-preview tidak dapat dibuka lewat URL preview.
 - [ ] Checkout Xendit tetap dapat dibuat jika kredensial tersedia.
 - [ ] Checkout transfer manual tetap dapat dibuat tanpa Xendit.
+- [ ] Checkout mewajibkan nomor WhatsApp dan menerima format `08...` atau `62...`.
 - [ ] Bukti transfer berhasil diunggah dan tetap tersedia setelah redeploy.
 - [ ] Halaman produk mengelompokkan kurikulum berdasarkan bab.
 
@@ -51,6 +59,25 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Bukti transfer hanya dapat dibuka oleh pihak yang berwenang.
 - [ ] Persetujuan membuat status PAID dan enrollment.
 - [ ] Penolakan tidak membuka akses kelas.
+- [ ] Menu Integrasi hanya dapat dibuka ADMIN.
+- [ ] Status StarSender dan Mailketing tampil Aktif ketika environment variable lengkap.
+- [ ] Admin melihat jumlah merchant dan produk dari seluruh merchant.
+- [ ] Hanya ADMIN memiliki menu dan halaman Konfirmasi pembayaran.
+- [ ] Merchant yang mencoba membuka `/admin/payments` dialihkan ke dashboard usaha.
+
+## StarSender dan Mailketing
+
+- [ ] Checkout baru menghasilkan satu email dan satu WhatsApp “Pesanan dibuat”.
+- [ ] Transfer manual menyertakan URL unggah bukti yang benar.
+- [ ] Checkout Xendit menyertakan payment link Xendit yang benar.
+- [ ] Persetujuan pembayaran menghasilkan email dan WhatsApp akses kelas.
+- [ ] Penolakan bukti menghasilkan email dan WhatsApp untuk unggah ulang.
+- [ ] Retry webhook Xendit tidak menggandakan pesan untuk event yang sama.
+- [ ] Log menampilkan kanal, penerima, event, waktu, jumlah percobaan, dan status.
+- [ ] Token/API key tidak tampil pada halaman admin maupun response provider yang disimpan.
+- [ ] Tombol Kirim ulang bekerja untuk status Gagal atau Dilewati setelah konfigurasi diperbaiki.
+- [ ] API provider yang gagal tidak membatalkan checkout atau perubahan status pembayaran.
+- [ ] `NOTIFICATIONS_ENABLED=false` membuat pesan berstatus Dilewati tanpa memanggil provider.
 
 ## Member dan e-course
 
@@ -70,6 +97,9 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Member tanpa enrollment menerima 403 ketika membuka URL file course.
 - [ ] Pengguna tanpa login menerima 401 ketika membuka URL file course.
 - [ ] File course tetap tersedia setelah redeploy.
+- [ ] Satu member yang membeli kursus dari dua merchant melihat keduanya pada satu halaman Kelas Saya.
+- [ ] Setiap kartu kursus dan halaman belajar menampilkan nama merchant yang benar.
+- [ ] Profil/etalase merchant dapat dibuka dari kelas bila profil tersedia.
 
 ## Komunitas dan regresi
 

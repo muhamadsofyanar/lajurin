@@ -4,7 +4,8 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { users } from "@/lib/schema";
+import { slugify } from "@/lib/format";
+import { merchantProfiles, users } from "@/lib/schema";
 import {
   createSession,
   deleteSession,
@@ -50,12 +51,22 @@ export async function registerAction(formData: FormData) {
   const [exists] = await db.select({ id: users.id }).from(users).where(eq(users.email, parsed.data.email)).limit(1);
   if (exists) redirect("/login?error=Email+sudah+terdaftar");
 
-  const [user] = await db.insert(users).values({
-      name: parsed.data.name,
-      email: parsed.data.email,
-      passwordHash: await hashPassword(parsed.data.password),
-      role: "MERCHANT",
-    }).returning();
+  const passwordHash = await hashPassword(parsed.data.password);
+  const user = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(users).values({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash,
+        role: "MERCHANT",
+      }).returning();
+    await tx.insert(merchantProfiles).values({
+      userId: created.id,
+      brandName: created.name,
+      slug: `${slugify(created.name) || "toko"}-${created.id.slice(0, 6)}`,
+      supportEmail: created.email,
+    });
+    return created;
+  });
 
   await createSession(user.id);
   redirect("/dashboard");

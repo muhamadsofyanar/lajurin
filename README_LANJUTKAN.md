@@ -7,19 +7,23 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan pengembangan Lajurin berdasarkan source ZIP ini. Baca terlebih dahulu README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 0.4.0. Jangan mulai dari ZIP MVP lama dan jangan menghapus fitur yang sudah ada. Sebelum mengubah kode, cocokkan package.json, migration terakhir, serta fitur admin/member/transfer manual/komunitas/e-course/modul/file terlindungi. Tahap berikut yang direkomendasikan adalah Komunitas dan Inbox. Setiap rilis baru wajib memperbarui lima dokumen serah-terima dan CHANGELOG.
+Lanjutkan pengembangan Lajurin berdasarkan source ZIP ini. Baca terlebih dahulu README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 0.6.0. Jangan mulai dari ZIP MVP lama dan jangan menghapus fitur yang sudah ada. Sebelum mengubah kode, cocokkan package.json, migration terakhir, serta fitur admin/member/transfer manual/komunitas/e-course/modul/file terlindungi/integrasi notifikasi/profil merchant/landing page. Konfirmasi transfer hanya ADMIN. Dashboard usaha harus terisolasi per merchant, sedangkan Kelas Saya boleh menggabungkan pembelian member dari beberapa merchant. Tahap berikut yang direkomendasikan adalah Komunitas dan Inbox v0.7.0. Setiap rilis baru wajib memperbarui lima dokumen serah-terima dan CHANGELOG.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `0.4.0` atau lebih baru.
-- Migration terbaru minimal `drizzle/0003_course_modules_files.sql`.
+- `package.json` memiliki versi `0.6.0` atau lebih baru.
+- Migration terbaru minimal `drizzle/0005_multi_merchant_landing.sql`.
 - Ada tabel `lessonProgress` pada `src/lib/schema.ts`.
 - Ada `src/components/video-player.tsx`.
 - Ada tabel `courseModules` dan `lessonAttachments` pada `src/lib/schema.ts`.
 - Ada `src/app/api/course-file/[attachmentId]/route.ts`.
+- Ada `src/lib/notifications.ts` dan `src/app/admin/integrations/page.tsx`.
+- Ada tabel `notificationDeliveries` dan kolom `orders.customerPhone`.
+- Ada tabel `merchantProfiles` dan `productLandingPages`.
+- Ada halaman `/dashboard/profile`, `/dashboard/products/[id]/landing`, dan `/m/[slug]`.
 - Ada fitur dashboard admin/member, transfer manual, dan komunitas.
 
 Jika salah satu tanda tersebut tidak ada, kemungkinan ZIP yang digunakan adalah source lama. Hentikan perubahan dan minta source terbaru.
@@ -42,6 +46,7 @@ Jika salah satu tanda tersebut tidak ada, kemungkinan ZIP yang digunakan adalah 
 - Database: PostgreSQL resource `lajurin-postgres`
 - Persistent payment proof path: `/app/data/payment-proofs`
 - Persistent course file path: `/app/data/course-files`
+- Integrasi notifikasi: StarSender + Mailketing melalui environment variable
 - Migration dijalankan otomatis ketika container aplikasi mulai.
 
-Jangan menyimpan password admin, kredensial database, token Xendit, atau encryption key di dokumentasi/ZIP.
+Jangan menyimpan password admin, kredensial database, token Xendit, token StarSender, token Mailketing, atau encryption key di dokumentasi/ZIP.
