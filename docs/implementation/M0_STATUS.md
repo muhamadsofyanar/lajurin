@@ -40,6 +40,8 @@ npm run config:check
 npm run verify
 ```
 
+`npm run baseline:check` dijalankan hanya pada tag historis `v1.0.1-baseline`. Source aktif setelah baseline diverifikasi dengan `npm run verify` agar manifest baseline tetap immutable dan tidak ditulis ulang untuk menyamarkan perubahan fitur.
+
 Migration database dijalankan oleh job CI `migrations` atau host PostgreSQL:
 
 ```bash

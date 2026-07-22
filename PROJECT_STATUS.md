@@ -2,7 +2,7 @@
 
 ## Versi aktif source
 
-- Versi paket: **1.0.1 — Responsive Navigation Patch**
+- Versi paket: **1.0.2 — Sprint 1 Merchant Control Candidate**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
@@ -12,8 +12,18 @@
 
 - UI Ringkasan Dashboard usaha dirapikan tanpa mengubah schema atau logika bisnis.
 - Status toko, metrik keuangan, katalog produk, dan aksi cepat memiliki hierarki yang lebih jelas.
-- Tampilan responsif disiapkan untuk desktop, tablet, dan ponsel; kandidat perubahan belum dipromosikan ke produksi.
-- Landing Page Builder, Custom Domain, Broadcast & Abandoned Checkout, serta Automatic Payout & Refund belum dimulai pada perubahan ini.
+- Tampilan responsif Dashboard sudah dipromosikan melalui Coolify pada 23 Juli 2026 dan healthcheck produksi berhasil.
+- Landing Page Builder dasar tetap tersedia dari v0.8. Custom Domain, Broadcast & Abandoned Checkout, serta Automatic Payout & Refund belum dimulai pada perubahan ini.
+- Admin dapat mengedit nama pemilik, email login, email support, status verifikasi, dan komisi merchant melalui halaman control plane yang diaudit.
+- Edit merchant v1.0.2 masih berstatus kandidat dan belum dipromosikan ke produksi.
+- Schema dan migration tetap kompatibel; migration terbaru tetap `0010`.
+
+## Keputusan pembayaran manual yang masih diblokir
+
+- Rekening transfer manual saat ini berasal dari `MANUAL_BANK_*` dan merupakan rekening platform.
+- Ledger setelah pembayaran disetujui mengkredit saldo merchant untuk payout, sehingga uang dianggap diterima platform.
+- Merchant belum boleh menyetujui/menolak bukti transfer tersebut karena tidak memiliki kewenangan memeriksa mutasi rekening platform.
+- Sebelum konfirmasi merchant dapat diterapkan, desain harus menetapkan rekening penerimaan per merchant, snapshot tujuan pembayaran, settlement langsung, cara penagihan komisi, idempotensi, dan perlakuan payout/refund.
 
 ## Fitur selesai
 
@@ -170,4 +180,4 @@ Migration tidak menghapus tabel, kolom, lesson, pesanan, enrollment, atau data v
 
 ## Rekomendasi tahap berikutnya
 
-Tahap berikut bukan penambahan fitur: **validasi staging dan rollout patch v1.0.1**. Uji navigasi ADMIN, MERCHANT, dan MEMBER pada desktop serta ponsel, lalu lanjutkan regresi checkout/manual/Xendit Test Mode, refund, payout, komunitas, inbox, automation, dan backup–restore volume sebelum redeploy produksi satu kali.
+Tahap berikut adalah **validasi staging dan rollout kandidat v1.0.2**. Uji edit merchant oleh ADMIN, navigasi ADMIN/MERCHANT/MEMBER pada desktop serta ponsel, lalu lanjutkan regresi checkout manual/Xendit Test Mode, refund, payout, komunitas, inbox, automation, dan backup–restore volume sebelum redeploy produksi satu kali. Konfirmasi manual oleh merchant tetap diblokir sampai desain settlement langsung disetujui.

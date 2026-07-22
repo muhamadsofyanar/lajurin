@@ -1,4 +1,4 @@
-# Checklist Pengujian Lajurin v1.0.1
+# Checklist Pengujian Lajurin v1.0.2
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
@@ -91,7 +91,13 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Admin melihat jumlah merchant dan produk dari seluruh merchant.
 - [ ] Hanya ADMIN memiliki menu dan halaman Konfirmasi pembayaran.
 - [ ] Merchant yang mencoba membuka `/admin/payments` dialihkan ke dashboard usaha.
+- [ ] Merchant tidak dapat menyetujui transfer ke rekening platform; antrean konfirmasi tetap hanya tersedia untuk ADMIN.
 - [ ] Admin dapat mengaktifkan dan menangguhkan merchant.
+- [ ] Admin dapat membuka halaman Edit data merchant dan mengubah nama pemilik, email login, email support, status verifikasi, serta komisi.
+- [ ] Email login merchant dinormalisasi ke huruf kecil dan email yang sudah digunakan akun lain ditolak.
+- [ ] Edit data kontrol merchant tidak menyediakan perubahan brand, WhatsApp, rekening, produk, landing page, atau konten toko.
+- [ ] Audit log mencatat `MERCHANT_CONTROL_UPDATED`, pelaku, merchant, waktu, dan daftar field yang berubah.
+- [ ] Merchant tidak dapat membuka halaman edit merchant milik admin.
 - [ ] Komisi khusus merchant mengalahkan komisi default hanya untuk transaksi baru.
 - [ ] Admin dapat memfilter transaksi lintas merchant dan mengunduh CSV.
 - [ ] Admin dapat memoderasi status produk dan melihat daftar member.

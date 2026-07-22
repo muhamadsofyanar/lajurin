@@ -1,6 +1,13 @@
 # Changelog
 
-## Belum dirilis
+## 1.0.2 — 23 Juli 2026
+
+### Ditambahkan
+
+- Admin memiliki halaman khusus untuk mengedit data control-plane merchant: nama pemilik, email login, email support, status verifikasi, dan komisi khusus.
+- Perubahan data kontrol dicatat sebagai audit event `MERCHANT_CONTROL_UPDATED` tanpa memasukkan brand, rekening, produk, landing page, atau konten toko ke ruang edit admin.
+- Validasi email unik, normalisasi email, batas komisi dua desimal, dan fallback komisi default platform.
+- Quality gate rilis memisahkan pemeriksaan integritas baseline historis v1.0.1 dari verifikasi source aktif, sehingga CI rilis baru tidak salah ditolak hanya karena source berkembang secara sah.
 
 ### Diperbaiki
 
@@ -9,6 +16,13 @@
 - Daftar produk lebih mudah dipindai pada desktop dan ponsel, termasuk harga, status, jumlah pesanan, serta kondisi kosong.
 - Target fokus keyboard dan susunan responsif Dashboard diperjelas untuk mendukung target WCAG 2.2 AA.
 - Perubahan hanya menyentuh presentasi Dashboard; schema, migration, hak akses, dan alur transaksi tetap sama.
+
+### Keputusan arsitektur tertunda
+
+- Konfirmasi transfer manual oleh merchant belum diaktifkan. Rekening tujuan manual saat ini masih rekening platform (`MANUAL_BANK_*`) dan pencatatan saldo mengasumsikan dana diterima platform; mengaktifkan merchant sebagai verifier akan melanggar otorisasi dan berisiko menggandakan hak payout.
+- Implementasi berikutnya harus memisahkan rekening penerimaan merchant dari rekening payout, menyimpan snapshot tujuan pada order/payment, serta menetapkan cara penagihan komisi untuk settlement langsung sebelum hak konfirmasi merchant ditambahkan.
+
+Tidak ada migration baru; migration terbaru tetap `0010`.
 
 ## 1.0.1 — 22 Juli 2026
 

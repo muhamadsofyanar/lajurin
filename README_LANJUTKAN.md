@@ -7,14 +7,14 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 1.0.1 dengan migration 0010. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Konfirmasi transfer, payout, serta pencatatan refund hanya ADMIN. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook dan refund harus memakai lock pesanan dan tetap idempoten. Tahap berikut adalah validasi staging serta rollout final, bukan menambah fitur sebelum alur kritis lolos. Setiap rilis baru wajib memperbarui dokumen serah-terima.
+Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 1.0.2 dengan migration 0010. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Konfirmasi transfer, payout, serta pencatatan refund hanya ADMIN selama rekening manual masih rekening platform. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook dan refund harus memakai lock pesanan dan tetap idempoten. Konfirmasi manual oleh merchant baru boleh dibangun setelah rekening penerimaan per merchant, settlement, komisi, payout, dan refund diputuskan melalui desain arsitektur. Setiap rilis baru wajib memperbarui dokumen serah-terima.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `1.0.0` atau lebih baru.
+- `package.json` memiliki versi `1.0.2` atau lebih baru.
 - Migration terbaru minimal `drizzle/0010_v100_production_readiness.sql`.
 - Ada tabel `lessonProgress` pada `src/lib/schema.ts`.
 - Ada `src/components/video-player.tsx`.
@@ -45,6 +45,8 @@ Jika salah satu tanda tersebut tidak ada, kemungkinan ZIP yang digunakan adalah 
 6. Perbarui file ini jika prioritas tahap berikut berubah.
 7. Jalankan `npm ci`, `npm run lint`, `npm run typecheck`, dan `npm run build`.
 8. Kemas source tanpa `.git`, `node_modules`, `.next`, `.env`, log, upload pengguna, dan build cache.
+
+`npm run baseline:check` hanya digunakan pada tag baseline historis `v1.0.1-baseline`. Untuk source aktif setelah baseline, quality gate menggunakan `npm run verify`; jangan memperbarui checksum baseline historis agar perubahan fitur tampak seolah-olah bagian dari baseline lama.
 
 ## Informasi deployment saat ini
 
