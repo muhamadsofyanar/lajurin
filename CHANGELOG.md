@@ -1,5 +1,15 @@
 # Changelog
 
+## Belum dirilis
+
+### Diperbaiki
+
+- Ringkasan Dashboard usaha memiliki hierarki visual yang lebih jelas untuk status toko, aksi utama, metrik keuangan, katalog, dan pintasan operasional.
+- Kartu metrik kini menjelaskan konteks setiap nilai tanpa mengubah sumber maupun perhitungan data.
+- Daftar produk lebih mudah dipindai pada desktop dan ponsel, termasuk harga, status, jumlah pesanan, serta kondisi kosong.
+- Target fokus keyboard dan susunan responsif Dashboard diperjelas untuk mendukung target WCAG 2.2 AA.
+- Perubahan hanya menyentuh presentasi Dashboard; schema, migration, hak akses, dan alur transaksi tetap sama.
+
 ## 1.0.1 — 22 Juli 2026
 
 ### Diperbaiki

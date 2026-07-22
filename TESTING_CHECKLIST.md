@@ -180,7 +180,11 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Desktop 1280/1440 px menampilkan empat menu utama tanpa bertabrakan dengan logo, notifikasi, atau menu akun.
 - [ ] Menu Lainnya menampilkan seluruh tautan sekunder sesuai role dan tidak keluar dari viewport.
 - [ ] Tablet dan ponsel 320/375/390/768 px menampilkan tombol Menu dan panel vertikal tanpa horizontal overflow.
-- [ ] Empat tombol aksi pada kepala dashboard tersusun 2 × 2 pada layar sempit dan tetap dapat disentuh.
+- [ ] Dashboard usaha menampilkan status merchant, metrik keuangan, produk, dan pintasan hanya dari merchant yang login.
+- [ ] Aksi Lihat toko hanya tampil untuk merchant aktif dengan slug dan membuka etalase merchant yang benar.
+- [ ] Desktop menampilkan katalog dan panel aksi cepat berdampingan tanpa teks atau nominal terpotong.
+- [ ] Tablet dan ponsel menumpuk hero, metrik, katalog, serta aksi cepat tanpa horizontal overflow; seluruh tombol tetap dapat disentuh.
+- [ ] Navigasi keyboard memperlihatkan fokus yang jelas pada tautan, tombol, dan elemen menu Dashboard.
 
 ## Production readiness v1.0
 

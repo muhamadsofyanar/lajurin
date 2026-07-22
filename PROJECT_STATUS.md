@@ -8,6 +8,13 @@
 - Database: PostgreSQL + Drizzle ORM
 - Deployment pengguna: Coolify, domain `legaone.id`
 
+## Perubahan dalam pengerjaan — Sprint 1
+
+- UI Ringkasan Dashboard usaha dirapikan tanpa mengubah schema atau logika bisnis.
+- Status toko, metrik keuangan, katalog produk, dan aksi cepat memiliki hierarki yang lebih jelas.
+- Tampilan responsif disiapkan untuk desktop, tablet, dan ponsel; kandidat perubahan belum dipromosikan ke produksi.
+- Landing Page Builder, Custom Domain, Broadcast & Abandoned Checkout, serta Automatic Payout & Refund belum dimulai pada perubahan ini.
+
 ## Fitur selesai
 
 ### Platform v2
