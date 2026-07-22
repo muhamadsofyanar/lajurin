@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lajurin_staging
+      POSTGRES_USER: lajurin_staging
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lajurin_staging -d lajurin_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3100:3000"
+    environment:
+      DEPLOYMENT_ENV: staging
+      DATABASE_URL: postgresql://lajurin_staging:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}@postgres:5432/lajurin_staging
+      APP_URL: ${APP_URL:?APP_URL staging wajib diisi}
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:?NEXT_SERVER_ACTIONS_ENCRYPTION_KEY wajib diisi}
+      XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY:-}
+      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:-}
+      NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
+      STARSENDER_API_KEY: ${STARSENDER_API_KEY:-}
+      MAILKETING_API_TOKEN: ${MAILKETING_API_TOKEN:-}
+      MAILKETING_FROM_NAME: ${MAILKETING_FROM_NAME:-Lajurin Staging}
+      MAILKETING_FROM_EMAIL: ${MAILKETING_FROM_EMAIL:-}
+      MANUAL_BANK_NAME: ${MANUAL_BANK_NAME:-STAGING ONLY}
+      MANUAL_BANK_ACCOUNT: ${MANUAL_BANK_ACCOUNT:-0000000000}
+      MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-STAGING ONLY}
+    volumes:
+      - payment_proofs_staging:/app/data/payment-proofs
+      - course_files_staging:/app/data/course-files
+      - landing_media_staging:/app/data/landing-media
+      - community_media_staging:/app/data/community-media
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_staging_data:
+  payment_proofs_staging:
+  course_files_staging:
+  landing_media_staging:
+  community_media_staging:
