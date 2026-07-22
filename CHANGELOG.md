@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 — 22 Juli 2026
+
+### Ditambahkan
+
+- Bab/modul course dengan tambah, edit, hapus, dan pengurutan.
+- Penempatan lesson ke bab serta kelompok otomatis untuk lesson lama tanpa bab.
+- Tampilan kurikulum per bab pada halaman produk dan ruang belajar member.
+- Upload file pendamping privat: PDF, EPUB, ZIP, Office, dan TXT maksimal 15 MB.
+- Endpoint download dengan verifikasi ADMIN, merchant pemilik, atau enrollment member.
+- Persistent storage `/app/data/course-files` dan volume Docker Compose `course_files`.
+- Migration `0003_course_modules_files.sql`.
+
+### Diperbaiki
+
+- File attachment ikut dibersihkan saat attachment atau lesson dihapus.
+- Batas body Server Actions dinaikkan secukupnya untuk upload 15 MB.
+- Dokumentasi deploy, testing, status, dan serah-terima diperbarui ke v0.4.0.
+
 ## 0.3.0 — 22 Juli 2026
 
 ### Ditambahkan

@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Award, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, ListVideo } from "lucide-react";
+import { Award, Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Download, FileText, ListVideo } from "lucide-react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { toggleLessonCompleteAction } from "@/app/actions/course";
 import { VideoPlayer } from "@/components/video-player";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { courses, enrollments, lessonProgress, lessons } from "@/lib/schema";
+import { courseModules, courses, enrollments, lessonAttachments, lessonProgress, lessons } from "@/lib/schema";
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default async function CoursePage({ params, searchParams }: {
   params: Promise<{ id: string }>;
@@ -21,6 +26,7 @@ export default async function CoursePage({ params, searchParams }: {
   if (!row) notFound();
 
   const courseLessons = await db.select().from(lessons).where(eq(lessons.courseId, row.course.id)).orderBy(asc(lessons.position));
+  const modules = await db.select().from(courseModules).where(eq(courseModules.courseId, row.course.id)).orderBy(asc(courseModules.position));
   const progressRows = courseLessons.length ? await db.select({ lessonId: lessonProgress.lessonId }).from(lessonProgress)
     .where(and(eq(lessonProgress.userId, user.id), inArray(lessonProgress.lessonId, courseLessons.map((lesson) => lesson.id)))) : [];
   const completedIds = new Set(progressRows.map((progress) => progress.lessonId));
@@ -32,6 +38,18 @@ export default async function CoursePage({ params, searchParams }: {
   const nextLesson = selectedIndex >= 0 && selectedIndex < courseLessons.length - 1 ? courseLessons[selectedIndex + 1] : null;
   const completedCount = completedIds.size;
   const progressPercent = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
+  const selectedAttachments = selectedLesson ? await db.select().from(lessonAttachments)
+    .where(eq(lessonAttachments.lessonId, selectedLesson.id)).orderBy(asc(lessonAttachments.createdAt)) : [];
+  const groupedLessons = modules.map((module) => ({ module, lessons: courseLessons.filter((lesson) => lesson.moduleId === module.id) }));
+  const ungroupedLessons = courseLessons.filter((lesson) => !lesson.moduleId || !modules.some((module) => module.id === lesson.moduleId));
+
+  function LessonLink({ lesson }: { lesson: typeof courseLessons[number] }) {
+    const complete = completedIds.has(lesson.id);
+    const active = lesson.id === selectedLesson?.id;
+    return <Link className={`course-lesson-link ${active ? "active" : ""}`} href={`/member/courses/${id}?lesson=${lesson.id}`} aria-current={active ? "page" : undefined}>
+      {complete ? <CheckCircle2 size={19} /> : <Circle size={19} />}<span><small>MATERI {lesson.position}</small><strong>{lesson.title}</strong></span>
+    </Link>;
+  }
 
   return <main className="app-main course-page"><div className="course-shell">
     <div className="course-topbar">
@@ -42,19 +60,17 @@ export default async function CoursePage({ params, searchParams }: {
     {courseLessons.length && selectedLesson ? <div className="course-learning-layout">
       <aside className="course-sidebar panel">
         <div className="course-sidebar-head"><ListVideo size={18} /><strong>Daftar materi</strong></div>
-        <nav aria-label="Daftar materi kursus">{courseLessons.map((lesson) => {
-          const complete = completedIds.has(lesson.id);
-          const active = lesson.id === selectedLesson.id;
-          return <Link className={`course-lesson-link ${active ? "active" : ""}`} href={`/member/courses/${id}?lesson=${lesson.id}`} key={lesson.id} aria-current={active ? "page" : undefined}>
-            {complete ? <CheckCircle2 size={19} /> : <Circle size={19} />}<span><small>MATERI {lesson.position}</small><strong>{lesson.title}</strong></span>
-          </Link>;
-        })}</nav>
+        <nav aria-label="Daftar materi kursus">
+          {groupedLessons.filter((group) => group.lessons.length).map(({ module, lessons: moduleLessons }) => <section className="course-module-group" key={module.id}><div className="course-module-label"><small>BAB {module.position}</small><strong>{module.title}</strong></div>{moduleLessons.map((lesson) => <LessonLink lesson={lesson} key={lesson.id} />)}</section>)}
+          {ungroupedLessons.length > 0 && <section className="course-module-group"><div className="course-module-label"><strong>Materi lainnya</strong></div>{ungroupedLessons.map((lesson) => <LessonLink lesson={lesson} key={lesson.id} />)}</section>}
+        </nav>
       </aside>
 
       <article className="course-content panel">
         <div className="lesson-heading"><div><span className="eyebrow">Materi {selectedLesson.position} dari {courseLessons.length}</span><h2 className="display">{selectedLesson.title}</h2></div>{completedIds.has(selectedLesson.id) && <span className="lesson-complete-badge"><Check size={16} /> Selesai</span>}</div>
         {selectedLesson.videoUrl && <VideoPlayer url={selectedLesson.videoUrl} title={selectedLesson.title} />}
         <div className="lesson-copy">{selectedLesson.content}</div>
+        {selectedAttachments.length > 0 && <section className="course-downloads"><div><span className="eyebrow">File pendamping</span><h3>Unduh materi lesson</h3></div><div className="attachment-list">{selectedAttachments.map((attachment) => <a className="attachment-row attachment-download" href={`/api/course-file/${attachment.id}`} key={attachment.id}><FileText size={18} /><span><strong>{attachment.fileName}</strong><small>{formatFileSize(attachment.size)}</small></span><Download size={17} /></a>)}</div></section>}
         <div className="lesson-actions">
           <div>{previousLesson && <Link className="btn" href={`/member/courses/${id}?lesson=${previousLesson.id}`}><ChevronLeft size={17} /> Sebelumnya</Link>}</div>
           <form action={toggleLessonCompleteAction.bind(null, id, selectedLesson.id)}><button className={`btn ${completedIds.has(selectedLesson.id) ? "" : "btn-lime"}`} type="submit">{completedIds.has(selectedLesson.id) ? "Batalkan selesai" : "Tandai selesai"}{!completedIds.has(selectedLesson.id) && <Check size={17} />}</button></form>

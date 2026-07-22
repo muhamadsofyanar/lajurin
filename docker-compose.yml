@@ -30,6 +30,7 @@ services:
       MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-PT Lajurin Indonesia}
     volumes:
       - payment_proofs:/app/data/payment-proofs
+      - course_files:/app/data/course-files
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,3 +38,4 @@ services:
 volumes:
   postgres_data:
   payment_proofs:
+  course_files:

@@ -1,4 +1,4 @@
-# Lajurin v0.3.0
+# Lajurin v0.4.0
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -12,6 +12,8 @@ Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 - Persetujuan admin otomatis membuat enrollment dan membuka akses kursus.
 - Komunitas eksklusif dengan postingan, komentar, dan fitur sematkan postingan bagi pengelola.
 - E-course dengan video tertanam (YouTube, Vimeo, Loom, MP4/WebM/OGG), sidebar materi, navigasi, dan progres belajar.
+- Bab/modul bertingkat untuk mengelompokkan lesson dan mengatur urutan kurikulum.
+- File materi privat (PDF, EPUB, ZIP, Office, dan TXT) yang hanya dapat diunduh pemilik kelas, member terdaftar, atau admin.
 - Preview materi gratis, pengelolaan urutan materi, serta sertifikat setelah progres 100%.
 - Halaman produk, materi kursus, autentikasi cookie, webhook Xendit, Docker, dan health check.
 
@@ -69,6 +71,8 @@ NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte
 
 Bukti disimpan di `/app/data/payment-proofs`. Pada Docker Compose, direktori tersebut sudah memakai volume `payment_proofs`, sehingga berkas tetap tersedia setelah container dibuat ulang. Untuk deployment non-Compose, pasang persistent volume ke direktori yang sama.
 
+File pendamping course disimpan terpisah di `/app/data/course-files` dan memakai volume `course_files`. Batas satu file adalah 15 MB. Jangan menaruh kedua folder tersebut di repository GitHub.
+
 ## Xendit
 
 Di Xendit Dashboard, atur webhook **Payment Session – Completed** dan **Payment Session – Expired** ke:
@@ -84,9 +88,10 @@ Gunakan Test Mode sampai seluruh skenario webhook berhasil. Jika kredensial Xend
 1. Hubungkan repository sebagai resource Dockerfile.
 2. Tambahkan PostgreSQL dan isi seluruh environment variable yang diperlukan.
 3. Pasang persistent volume ke `/app/data/payment-proofs` (bukan `/app/uploads`).
-4. Exposed port: `3000`; health check: `/api/health`.
-5. Deploy. Migrasi dijalankan otomatis sebelum aplikasi aktif.
-6. Jalankan seed sekali untuk membuat atau memperbarui akun admin.
+4. Pasang persistent volume kedua ke `/app/data/course-files` untuk PDF/ebook/file bonus.
+5. Exposed port: `3000`; health check: `/api/health`.
+6. Deploy. Migrasi dijalankan otomatis sebelum aplikasi aktif.
+7. Jalankan seed sekali untuk membuat atau memperbarui akun admin.
 
 ## Pemeriksaan sebelum rilis
 

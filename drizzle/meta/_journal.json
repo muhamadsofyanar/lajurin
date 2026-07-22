@@ -22,6 +22,13 @@
       "when": 1784689826476,
       "tag": "0002_left_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784691576795,
+      "tag": "0003_course_modules_files",
+      "breakpoints": true
     }
   ]
 }

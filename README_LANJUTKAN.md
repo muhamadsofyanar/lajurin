@@ -7,17 +7,19 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan pengembangan Lajurin berdasarkan source ZIP ini. Baca terlebih dahulu README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 0.3.0. Jangan mulai dari ZIP MVP lama dan jangan menghapus fitur yang sudah ada. Sebelum mengubah kode, cocokkan package.json, migration terakhir, serta fitur admin/member/transfer manual/komunitas/e-course. Tahap berikut yang direkomendasikan adalah File Materi Terlindungi + Modul/Bab. Setiap rilis baru wajib memperbarui lima dokumen serah-terima dan CHANGELOG.
+Lanjutkan pengembangan Lajurin berdasarkan source ZIP ini. Baca terlebih dahulu README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, dan AGENTS.md. Versi terakhir seharusnya 0.4.0. Jangan mulai dari ZIP MVP lama dan jangan menghapus fitur yang sudah ada. Sebelum mengubah kode, cocokkan package.json, migration terakhir, serta fitur admin/member/transfer manual/komunitas/e-course/modul/file terlindungi. Tahap berikut yang direkomendasikan adalah Komunitas dan Inbox. Setiap rilis baru wajib memperbarui lima dokumen serah-terima dan CHANGELOG.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `0.3.0` atau lebih baru.
-- Migration terbaru minimal `drizzle/0002_left_power_pack.sql`.
+- `package.json` memiliki versi `0.4.0` atau lebih baru.
+- Migration terbaru minimal `drizzle/0003_course_modules_files.sql`.
 - Ada tabel `lessonProgress` pada `src/lib/schema.ts`.
 - Ada `src/components/video-player.tsx`.
+- Ada tabel `courseModules` dan `lessonAttachments` pada `src/lib/schema.ts`.
+- Ada `src/app/api/course-file/[attachmentId]/route.ts`.
 - Ada fitur dashboard admin/member, transfer manual, dan komunitas.
 
 Jika salah satu tanda tersebut tidak ada, kemungkinan ZIP yang digunakan adalah source lama. Hentikan perubahan dan minta source terbaru.
@@ -39,6 +41,7 @@ Jika salah satu tanda tersebut tidak ada, kemungkinan ZIP yang digunakan adalah 
 - Platform: Coolify
 - Database: PostgreSQL resource `lajurin-postgres`
 - Persistent payment proof path: `/app/data/payment-proofs`
+- Persistent course file path: `/app/data/course-files`
 - Migration dijalankan otomatis ketika container aplikasi mulai.
 
 Jangan menyimpan password admin, kredensial database, token Xendit, atau encryption key di dokumentasi/ZIP.

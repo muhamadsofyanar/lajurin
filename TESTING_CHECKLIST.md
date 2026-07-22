@@ -1,13 +1,14 @@
-# Checklist Pengujian Lajurin v0.3.0
+# Checklist Pengujian Lajurin v0.4.0
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
 ## Persiapan
 
 - [ ] Backup PostgreSQL berhasil.
-- [ ] Migration `0002_left_power_pack` berhasil.
+- [ ] Migration `0003_course_modules_files` berhasil setelah migration sebelumnya.
 - [ ] Aplikasi healthy.
 - [ ] Persistent storage `/app/data/payment-proofs` aktif.
+- [ ] Persistent storage `/app/data/course-files` aktif.
 - [ ] Siapkan satu akun ADMIN, satu MERCHANT, dan satu MEMBER.
 - [ ] Siapkan satu produk dengan minimal tiga lesson.
 
@@ -23,6 +24,17 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Hapus satu lesson uji dan pastikan urutan tetap berlanjut 1, 2, 3.
 - [ ] Terbitkan produk.
 
+## Bab/modul dan file
+
+- [ ] Buat minimal dua bab dan periksa urutan 1, 2.
+- [ ] Edit judul/deskripsi bab dan ubah urutannya.
+- [ ] Tempatkan lesson ke tiap bab; sisakan satu lesson tanpa bab.
+- [ ] Hapus satu bab dan pastikan lesson di dalamnya tidak terhapus, tetapi pindah ke “Materi lainnya”.
+- [ ] Unggah PDF kecil pada sebuah lesson.
+- [ ] Uji EPUB/ZIP/Office/TXT bila tersedia.
+- [ ] Pastikan file lebih dari 15 MB dan ekstensi yang tidak didukung ditolak.
+- [ ] Merchant dapat mengunduh dan menghapus attachment miliknya.
+
 ## Publik dan checkout
 
 - [ ] Halaman produk menampilkan daftar lesson.
@@ -31,6 +43,7 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Checkout Xendit tetap dapat dibuat jika kredensial tersedia.
 - [ ] Checkout transfer manual tetap dapat dibuat tanpa Xendit.
 - [ ] Bukti transfer berhasil diunggah dan tetap tersedia setelah redeploy.
+- [ ] Halaman produk mengelompokkan kurikulum berdasarkan bab.
 
 ## Admin
 
@@ -52,6 +65,11 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 - [ ] Sertifikat belum dapat dibuka sebelum progres 100%.
 - [ ] Sertifikat tersedia setelah semua lesson selesai.
 - [ ] Tombol cetak/simpan PDF sertifikat bekerja.
+- [ ] Sidebar course menampilkan bab dan lesson dalam kelompok yang benar.
+- [ ] Member terdaftar dapat mengunduh file pendamping.
+- [ ] Member tanpa enrollment menerima 403 ketika membuka URL file course.
+- [ ] Pengguna tanpa login menerima 401 ketika membuka URL file course.
+- [ ] File course tetap tersedia setelah redeploy.
 
 ## Komunitas dan regresi
 

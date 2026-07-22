@@ -31,11 +31,40 @@ export const courses = pgTable("courses", {
   title: text("title").notNull(), description: text("description").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("courses_product_unique").on(table.productId)]);
 
+export const courseModules = pgTable("course_modules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  position: integer("position").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("course_modules_position_unique").on(table.courseId, table.position),
+  index("course_modules_course_idx").on(table.courseId),
+]);
+
 export const lessons = pgTable("lessons", {
   id: uuid("id").primaryKey().defaultRandom(), courseId: uuid("course_id").notNull().references(() => courses.id, { onDelete: "cascade" }),
+  moduleId: uuid("module_id").references(() => courseModules.id, { onDelete: "set null" }),
   title: text("title").notNull(), content: text("content").notNull(), videoUrl: text("video_url"),
   isPreview: boolean("is_preview").default(false).notNull(), position: integer("position").notNull(), ...timestamps,
-}, (table) => [uniqueIndex("lessons_position_unique").on(table.courseId, table.position)]);
+}, (table) => [
+  uniqueIndex("lessons_position_unique").on(table.courseId, table.position),
+  index("lessons_module_idx").on(table.moduleId),
+]);
+
+export const lessonAttachments = pgTable("lesson_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("lesson_attachments_storage_unique").on(table.storageKey),
+  index("lesson_attachments_lesson_idx").on(table.lessonId, table.createdAt),
+]);
 
 export const lessonProgress = pgTable("lesson_progress", {
   id: uuid("id").primaryKey().defaultRandom(),
