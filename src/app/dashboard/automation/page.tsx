@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/order";
 import { automationDeliveries, automationRules, products } from "@/lib/schema";
 
 const triggerLabels = { PURCHASED: "Pembayaran lunas", COURSE_COMPLETED: "Kelas selesai" };
-const statusLabels = { PENDING: "Menunggu", SENT: "Terkirim", FAILED: "Gagal", SKIPPED: "Dilewati" };
+const statusLabels = { PENDING: "Menunggu", PROCESSING: "Sedang dikirim", SENT: "Terkirim", FAILED: "Gagal", SKIPPED: "Dilewati" };
 
 export default async function AutomationPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
   const merchant = await requireMerchant("manage");

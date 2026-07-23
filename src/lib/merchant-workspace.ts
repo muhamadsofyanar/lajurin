@@ -1,14 +1,14 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { requireMerchant } from "@/lib/auth";
+import { requireMerchant, type MerchantCapability } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requireFeature } from "@/lib/feature-flags";
 import { legacyMerchantWorkspaceLinks, workspaceMemberships, workspaces } from "@/lib/schema";
 import { requireWorkspacePermission } from "@/modules/workspace/domain/policy";
 import type { WorkspacePermission } from "@/modules/workspace/domain/types";
 
-export async function requireMerchantWorkspace(permission: WorkspacePermission = "workspace.read") {
-  const capability = permission === "workspace.members.manage" ? "members" : permission === "workspace.billing.manage" ? "finance" : permission === "workspace.manage" ? "manage" : "read";
+export async function requireMerchantWorkspace(permission: WorkspacePermission = "workspace.read", capabilityOverride?: MerchantCapability) {
+  const capability = capabilityOverride ?? (permission === "workspace.members.manage" ? "members" : permission === "workspace.billing.manage" ? "finance" : permission === "workspace.manage" ? "manage" : "read");
   const merchant = await requireMerchant(capability);
   await requireFeature("WORKSPACE_TEAMS", merchant.id);
   const [row] = await db.select({ workspace: workspaces, membership: workspaceMemberships })

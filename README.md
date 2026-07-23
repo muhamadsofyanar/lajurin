@@ -1,4 +1,4 @@
-# Lajurin v1.4.0
+# Lajurin v1.5.0
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -73,6 +73,9 @@ STARSENDER_API_KEY=api-key-device-starsender
 MAILKETING_API_TOKEN=token-api-mailketing
 MAILKETING_FROM_NAME=Lajurin
 MAILKETING_FROM_EMAIL=sender-terverifikasi@domain-anda.id
+INTERNAL_JOB_SECRET=rahasia-acak-minimal-32-karakter
+BROADCAST_BATCH_SIZE=20
+BROADCAST_DAILY_RECIPIENT_LIMIT=500
 
 # Tujuan transfer manual
 MANUAL_BANK_NAME=BCA

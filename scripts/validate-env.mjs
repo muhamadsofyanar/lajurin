@@ -49,6 +49,20 @@ for (const name of ["MANUAL_BANK_NAME", "MANUAL_BANK_ACCOUNT", "MANUAL_BANK_HOLD
 
 configuredPair("XENDIT_SECRET_KEY", "XENDIT_WEBHOOK_TOKEN");
 
+if (strict) {
+  const jobSecret = required("INTERNAL_JOB_SECRET");
+  if (jobSecret && jobSecret.length < 32) errors.push("INTERNAL_JOB_SECRET minimal 32 karakter");
+}
+for (const [name, minimum, maximum] of [
+  ["BROADCAST_BATCH_SIZE", 1, 50],
+  ["BROADCAST_DAILY_RECIPIENT_LIMIT", 1, 10000],
+]) {
+  const raw = process.env[name]?.trim();
+  if (raw && (!/^\d+$/.test(raw) || Number(raw) < minimum || Number(raw) > maximum)) {
+    errors.push(`${name} harus bilangan ${minimum}-${maximum}`);
+  }
+}
+
 const workspaceFoundationEnabled = process.env.WORKSPACE_FOUNDATION_ENABLED?.trim().toLowerCase();
 if (workspaceFoundationEnabled && !new Set(["true", "false"]).has(workspaceFoundationEnabled)) {
   errors.push("WORKSPACE_FOUNDATION_ENABLED harus true atau false");

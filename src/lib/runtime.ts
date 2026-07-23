@@ -19,6 +19,7 @@ export function configurationChecks(): RuntimeCheck[] {
     { key: "manual_bank", label: "Rekening transfer", ok: Boolean(process.env.MANUAL_BANK_NAME && process.env.MANUAL_BANK_ACCOUNT && process.env.MANUAL_BANK_HOLDER), detail: "Nama bank, nomor, dan pemilik terisi" },
     { key: "xendit", label: "Xendit", ok: Boolean(process.env.XENDIT_SECRET_KEY) === Boolean(process.env.XENDIT_WEBHOOK_TOKEN), detail: process.env.XENDIT_SECRET_KEY && process.env.XENDIT_WEBHOOK_TOKEN ? "Payment gateway aktif" : "Opsional; isi kedua secret untuk mengaktifkan" },
     { key: "notifications", label: "Notifikasi eksternal", ok: process.env.NOTIFICATIONS_ENABLED !== "true" || Boolean(process.env.STARSENDER_API_KEY && process.env.MAILKETING_API_TOKEN && process.env.MAILKETING_FROM_EMAIL), detail: "Provider lengkap atau notifikasi dimatikan" },
+    { key: "broadcast_job", label: "Worker broadcast", ok: !production || Boolean(process.env.INTERNAL_JOB_SECRET && process.env.INTERNAL_JOB_SECRET.length >= 32), detail: "Secret job internal minimal 32 karakter" },
   ];
 }
 

@@ -4,4 +4,6 @@ export async function register() {
   const { logEvent } = await import("@/lib/security");
   const failed = configurationChecks().filter((check) => !check.ok && check.key !== "xendit");
   if (failed.length) logEvent("warn", "runtime_configuration_incomplete", { failed: failed.map((check) => check.key) });
+  const { registerProcessMonitoring } = await import("@/lib/process-monitoring");
+  registerProcessMonitoring();
 }

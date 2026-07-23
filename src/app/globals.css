@@ -813,7 +813,8 @@ a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #
 .builder-accordion[open]>summary::after { content:"−"; }
 .builder-fields { display:grid; gap:16px; padding:2px 24px 24px; }
 .section-sort-list { display:grid; gap:8px; padding:2px 24px 24px; }
-.section-sort-item { display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:10px; min-height:48px; border:1px solid #e7ece3; border-radius:12px; padding:7px 9px 7px 12px; background:#fbfcfa; }
+.section-sort-item { display:grid; grid-template-columns:18px 34px 1fr auto; align-items:center; gap:10px; min-height:48px; border:1px solid #e7ece3; border-radius:12px; padding:7px 9px 7px 12px; background:#fbfcfa; cursor:grab; }
+.section-sort-item.dragging { border-color:var(--brand); opacity:.58; }
 .section-sort-item>span { color:#94a097; font-size:10px; font-weight:900; }
 .section-sort-item>strong { font-size:13px; }
 .section-sort-item>div { display:flex; gap:5px; }

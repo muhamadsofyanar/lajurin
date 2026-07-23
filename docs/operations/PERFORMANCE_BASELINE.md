@@ -2,6 +2,11 @@
 
 **Status:** Menunggu pengukuran pada staging sehat
 
+Migration `0016` menambah indeks status kampanye, antrean delivery, template,
+dan consent order. Worker memakai `FOR UPDATE SKIP LOCKED` serta batch maksimal
+50 agar dua worker tidak mengirim delivery yang sama. Angka p50/p95 tetap harus
+diukur pada staging. Perubahan indeks bukan bukti performa produksi.
+
 ## Route yang diukur
 
 | Route atau alur | Indikator |

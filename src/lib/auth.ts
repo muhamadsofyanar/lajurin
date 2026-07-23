@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { legacyMerchantWorkspaceLinks, merchantProfiles, sessions, users, workspaceMemberships, workspaces } from "@/lib/schema";
+export { merchantCan } from "@/lib/merchant-access";
+export type { MerchantCapability } from "@/lib/merchant-access";
+import { merchantCan, type MerchantCapability } from "@/lib/merchant-access";
 
 const SESSION_COOKIE = "lajurin_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -65,20 +68,7 @@ export async function requireUser() {
   return user;
 }
 
-export type MerchantCapability = "read" | "manage" | "members" | "finance";
-
-const merchantCapabilities: Record<"OWNER" | "ADMIN" | "FINANCE" | "STAFF" | "MEMBER", readonly MerchantCapability[]> = {
-  OWNER: ["read", "manage", "members", "finance"],
-  ADMIN: ["read", "manage", "members"],
-  FINANCE: ["read", "finance"],
-  STAFF: ["read", "manage"],
-  MEMBER: [],
-};
-
 export async function getMerchantAccess(userId: string) {
-  const [ownedProfile] = await db.select({ id: merchantProfiles.id }).from(merchantProfiles)
-    .where(eq(merchantProfiles.userId, userId)).limit(1);
-  if (ownedProfile) return { ownerId: userId, membershipRole: "OWNER" as const, workspaceId: null as string | null };
   const [access] = await db.select({
     ownerId: legacyMerchantWorkspaceLinks.legacyMerchantUserId,
     workspaceId: workspaceMemberships.workspaceId,
@@ -89,9 +79,18 @@ export async function getMerchantAccess(userId: string) {
     .where(and(
       eq(workspaceMemberships.userId, userId),
       eq(workspaceMemberships.status, "ACTIVE"),
-      eq(workspaces.status, "ACTIVE"),
+      inArray(workspaces.status, ["DRAFT", "ACTIVE"]),
     )).limit(1);
-  return access ?? null;
+  if (access) return access;
+
+  const [ownedProfile] = await db.select({
+    id: merchantProfiles.id,
+    workspaceId: legacyMerchantWorkspaceLinks.workspaceId,
+  }).from(merchantProfiles)
+    .leftJoin(legacyMerchantWorkspaceLinks, eq(legacyMerchantWorkspaceLinks.merchantProfileId, merchantProfiles.id))
+    .where(eq(merchantProfiles.userId, userId)).limit(1);
+  if (!ownedProfile || ownedProfile.workspaceId) return null;
+  return { ownerId: userId, membershipRole: "OWNER" as const, workspaceId: null as string | null };
 }
 
 export async function userHome(user: typeof users.$inferSelect) {
@@ -105,7 +104,8 @@ export async function requireMerchant(capability: MerchantCapability = "read") {
   if (actor.role === "ADMIN") redirect("/admin");
 
   const access = await getMerchantAccess(actor.id);
-  if (!access || !merchantCapabilities[access.membershipRole].includes(capability)) redirect(actor.role === "MEMBER" ? "/member" : "/dashboard?error=Akses+tim+tidak+mencukupi");
+  if (!access) redirect("/member?error=Akses+workspace+tidak+aktif");
+  if (!merchantCan(access.membershipRole, capability)) redirect("/dashboard?error=Akses+tim+tidak+mencukupi");
 
   if (access.ownerId === actor.id) return Object.assign(actor, {
     actorId: actor.id,

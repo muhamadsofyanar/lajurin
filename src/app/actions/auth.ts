@@ -3,7 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
 import {
@@ -179,12 +179,20 @@ export async function resetPasswordAction(token: string, formData: FormData) {
   )).limit(1);
   if (!record) redirect("/forgot-password?error=Tautan+reset+tidak+valid+atau+sudah+kedaluwarsa");
   const passwordHash = await hashPassword(parsed.data.password);
-  await db.transaction(async (tx) => {
-    await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, record.userId));
-    await tx.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, record.id));
+  const resetApplied = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`password-reset:${record.id}`}))`);
+    const [consumed] = await tx.update(passwordResetTokens).set({ usedAt: new Date() }).where(and(
+      eq(passwordResetTokens.id, record.id),
+      isNull(passwordResetTokens.usedAt),
+      gt(passwordResetTokens.expiresAt, new Date()),
+    )).returning({ userId: passwordResetTokens.userId });
+    if (!consumed) return false;
+    await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, consumed.userId));
     await tx.delete(sessions).where(eq(sessions.userId, record.userId));
     await tx.insert(auditLogs).values({ actorId: record.userId, action: "PASSWORD_RESET", entityType: "USER", entityId: record.userId });
+    return true;
   });
+  if (!resetApplied) redirect("/forgot-password?error=Tautan+reset+tidak+valid+atau+sudah+digunakan");
   await createSession(record.userId);
   const [user] = await db.select().from(users).where(eq(users.id, record.userId)).limit(1);
   redirect(user ? await userHome(user) : "/login");

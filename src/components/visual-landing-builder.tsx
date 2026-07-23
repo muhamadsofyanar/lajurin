@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, CheckCircle2, Eye, Monitor, Smartphone, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Eye, GripVertical, Monitor, Smartphone, Sparkles } from "lucide-react";
 import { updateLandingPageAction } from "@/app/actions/merchant";
 
 const sections = [
@@ -27,11 +27,23 @@ export function VisualLandingBuilder({ product, initial, initialOrder }: { produ
   const [accent, setAccent] = useState(text(initial, "accentColor", "#0f9f91"));
   const [template, setTemplate] = useState(text(initial, "template", "EDITORIAL"));
   const [benefits, setBenefits] = useState(text(initial, "benefitsText"));
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   function move(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= order.length) return;
     setOrder((items) => { const next = [...items]; [next[index], next[target]] = [next[target], next[index]]; return next; });
+  }
+
+  function dropAt(targetIndex: number) {
+    if (draggedIndex === null || draggedIndex === targetIndex) return setDraggedIndex(null);
+    setOrder((items) => {
+      const next = [...items];
+      const [moved] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+    setDraggedIndex(null);
   }
 
   const benefitList = benefits.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 3);
@@ -50,7 +62,7 @@ export function VisualLandingBuilder({ product, initial, initialOrder }: { produ
         <div className="field"><label htmlFor="benefitsText">Manfaat utama</label><textarea className="input" id="benefitsText" name="benefitsText" value={benefits} onChange={(event) => setBenefits(event.target.value)} maxLength={3000} placeholder="Satu manfaat per baris" /></div>
       </div></details>
 
-      <details className="builder-accordion" open><summary><span>02</span><strong>Urutan section</strong></summary><div className="section-sort-list">{order.map((key, index) => { const label = sections.find(([id]) => id === key)?.[1] ?? key; return <div className="section-sort-item" key={key}><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong><div><button type="button" aria-label={`Naikkan ${label}`} onClick={() => move(index, -1)} disabled={index === 0}><ArrowUp size={15} /></button><button type="button" aria-label={`Turunkan ${label}`} onClick={() => move(index, 1)} disabled={index === order.length - 1}><ArrowDown size={15} /></button></div></div>; })}</div></details>
+      <details className="builder-accordion" open><summary><span>02</span><strong>Urutan section</strong></summary><div className="section-sort-list">{order.map((key, index) => { const label = sections.find(([id]) => id === key)?.[1] ?? key; return <div className={`section-sort-item ${draggedIndex === index ? "dragging" : ""}`} draggable key={key} onDragStart={() => setDraggedIndex(index)} onDragEnd={() => setDraggedIndex(null)} onDragOver={(event) => event.preventDefault()} onDrop={() => dropAt(index)}><GripVertical aria-hidden size={16} /><span>{String(index + 1).padStart(2, "0")}</span><strong>{label}</strong><div><button type="button" aria-label={`Naikkan ${label}`} onClick={() => move(index, -1)} disabled={index === 0}><ArrowUp size={15} /></button><button type="button" aria-label={`Turunkan ${label}`} onClick={() => move(index, 1)} disabled={index === order.length - 1}><ArrowDown size={15} /></button></div></div>; })}</div><p className="field-hint">Seret section untuk mengubah urutan. Tombol naik/turun tetap tersedia untuk keyboard.</p></details>
 
       <details className="builder-accordion"><summary><span>03</span><strong>Audiens & pengajar</strong></summary><div className="builder-fields">
         <div className="field"><label htmlFor="audienceText">Cocok untuk siapa</label><textarea className="input" id="audienceText" name="audienceText" defaultValue={text(initial, "audienceText")} maxLength={1500} /></div>

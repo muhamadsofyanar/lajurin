@@ -145,6 +145,7 @@ export async function acceptWorkspaceInvitationAction(token: string, formData: F
 
   let [target] = await db.select().from(users).where(eq(users.email, invitation.invitation.email)).limit(1);
   const current = await getCurrentUser();
+  let newAccount: { name: string; passwordHash: string } | null = null;
   if (target) {
     if (!current) redirect(`/login?next=${encodeURIComponent(`/team/invite/${token}`)}`);
     if (current.id !== target.id || current.email !== invitation.invitation.email) redirect(`/team/invite/${token}?error=Masuklah+dengan+email+yang+menerima+undangan`);
@@ -154,21 +155,33 @@ export async function acceptWorkspaceInvitationAction(token: string, formData: F
       name: formData.get("name"), password: formData.get("password"), confirmation: formData.get("confirmation"),
     });
     if (!parsed.success || parsed.data.password !== parsed.data.confirmation) redirect(`/team/invite/${token}?error=Nama+dan+password+minimal+8+karakter+wajib+diisi`);
-    [target] = await db.insert(users).values({ name: parsed.data.name, email: invitation.invitation.email, passwordHash: await hashPassword(parsed.data.password), role: "MERCHANT" }).onConflictDoNothing({ target: users.email }).returning();
-    if (!target) redirect(`/team/invite/${token}?error=Akun+sudah+dibuat.+Silakan+masuk+untuk+menerima+undangan`);
+    newAccount = { name: parsed.data.name, passwordHash: await hashPassword(parsed.data.password) };
   }
 
-  await db.transaction(async (tx) => {
+  target = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`workspace-invite:${invitation.invitation.id}`}))`);
-    const [accepted] = await tx.update(workspaceInvitations).set({ status: "ACCEPTED", acceptedBy: target.id, acceptedAt: new Date(), updatedAt: new Date() }).where(and(
+    let acceptedUser = target;
+    if (!acceptedUser && newAccount) {
+      [acceptedUser] = await tx.insert(users).values({
+        name: newAccount.name,
+        email: invitation.invitation.email,
+        passwordHash: newAccount.passwordHash,
+        role: "MERCHANT",
+      }).onConflictDoNothing({ target: users.email }).returning();
+      if (!acceptedUser) throw new Error("ACCOUNT_CREATED");
+    }
+    if (!acceptedUser) throw new Error("ACCOUNT_REQUIRED");
+    const [accepted] = await tx.update(workspaceInvitations).set({ status: "ACCEPTED", acceptedBy: acceptedUser.id, acceptedAt: new Date(), updatedAt: new Date() }).where(and(
       eq(workspaceInvitations.id, invitation.invitation.id), eq(workspaceInvitations.status, "PENDING"), gt(workspaceInvitations.expiresAt, new Date()),
     )).returning({ id: workspaceInvitations.id });
     if (!accepted) throw new Error("INVITE_USED");
-    await tx.insert(workspaceMemberships).values({ workspaceId: invitation.invitation.workspaceId, userId: target.id, role: invitation.invitation.role, status: "ACTIVE" })
+    await tx.insert(workspaceMemberships).values({ workspaceId: invitation.invitation.workspaceId, userId: acceptedUser.id, role: invitation.invitation.role, status: "ACTIVE" })
       .onConflictDoUpdate({ target: [workspaceMemberships.workspaceId, workspaceMemberships.userId], set: { role: invitation.invitation.role, status: "ACTIVE", updatedAt: new Date() } });
-    await tx.insert(auditLogs).values({ actorId: target.id, workspaceId: invitation.invitation.workspaceId, action: "WORKSPACE_INVITATION_ACCEPTED", entityType: "WORKSPACE_INVITATION", entityId: invitation.invitation.id, metadata: { role: invitation.invitation.role } });
+    await tx.insert(auditLogs).values({ actorId: acceptedUser.id, workspaceId: invitation.invitation.workspaceId, action: "WORKSPACE_INVITATION_ACCEPTED", entityType: "WORKSPACE_INVITATION", entityId: invitation.invitation.id, metadata: { role: invitation.invitation.role } });
+    return acceptedUser;
   }).catch((error) => {
     if (error instanceof Error && error.message === "INVITE_USED") redirect(`/team/invite/${token}?error=Undangan+sudah+digunakan`);
+    if (error instanceof Error && error.message === "ACCOUNT_CREATED") redirect(`/login?next=${encodeURIComponent(`/team/invite/${token}`)}`);
     throw error;
   });
   await createSession(target.id);

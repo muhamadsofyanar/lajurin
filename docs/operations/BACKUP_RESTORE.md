@@ -12,6 +12,16 @@ Gunakan credential baca yang sesuai dan simpan hasil pada lokasi terenkripsi den
 pg_dump --format=custom --no-owner --no-acl --dbname="$DATABASE_URL" --file=lajurin.backup
 ```
 
+Source v1.5.0 menyediakan perintah yang membuat dump custom dan metadata SHA-256:
+
+```bash
+npm run ops:backup -- /path/backup-terpisah
+npm run ops:backup:verify -- /path/backup-terpisah/lajurin-TIMESTAMP.dump
+```
+
+Host yang menjalankan perintah harus memiliki `pg_dump` dan `pg_restore` dengan
+major version yang kompatibel dengan PostgreSQL server.
+
 Catat waktu mulai, waktu selesai, ukuran file, checksum SHA-256, versi PostgreSQL, dan operator. Jangan commit file backup.
 
 ## Restore drill

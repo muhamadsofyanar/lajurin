@@ -10,10 +10,11 @@ async function source(path: string) {
 
 test("domain utama produksi tidak diperlakukan sebagai custom domain merchant", async () => {
   const proxy = await source("src/proxy.ts");
-  assert.match(proxy, /"legaone\.id", "www\.legaone\.id"/);
+  const hostnames = await source("src/lib/hostnames.ts");
+  assert.match(hostnames, /"legaone\.id", "www\.legaone\.id"/);
   assert.match(proxy, /request\.headers\.get\("host"\)/);
   assert.match(proxy, /request\.headers\.get\("x-forwarded-host"\)/);
-  assert.match(proxy, /PLATFORM_HOSTNAMES/);
+  assert.match(hostnames, /PLATFORM_HOSTNAMES/);
 });
 
 test("routing root mengenali host publik saat URL internal reverse proxy digunakan", () => {

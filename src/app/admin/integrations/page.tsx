@@ -15,6 +15,7 @@ const eventLabel = {
 
 const statusLabel = {
   PENDING: "Diproses",
+  PROCESSING: "Sedang dikirim",
   SENT: "Terkirim",
   FAILED: "Gagal",
   SKIPPED: "Dilewati",

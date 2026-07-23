@@ -18,10 +18,11 @@ test("migration 0015 menambah token akun, draft builder, domain, dan broadcast s
 
 test("akun tim memakai owner merchant dengan capability berbasis role", async () => {
   const auth = await source("src/lib/auth.ts");
-  assert.match(auth, /FINANCE: \["read", "finance"\]/);
-  assert.match(auth, /STAFF: \["read", "manage"\]/);
+  const access = await source("src/lib/merchant-access.ts");
+  assert.match(access, /FINANCE: \["read", "finance"\]/);
+  assert.match(access, /STAFF: \["read", "manage"\]/);
   assert.match(auth, /legacyMerchantWorkspaceLinks\.legacyMerchantUserId/);
-  assert.match(auth, /merchantCapabilities\[access\.membershipRole\]\.includes\(capability\)/);
+  assert.match(auth, /merchantCan\(access\.membershipRole, capability\)/);
 });
 
 test("undangan dan reset password memakai token acak yang hanya disimpan sebagai hash", async () => {

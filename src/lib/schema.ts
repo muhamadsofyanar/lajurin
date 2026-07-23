@@ -5,7 +5,7 @@ export const productStatusEnum = pgEnum("product_status", ["DRAFT", "PUBLISHED",
 export const orderStatusEnum = pgEnum("order_status", ["PENDING", "AWAITING_CONFIRMATION", "PAID", "REJECTED", "EXPIRED", "FAILED", "REFUNDED"]);
 export const notificationChannelEnum = pgEnum("notification_channel", ["EMAIL", "WHATSAPP"]);
 export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED"]);
-export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "SENT", "FAILED", "SKIPPED"]);
+export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "PROCESSING", "SENT", "FAILED", "SKIPPED"]);
 export const merchantStatusEnum = pgEnum("merchant_status", ["PENDING", "ACTIVE", "SUSPENDED"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["REQUESTED", "PAID", "REJECTED"]);
 export const ledgerEntryTypeEnum = pgEnum("ledger_entry_type", ["SALE", "PAYOUT", "PAYOUT_REVERSAL", "REFUND", "ADJUSTMENT"]);
@@ -132,6 +132,12 @@ export const workspaceDomains = pgTable("workspace_domains", {
   verificationToken: text("verification_token"),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   isPrimary: boolean("is_primary").default(false).notNull(),
+  dnsStatus: text("dns_status").default("PENDING").notNull(),
+  cnameTarget: text("cname_target"),
+  dnsCheckedAt: timestamp("dns_checked_at", { withTimezone: true }),
+  sslStatus: text("ssl_status").default("PENDING").notNull(),
+  sslCheckedAt: timestamp("ssl_checked_at", { withTimezone: true }),
+  lastError: text("last_error"),
   ...timestamps,
 }, (table) => [
   uniqueIndex("workspace_domains_hostname_unique").on(table.hostname),
@@ -349,6 +355,9 @@ export const lessonProgress = pgTable("lesson_progress", {
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(), externalId: text("external_id").notNull(), productId: uuid("product_id").notNull().references(() => products.id),
   customerId: uuid("customer_id").references(() => users.id), customerName: text("customer_name").notNull(), customerEmail: text("customer_email").notNull(), customerPhone: text("customer_phone"),
+  marketingConsent: boolean("marketing_consent").default(false).notNull(),
+  marketingConsentAt: timestamp("marketing_consent_at", { withTimezone: true }),
+  marketingConsentSource: text("marketing_consent_source"),
   amount: integer("amount").notNull(), status: orderStatusEnum("status").default("PENDING").notNull(), xenditSessionId: text("xendit_invoice_id"),
   subtotalAmount: integer("subtotal_amount"), discountAmount: integer("discount_amount").default(0).notNull(),
   couponId: uuid("coupon_id").references(() => coupons.id, { onDelete: "set null" }), couponCode: text("coupon_code"),
@@ -599,6 +608,8 @@ export const automationDeliveries = pgTable("automation_deliveries", {
 export const broadcastCampaigns = pgTable("broadcast_campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),
   merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   audience: text("audience").notNull(),
   subject: text("subject"),
@@ -609,9 +620,15 @@ export const broadcastCampaigns = pgTable("broadcast_campaigns", {
   recipientCount: integer("recipient_count").default(0).notNull(),
   sentCount: integer("sent_count").default(0).notNull(),
   failedCount: integer("failed_count").default(0).notNull(),
+  recipientLimit: integer("recipient_limit").default(100).notNull(),
+  queuedAt: timestamp("queued_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   ...timestamps,
-}, (table) => [index("broadcast_campaigns_merchant_idx").on(table.merchantId, table.createdAt)]);
+}, (table) => [
+  index("broadcast_campaigns_merchant_idx").on(table.merchantId, table.createdAt),
+  index("broadcast_campaigns_status_idx").on(table.status, table.createdAt),
+]);
 
 export const broadcastDeliveries = pgTable("broadcast_deliveries", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -620,13 +637,50 @@ export const broadcastDeliveries = pgTable("broadcast_deliveries", {
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   channel: notificationChannelEnum("channel").notNull(),
   recipient: text("recipient").notNull(),
+  recipientName: text("recipient_name"),
+  productName: text("product_name"),
+  actionUrl: text("action_url"),
+  provider: text("provider").notNull(),
   status: notificationStatusEnum("status").default("PENDING").notNull(),
+  attemptCount: integer("attempt_count").default(0).notNull(),
+  responseCode: integer("response_code"),
+  providerResponse: jsonb("provider_response"),
   errorMessage: text("error_message"),
+  consentCapturedAt: timestamp("consent_captured_at", { withTimezone: true }).notNull(),
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [
   uniqueIndex("broadcast_deliveries_campaign_channel_recipient_unique").on(table.campaignId, table.channel, table.recipient),
   index("broadcast_deliveries_campaign_status_idx").on(table.campaignId, table.status),
+  index("broadcast_deliveries_queue_idx").on(table.status, table.nextAttemptAt, table.createdAt),
+]);
+
+export const broadcastDeliveryAttempts = pgTable("broadcast_delivery_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  deliveryId: uuid("delivery_id").notNull().references(() => broadcastDeliveries.id, { onDelete: "cascade" }),
+  attemptNumber: integer("attempt_number").notNull(),
+  status: notificationStatusEnum("status").notNull(),
+  responseCode: integer("response_code"),
+  providerResponse: jsonb("provider_response"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("broadcast_delivery_attempts_number_unique").on(table.deliveryId, table.attemptNumber),
+  index("broadcast_delivery_attempts_delivery_idx").on(table.deliveryId, table.createdAt),
+]);
+
+export const broadcastTemplates = pgTable("broadcast_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  subject: text("subject"),
+  message: text("message").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("broadcast_templates_merchant_name_unique").on(table.merchantId, table.name),
+  index("broadcast_templates_merchant_idx").on(table.merchantId, table.updatedAt),
 ]);
 
 export type User = typeof users.$inferSelect;

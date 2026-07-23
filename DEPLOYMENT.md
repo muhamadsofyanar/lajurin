@@ -1,6 +1,6 @@
-# Deployment Lajurin v1.3.1 Workspace Recovery Candidate
+# Deployment Lajurin v1.5.0 Five-stage Production Candidate
 
-> Migration `0011`–`0014` dijalankan otomatis saat container mulai. Migration `0014` menggantikan kebutuhan menjalankan backfill Workspace manual dari luar container.
+> Migration `0011`–`0016` dijalankan otomatis saat container mulai. Rilis v1.5.0 wajib diuji pada clone database staging sebelum produksi.
 
 ## Sebelum redeploy
 
@@ -26,6 +26,9 @@ MANUAL_BANK_NAME=BCA
 MANUAL_BANK_ACCOUNT=nomor-rekening
 MANUAL_BANK_HOLDER=nama-pemilik-rekening
 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte-yang-stabil
+INTERNAL_JOB_SECRET=rahasia-acak-minimal-32-karakter
+BROADCAST_BATCH_SIZE=20
+BROADCAST_DAILY_RECIPIENT_LIMIT=500
 ```
 
 `legaone.id` dan `www.legaone.id` dikenali sebagai domain utama platform. Jika
@@ -63,6 +66,12 @@ Catatan:
 - URL API sudah memakai endpoint resmi dan tidak perlu diisi manual.
 
 Jangan menaruh nilai rahasia di GitHub, dokumentasi, atau screenshot publik.
+
+`INTERNAL_JOB_SECRET` melindungi `POST /api/jobs/broadcast`. Atur scheduler Coolify
+untuk memanggil endpoint tersebut dengan header `Authorization: Bearer <secret>`.
+Pengiriman per batch juga dapat dijalankan manual dari detail kampanye. Nilai
+`BROADCAST_BATCH_SIZE` dibatasi maksimal 50 dan batas harian maksimal 10.000 oleh
+aplikasi.
 
 ## Membuat kunci Server Actions
 

@@ -79,6 +79,11 @@ export async function POST(request: Request) {
 
   if (!parsed.success) return jsonResponse({ error: "Invalid payload" }, 422, requestId);
   const payload = parsed.data;
+  const createdAt = new Date(payload.created);
+  if (createdAt.getTime() > Date.now() + 5 * 60_000) {
+    await db.update(webhookEvents).set({ status: "REJECTED", responseStatus: 422, errorMessage: "Timestamp webhook berada di masa depan", processedAt: new Date(), updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));
+    return jsonResponse({ error: "Invalid webhook timestamp" }, 422, requestId);
+  }
 
   try {
     const [row] = await db.select({ order: orders }).from(orders).where(eq(orders.externalId, payload.data.reference_id)).limit(1);
@@ -89,7 +94,7 @@ export async function POST(request: Request) {
     await db.update(webhookEvents).set({ orderId: row.order.id, updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));
 
     if (payload.event === "payment_session.completed") {
-      if (payload.data.status !== "COMPLETED" || payload.data.amount !== row.order.amount || !row.order.customerId) {
+      if (payload.data.status !== "COMPLETED" || payload.data.amount !== row.order.amount || !row.order.customerId || row.order.paymentMethod !== "XENDIT") {
         await db.update(webhookEvents).set({ status: "REJECTED", responseStatus: 422, errorMessage: "Status, nominal, atau customer tidak sesuai", processedAt: new Date(), updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));
         return jsonResponse({ error: "Payment amount mismatch" }, 422, requestId);
       }

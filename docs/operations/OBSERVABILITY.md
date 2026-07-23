@@ -8,7 +8,14 @@
 - request ID pada webhook Xendit;
 - audit log dan halaman operasi untuk event kritis tertentu.
 
-## Gap yang belum boleh dianggap selesai
+## Penambahan v1.5.0
+
+- error proses Node dicatat sebagai JSON untuk `uncaughtExceptionMonitor` dan `unhandledRejection`;
+- error render memiliki halaman pemulihan dan digest;
+- pusat operasional menampilkan webhook gagal 24 jam, broadcast mengantre, dan broadcast gagal;
+- worker broadcast mencatat request ID, batch, kegagalan provider, dan attempt per delivery.
+
+## Gap eksternal yang belum boleh dianggap selesai
 
 - request ID belum konsisten pada seluruh request dan response;
 - belum ada agregasi terpusat untuk p50, p95, dan error rate;

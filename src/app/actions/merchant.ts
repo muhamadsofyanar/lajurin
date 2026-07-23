@@ -11,7 +11,7 @@ import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requireFeature } from "@/lib/feature-flags";
 import { slugify } from "@/lib/format";
-import { merchantProfiles, productLandingPages, products } from "@/lib/schema";
+import { auditLogs, merchantProfiles, productLandingPages, products } from "@/lib/schema";
 import { landingMediaDirectory, landingMediaPath } from "@/lib/storage";
 import { verifyUploadSignature } from "@/lib/security";
 
@@ -121,7 +121,8 @@ export async function updateLandingPageAction(productId: string, formData: FormD
     redirect(`/dashboard/products/${productId}/landing?error=Urutan+section+tidak+valid`);
   }
 
-  const [ownedProduct] = await db.select({ id: products.id, slug: products.slug }).from(products)
+  const [ownedProduct] = await db.select({ id: products.id, slug: products.slug, landing: productLandingPages }).from(products)
+    .leftJoin(productLandingPages, eq(productLandingPages.productId, products.id))
     .where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
   if (!ownedProduct) redirect("/dashboard");
 
@@ -150,14 +151,39 @@ export async function updateLandingPageAction(productId: string, formData: FormD
     facebookPixelId: parsed.data.facebookPixelId || null,
     tiktokPixelId: parsed.data.tiktokPixelId || null,
   };
-  const draftData = Object.fromEntries(Object.entries(landingData).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value]));
+  const draftData = {
+    ...Object.fromEntries(Object.entries(landingData).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value])),
+    sectionOrder,
+  };
   const publishData = parsed.data.intent === "PUBLISH" ? { ...landingData, sectionOrder, publishedAt: new Date() } : {};
 
-  await db.insert(productLandingPages).values({ productId: ownedProduct.id, draftData, sectionOrder, ...publishData })
-    .onConflictDoUpdate({ target: productLandingPages.productId, set: { draftData, sectionOrder, ...publishData, updatedAt: new Date() } });
+  await db.transaction(async (tx) => {
+    await tx.insert(productLandingPages).values({ productId: ownedProduct.id, draftData, ...publishData })
+      .onConflictDoUpdate({ target: productLandingPages.productId, set: { draftData, ...publishData, updatedAt: new Date() } });
+    await tx.insert(auditLogs).values({
+      actorId: merchant.actorId,
+      workspaceId: merchant.workspaceId,
+      action: parsed.data.intent === "PUBLISH" ? "LANDING_PAGE_PUBLISHED" : "LANDING_PAGE_DRAFT_SAVED",
+      entityType: "PRODUCT",
+      entityId: ownedProduct.id,
+      metadata: { sectionOrder, schemaVersion: 1 },
+    });
+  });
+
+  if (parsed.data.intent === "PUBLISH" && ownedProduct.landing) {
+    const obsoleteMedia = [
+      [ownedProduct.landing.coverImageUrl, landingData.coverImageUrl],
+      [ownedProduct.landing.instructorImageUrl, landingData.instructorImageUrl],
+    ];
+    await Promise.all(obsoleteMedia.map(async ([previous, next]) => {
+      if (previous?.startsWith("/api/landing-media/") && previous !== next) {
+        await unlink(landingMediaPath(path.basename(previous))).catch(() => undefined);
+      }
+    }));
+  }
 
   revalidatePath(`/dashboard/products/${ownedProduct.id}/landing`);
-  revalidatePath(`/p/${ownedProduct.slug}`);
+  if (parsed.data.intent === "PUBLISH") revalidatePath(`/p/${ownedProduct.slug}`);
   redirect(`/dashboard/products/${ownedProduct.id}/landing?success=${parsed.data.intent === "PUBLISH" ? "Landing+page+berhasil+dipublikasikan" : "Draft+landing+page+berhasil+disimpan"}`);
 }
 
@@ -168,7 +194,7 @@ export async function uploadLandingMediaAction(productId: string, slot: "cover" 
   if (!(file instanceof File) || !landingImageTypes[file.type] || file.size < 1 || file.size > 5 * 1024 * 1024) {
     redirect(`/dashboard/products/${productId}/landing?error=Gunakan+gambar+JPG,+PNG,+atau+WebP+maksimal+5MB`);
   }
-  const [ownedProduct] = await db.select({ id: products.id, slug: products.slug, landing: productLandingPages })
+  const [ownedProduct] = await db.select({ id: products.id, landing: productLandingPages })
     .from(products).leftJoin(productLandingPages, eq(productLandingPages.productId, products.id))
     .where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
   if (!ownedProduct) redirect("/dashboard");
@@ -179,17 +205,19 @@ export async function uploadLandingMediaAction(productId: string, slot: "cover" 
   await mkdir(landingMediaDirectory, { recursive: true });
   await writeFile(landingMediaPath(storageKey), fileBuffer, { flag: "wx" });
   const publicUrl = `/api/landing-media/${storageKey}`;
-  const field = slot === "cover" ? { coverImageUrl: publicUrl } : { instructorImageUrl: publicUrl };
-  await db.insert(productLandingPages).values({ productId, ...field }).onConflictDoUpdate({
+  const draft = ownedProduct.landing?.draftData && typeof ownedProduct.landing.draftData === "object" ? ownedProduct.landing.draftData : {};
+  const fieldName = slot === "cover" ? "coverImageUrl" : "instructorImageUrl";
+  const previousDraftUrl = typeof draft[fieldName] === "string" ? draft[fieldName] : null;
+  const nextDraft = { ...draft, [fieldName]: publicUrl };
+  await db.insert(productLandingPages).values({ productId, draftData: nextDraft }).onConflictDoUpdate({
     target: productLandingPages.productId,
-    set: { ...field, updatedAt: new Date() },
+    set: { draftData: nextDraft, updatedAt: new Date() },
   });
 
-  const previousUrl = slot === "cover" ? ownedProduct.landing?.coverImageUrl : ownedProduct.landing?.instructorImageUrl;
-  if (previousUrl?.startsWith("/api/landing-media/")) {
-    await unlink(landingMediaPath(path.basename(previousUrl))).catch(() => undefined);
+  const publishedUrl = slot === "cover" ? ownedProduct.landing?.coverImageUrl : ownedProduct.landing?.instructorImageUrl;
+  if (previousDraftUrl?.startsWith("/api/landing-media/") && previousDraftUrl !== publishedUrl) {
+    await unlink(landingMediaPath(path.basename(previousDraftUrl))).catch(() => undefined);
   }
   revalidatePath(`/dashboard/products/${productId}/landing`);
-  revalidatePath(`/p/${ownedProduct.slug}`);
-  redirect(`/dashboard/products/${productId}/landing?success=Gambar+berhasil+diunggah`);
+  redirect(`/dashboard/products/${productId}/landing?success=Gambar+ditambahkan+ke+draft.+Publish+untuk+menampilkannya+ke+publik`);
 }

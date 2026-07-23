@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.0 — 23 Juli 2026
+
+### Penyelesaian lima tahap
+
+- Memusatkan matriks hak akses Owner, Admin, Finance, dan Staff. Staff hanya memiliki akses baca dan operasional dasar. Finance, anggota, broadcast, dan domain tetap ditolak pada UI serta Server Action.
+- Membuat konsumsi undangan dan reset password aman terhadap request bersamaan. Membership aktif kini menentukan hak owner lama, sehingga penurunan peran atau penonaktifan benar-benar berlaku.
+- Memisahkan draft builder dari kolom publik, termasuk urutan section dan media. Editor mendukung drag, tombol keyboard, preview desktop/mobile, simpan draft, serta publish eksplisit.
+- Memverifikasi Custom Domain melalui TXT, CNAME, dan HTTPS. Status DNS, SSL, target CNAME, waktu pemeriksaan, serta error terakhir disimpan tanpa mengubah routing `legaone.id`.
+- Menambah consent pemasaran di checkout, segmentasi produk, template pesan, antrean `SKIP LOCKED`, batas 100 penerima per kampanye, batas harian, batch, log setiap percobaan, dan retry maksimal tiga kali.
+- Menambah endpoint job broadcast bertoken, pemulihan claim macet, metrik webhook/broadcast pada pusat operasional, error boundary, serta monitoring error proses.
+- Memperketat webhook Xendit terhadap metode pembayaran yang salah dan timestamp masa depan.
+- Menambah migration aditif `0016_five_stage_production.sql`, indeks antrean/performa, serta alat membuat dan memverifikasi backup PostgreSQL.
+- Automatic payout dan pengiriman refund tetap tidak diaktifkan. Kedua fitur tetap menunggu desain provider, idempotensi, rekonsiliasi, dan security review khusus transaksi uang.
+
 ## 1.4.2 — 23 Juli 2026
 
 ### Routing Home di belakang Coolify

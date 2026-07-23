@@ -1,6 +1,58 @@
-# Checklist Pengujian Lajurin v1.3.1 Candidate
+# Checklist Pengujian Lajurin v1.5.0 Candidate
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
+
+## Gate lima tahap v1.5.0
+
+### 1. Workspace dan akun tim
+
+- [ ] Staff dapat membuka ringkasan, analitik, transaksi, pelanggan, produk, profil, dan automation yang menjadi operasional dasar.
+- [ ] Staff ditolak saat membuka team, finance, laporan, payout, Custom Domain, dan Broadcast melalui menu maupun URL langsung.
+- [ ] Admin tim dapat mengelola anggota, domain, dan broadcast, tetapi ditolak dari finance.
+- [ ] Finance hanya dapat membaca dashboard umum dan membuka area keuangan.
+- [ ] Owner dapat mengakses seluruh capability dan owner aktif terakhir tetap terlindungi.
+- [ ] Penurunan peran owner lama langsung berlaku. Membership owner tidak boleh dilewati oleh kepemilikan profil merchant legacy.
+- [ ] Membership SUSPENDED atau REVOKED masuk ke area member tanpa redirect berulang.
+- [ ] Dua submit undangan atau reset password bersamaan hanya dapat memakai token satu kali.
+
+### 2. Landing Page Builder
+
+- [ ] Drag section dengan pointer dan tombol naik/turun dengan keyboard menghasilkan urutan yang sama.
+- [ ] Simpan draft tidak mengubah teks, urutan, tracking ID, atau media pada halaman publik.
+- [ ] Unggah cover/foto masuk ke draft dan tidak menghapus media publik yang masih dipakai.
+- [ ] Preview desktop/mobile mengikuti data draft.
+- [ ] Publish memperbarui seluruh field dan urutan publik dalam satu operasi.
+
+### 3. Custom Domain
+
+- [ ] `legaone.id`, `www.legaone.id`, dan subdomain platform ditolak sebagai domain merchant.
+- [ ] TXT salah menampilkan status DNS FAILED tanpa mengganggu domain utama.
+- [ ] TXT benar dengan CNAME salah belum mengaktifkan domain.
+- [ ] TXT dan CNAME benar dengan SSL belum aktif menampilkan status SSL PENDING.
+- [ ] Domain hanya berstatus VERIFIED setelah endpoint HTTPS berhasil dijangkau.
+- [ ] Menghapus domain merchant tidak mengubah routing `legaone.id`.
+
+### 4. Broadcast dan abandoned checkout
+
+- [ ] Checkout tanpa consent tidak pernah masuk segmentasi broadcast.
+- [ ] Checkout dengan consent menyimpan waktu dan sumber persetujuan.
+- [ ] Filter audience, produk, email, dan WhatsApp membentuk delivery yang tepat.
+- [ ] Satu kampanye tidak melebihi 100 penerima unik dan batas harian merchant dipatuhi.
+- [ ] Worker paralel tidak mengambil delivery yang sama karena `FOR UPDATE SKIP LOCKED`.
+- [ ] Setiap percobaan menyimpan status, provider, response code, error, dan nomor percobaan.
+- [ ] Retry hanya berlaku pada FAILED dengan attempt kurang dari tiga.
+- [ ] Claim PROCESSING lebih dari 15 menit dapat dipulihkan ke antrean.
+
+### 5. Stabilisasi produksi
+
+- [ ] `npm run verify` lulus.
+- [ ] Migration `0016` lulus pada clone database staging dan aman saat migrator dijalankan ulang.
+- [ ] Webhook Xendit identik tidak menggandakan order, enrollment, ledger, kupon, atau notifikasi.
+- [ ] Webhook dengan metode non-Xendit, nominal berbeda, session berbeda, atau timestamp masa depan ditolak.
+- [ ] `npm run ops:backup -- /path/aman` menghasilkan dump dan metadata SHA-256.
+- [ ] `npm run ops:backup:verify -- /path/file.dump` memverifikasi checksum serta katalog arsip.
+- [ ] Restore drill dilakukan pada database terpisah dan lolos rekonsiliasi data serta storage.
+- [ ] Pusat operasional menampilkan webhook gagal, broadcast mengantre, dan broadcast gagal.
 
 ## Integrated Business Suite v1.3.0
 

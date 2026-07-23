@@ -2,12 +2,21 @@
 
 ## Versi aktif source
 
-- Versi paket source: **1.3.1 — Workspace Recovery Candidate**
+- Versi paket source: **1.5.0 — Five-stage Production Candidate**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
 - Deployment pengguna: Coolify, domain `legaone.id`
-- Produksi terakhir terpantau sehat pada commit `2a73b412a7d156b9c8c2fae03c77a921ed76af1c` tanggal 23 Juli 2026; kandidat M1 lokal belum termasuk deployment tersebut.
+- Produksi terakhir yang tercatat tetap deployment v1.4.2. Source v1.5.0 belum boleh disebut stabil sebelum migration `0016`, provider sandbox, DNS canary, backup/restore drill, dan smoke test staging lulus.
+
+## Lima tahap v1.5.0
+
+- Tahap 1 selesai pada source: undangan, password, reset, empat role, penonaktifan, proteksi owner, matriks navigasi, dan Server Action konsisten. Pengujian otomatis mencakup Staff secara eksplisit.
+- Tahap 2 selesai pada source: urutan draft tidak lagi bocor ke publik, unggahan media masuk draft, drag/reorder tersedia, dan publish mengubah versi publik secara eksplisit.
+- Tahap 3 selesai pada source: TXT, CNAME, SSL, error terakhir, dan proteksi hostname platform tersedia. Aktivasi Coolify serta sertifikat tetap harus diuji pada satu domain canary nyata.
+- Tahap 4 selesai pada source: consent, segmentasi produk/audience, template, antrean, batch, batas harian, delivery log, attempt log, dan retry tersedia.
+- Tahap 5 selesai pada source: pemeriksaan webhook, monitoring proses, error UI, metrik operasional, indeks, alat backup, verifikasi arsip, automated test, lint, typecheck, dan build.
+- Automatic payout dan automatic refund berada di luar v1.5.0.
 
 ## Workspace Foundation M1 — candidate
 

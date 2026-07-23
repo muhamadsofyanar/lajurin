@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell, ChevronDown, Menu } from "lucide-react";
 import { Brand } from "@/components/brand";
-import { getCurrentUser, getMerchantAccess } from "@/lib/auth";
+import { getCurrentUser, getMerchantAccess, merchantCan, type MerchantCapability } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
 import { unreadNotificationCount } from "@/lib/in-app-notifications";
 import { enabledFeatureMap } from "@/lib/feature-flags";
@@ -75,16 +75,23 @@ export async function Nav({ app = false }: { app?: boolean }) {
 
   const effectiveRole = user.role === "ADMIN" ? "ADMIN" : merchantAccess ? "MERCHANT" : "MEMBER";
   const navigation = roleLinks[effectiveRole];
+  const merchantRole = merchantAccess?.membershipRole;
+  const can = (capability: MerchantCapability) => Boolean(merchantRole && merchantCan(merchantRole, capability));
+  const merchantSecondary = merchantAccess ? [
+    can("manage") && { href: "/dashboard/automation", label: "Automation" },
+    can("finance") && { href: "/dashboard/finance", label: "Saldo & payout" },
+    can("manage") && { href: "/dashboard/profile", label: "Profil toko" },
+  ].filter((item): item is NavItem => Boolean(item)) : navigation.secondary;
   const featureLinks: NavItem[] = merchantAccess && flags ? [
-    flags.DIRECT_MANUAL_PAYMENTS && { href: "/dashboard/payments", label: "Konfirmasi transfer" },
-    flags.LANDING_PAGE_BUILDER && { href: "/dashboard/landing-pages", label: "Landing Page Builder" },
-    flags.SALES_REPORTS && { href: "/dashboard/reports", label: "Laporan penjualan" },
-    flags.COMMISSION_BILLING && { href: "/dashboard/commissions", label: "Tagihan komisi" },
-    flags.WORKSPACE_TEAMS && { href: "/dashboard/team", label: "Tim workspace" },
-    flags.CUSTOM_DOMAINS && { href: "/dashboard/domains", label: "Custom Domain" },
-    flags.CUSTOMER_BROADCASTS && { href: "/dashboard/broadcasts", label: "Broadcast pelanggan" },
+    flags.DIRECT_MANUAL_PAYMENTS && can("finance") && { href: "/dashboard/payments", label: "Konfirmasi transfer" },
+    flags.LANDING_PAGE_BUILDER && can("manage") && { href: "/dashboard/landing-pages", label: "Landing Page Builder" },
+    flags.SALES_REPORTS && can("finance") && { href: "/dashboard/reports", label: "Laporan penjualan" },
+    flags.COMMISSION_BILLING && can("finance") && { href: "/dashboard/commissions", label: "Tagihan komisi" },
+    flags.WORKSPACE_TEAMS && can("members") && { href: "/dashboard/team", label: "Tim workspace" },
+    flags.CUSTOM_DOMAINS && can("domains") && { href: "/dashboard/domains", label: "Custom Domain" },
+    flags.CUSTOMER_BROADCASTS && can("broadcast") && { href: "/dashboard/broadcasts", label: "Broadcast pelanggan" },
   ].filter((item): item is NavItem => Boolean(item)) : [];
-  const secondaryLinks: readonly NavItem[] = [...navigation.secondary, ...featureLinks];
+  const secondaryLinks: readonly NavItem[] = [...merchantSecondary, ...featureLinks];
   const initial = user.name.trim().slice(0, 1).toUpperCase();
   const roleLabel = user.role === "ADMIN" ? "Administrator" : merchantAccess ? (merchantAccess.membershipRole === "OWNER" ? "Owner merchant" : `Tim · ${merchantAccess.membershipRole}`) : "Member";
   const additionalLinks = effectiveRole === "MEMBER" ? [] : commonLinks;

@@ -1,6 +1,6 @@
 {
   "name": "lajurin",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,6 +16,8 @@
     "verify:static": "npm run migrations:check && npm test && npm run lint && npm run typecheck",
     "verify": "npm run verify:static && npm run build",
     "ops:storage-manifest": "node scripts/storage-manifest.mjs",
+    "ops:backup": "node scripts/backup.mjs",
+    "ops:backup:verify": "node scripts/verify-backup.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
