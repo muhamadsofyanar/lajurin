@@ -2,7 +2,7 @@
 
 ## Versi aktif source
 
-- Versi paket source: **1.3.0 — Integrated Business Suite Candidate**
+- Versi paket source: **1.3.1 — Workspace Recovery Candidate**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
@@ -29,7 +29,7 @@
 - Landing Page Builder dasar tetap tersedia dari v0.8. Custom Domain, Broadcast & Abandoned Checkout, serta Automatic Payout & Refund belum dimulai pada perubahan ini.
 - Admin dapat mengedit nama pemilik, email login, email support, status verifikasi, dan komisi merchant melalui halaman control plane yang diaudit.
 - Edit merchant v1.0.2 telah diunggah dan deployment commit `2a73b412...` berstatus healthy.
-- Schema M1 dan direct manual settlement tetap backward compatible; migration terbaru source kandidat v1.3.0 adalah `0013`.
+- Schema M1 dan direct manual settlement tetap backward compatible; migration terbaru source kandidat v1.3.1 adalah `0014`.
 
 ## Integrated Business Suite v1.3.0 — candidate
 
@@ -40,6 +40,13 @@
 - Laporan penjualan mendukung periode 7/30/90 hari atau seluruh data dan ekspor CSV aman.
 - Migration aditif terbaru `0013_demonic_trish_tilby.sql`; volume baru `/app/data/commission-proofs` wajib persisten.
 - Verifikasi lokal v1.3.0: 14 migration file valid, 26/26 test lulus, lint tanpa warning, TypeScript, dan production build lulus. Migration PostgreSQL nyata tetap wajib diuji di staging.
+
+## Workspace Recovery v1.3.1 — candidate
+
+- Migration aditif `0014_workspace_owner_backfill.sql` otomatis memprovisi Workspace dan Owner aktif untuk merchant lama yang belum memiliki Workspace.
+- Pendaftaran merchant baru memprovisi profil merchant dan Workspace dalam satu transaksi.
+- Public port PostgreSQL dan backfill dari PowerShell tidak lagi diperlukan.
+- Verifikasi lokal v1.3.1: 15 migration file valid, 28/28 test lulus, lint tanpa warning, TypeScript, dan production build lulus.
 
 ## Pembayaran manual direct — candidate
 

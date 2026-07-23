@@ -1,4 +1,4 @@
-# Lajurin v1.3.0
+# Lajurin v1.3.1
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 

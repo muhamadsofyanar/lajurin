@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1 — 23 Juli 2026
+
+### Workspace recovery
+
+- Menambah migration aditif `0014_workspace_owner_backfill.sql` yang otomatis membuat Workspace, membership Owner aktif, branding, compatibility link, dan audit log untuk merchant lama yang belum memiliki Workspace.
+- Backfill bersifat idempoten dan memakai advisory lock; tidak memerlukan database public port, PowerShell, atau perintah manual setelah deployment.
+- Pendaftaran merchant baru kini membuat profil merchant dan Workspace dalam transaksi database yang sama agar masalah tidak terulang.
+- Tidak mengubah transaksi, payment, ledger, komisi, payout, produk, atau data merchant yang sudah memiliki Workspace.
+
 ## 1.3.0 — 23 Juli 2026
 
 ### Integrated Business Suite (candidate)

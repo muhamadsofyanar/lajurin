@@ -5,7 +5,15 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
-import { merchantProfiles, users } from "@/lib/schema";
+import {
+  auditLogs,
+  legacyMerchantWorkspaceLinks,
+  merchantProfiles,
+  users,
+  workspaceBranding,
+  workspaceMemberships,
+  workspaces,
+} from "@/lib/schema";
 import { clearRateLimit, currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 import {
   createSession,
@@ -66,11 +74,43 @@ export async function registerAction(formData: FormData) {
         role: "MERCHANT",
       }).onConflictDoNothing({ target: users.email }).returning();
     if (!created) return null;
-    await tx.insert(merchantProfiles).values({
+    const profileSlug = `${slugify(created.name) || "toko"}-${created.id.slice(0, 6)}`;
+    const [profile] = await tx.insert(merchantProfiles).values({
       userId: created.id,
       brandName: created.name,
-      slug: `${slugify(created.name) || "toko"}-${created.id.slice(0, 6)}`,
+      slug: profileSlug,
       supportEmail: created.email,
+    }).returning({ id: merchantProfiles.id });
+    const [workspace] = await tx.insert(workspaces).values({
+      name: created.name,
+      slug: profileSlug,
+      kind: "EXTERNAL",
+      status: "DRAFT",
+      createdBy: created.id,
+    }).returning({ id: workspaces.id });
+    await tx.insert(workspaceMemberships).values({
+      workspaceId: workspace.id,
+      userId: created.id,
+      role: "OWNER",
+      status: "ACTIVE",
+    });
+    await tx.insert(workspaceBranding).values({
+      workspaceId: workspace.id,
+      displayName: created.name,
+      supportEmail: created.email,
+    });
+    await tx.insert(legacyMerchantWorkspaceLinks).values({
+      merchantProfileId: profile.id,
+      legacyMerchantUserId: created.id,
+      workspaceId: workspace.id,
+    });
+    await tx.insert(auditLogs).values({
+      actorId: created.id,
+      workspaceId: workspace.id,
+      action: "WORKSPACE_CREATED",
+      entityType: "workspace",
+      entityId: workspace.id,
+      metadata: { source: "merchant_registration", schemaVersion: 1 },
     });
     return created;
   });

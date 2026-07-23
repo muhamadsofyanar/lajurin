@@ -7,15 +7,15 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_V1.3.0.md, dan AGENTS.md. Versi kandidat terakhir seharusnya 1.3.0 dengan migration 0013; seluruh feature flag baru default OFF dan kandidat belum boleh dipromosikan sebelum gate staging lulus. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Merchant hanya boleh mengonfirmasi settlement `MERCHANT_DIRECT` miliknya; transfer `PLATFORM` tetap hanya ADMIN, dan override admin untuk direct wajib beralasan. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook, konfirmasi, refund, dan pelunasan komisi harus memakai lock serta tetap idempoten. Setiap rilis baru wajib memperbarui dokumen serah-terima.
+Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_V1.3.0.md, RELEASE_V1.3.1.md, dan AGENTS.md. Versi kandidat terakhir seharusnya 1.3.1 dengan migration 0014; seluruh feature flag baru default OFF dan kandidat belum boleh dipromosikan sebelum gate staging lulus. Jangan mulai dari ZIP MVP/v0.9 lama dan jangan menghapus fitur yang sudah ada. Merchant hanya boleh mengonfirmasi settlement `MERCHANT_DIRECT` miliknya; transfer `PLATFORM` tetap hanya ADMIN, dan override admin untuk direct wajib beralasan. Dashboard usaha wajib terisolasi per merchant; Kelas Saya boleh menggabungkan kursus lintas merchant; inbox/komunitas wajib memeriksa ownership/enrollment. Webhook, konfirmasi, refund, dan pelunasan komisi harus memakai lock serta tetap idempoten. Setiap rilis baru wajib memperbarui dokumen serah-terima.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `1.3.0` atau lebih baru.
-- Migration terbaru minimal `drizzle/0013_demonic_trish_tilby.sql`.
+- `package.json` memiliki versi `1.3.1` atau lebih baru.
+- Migration terbaru minimal `drizzle/0014_workspace_owner_backfill.sql`.
 - Ada `src/modules/workspace`, `src/platform/auth/workspace-context.ts`, dan `src/platform/feature-flags/workspace.ts`.
 - Ada tabel `workspaces`, `workspaceMemberships`, `workspaceBranding`, `workspaceModules`, `workspaceDomains`, dan `legacyMerchantWorkspaceLinks`.
 - Feature flag Workspace default nonaktif dan canary memakai UUID eksplisit.

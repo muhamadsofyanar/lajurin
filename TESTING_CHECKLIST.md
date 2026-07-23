@@ -1,8 +1,12 @@
-# Checklist Pengujian Lajurin v1.3.0 Candidate
+# Checklist Pengujian Lajurin v1.3.1 Candidate
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 
 ## Integrated Business Suite v1.3.0
+
+- [ ] Migration `0014` otomatis membuat satu Workspace dan satu Owner aktif untuk setiap merchant lama yang belum memiliki Workspace.
+- [ ] Merchant yang sudah memiliki Workspace tidak mendapat Workspace atau membership duplikat.
+- [ ] Merchant baru mendapat profil merchant dan Workspace secara atomik saat pendaftaran.
 
 - [ ] Migration `0013` berhasil dan enam feature flag muncul dalam status OFF.
 - [ ] Admin dapat mengubah flag ke USERS dan ALL tanpa redeploy; User ID di luar canary tetap tidak melihat modul.

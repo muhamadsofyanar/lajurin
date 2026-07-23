@@ -1,6 +1,6 @@
-# Deployment Lajurin v1.3.0 Integrated Candidate
+# Deployment Lajurin v1.3.1 Workspace Recovery Candidate
 
-> Migration `0011`–`0013` dan backfill hanya dijalankan pada staging sampai exit criteria lulus. Jangan mengaktifkan modul finansial hanya berdasarkan hasil build lokal.
+> Migration `0011`–`0014` dijalankan otomatis saat container mulai. Migration `0014` menggantikan kebutuhan menjalankan backfill Workspace manual dari luar container.
 
 ## Sebelum redeploy
 
@@ -75,6 +75,8 @@ Gunakan nilai yang sama pada setiap redeploy/replica. Jangan menggantinya tanpa 
 5. Pastikan `/api/health` merespons `ok` dan health check `/api/ready` berstatus ready.
 6. Login ADMIN, buka `/admin/operations`, dan pastikan database, konfigurasi wajib, serta lima storage berstatus **Siap**.
 7. Buka `/admin/integrations`; StarSender dan Mailketing harus berstatus **Aktif** bila notifikasi diaktifkan.
+
+Tidak perlu membuka PostgreSQL ke public port, menyalin `DATABASE_URL` ke komputer lokal, atau menjalankan `workspace:backfill` secara manual. Migration `0014_workspace_owner_backfill.sql` mengisi Workspace merchant lama secara otomatis saat redeploy aplikasi.
 
 Tidak ada environment variable atau storage baru pada v1.0.0. Migration menambah log webhook, rate limit, dan metadata refund tanpa mengubah harga, saldo, enrollment, atau file lama.
 
