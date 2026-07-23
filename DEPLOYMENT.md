@@ -1,10 +1,31 @@
-# Deployment Lajurin v1.5.0 Five-stage Production Candidate
+# Deployment Rizqhub v1.5.1 — Rebrand & Configuration Fix
 
-> Migration `0011`–`0016` dijalankan otomatis saat container mulai. Rilis v1.5.0 wajib diuji pada clone database staging sebelum produksi.
+> Migration `0011`–`0017` dijalankan otomatis saat container mulai. Rilis v1.5.1 wajib diuji pada clone database staging sebelum produksi.
+
+## Perbaikan langsung untuk kegagalan saat ini
+
+Log `configuration_invalid` dengan pesan `INTERNAL_JOB_SECRET wajib diisi`
+berarti aplikasi sengaja menghentikan startup sebelum server dibuka. Ini bukan
+kerusakan healthcheck.
+
+Di Coolify → aplikasi → **Environment Variables**, tambahkan:
+
+```text
+Name: INTERNAL_JOB_SECRET
+Value: hasil perintah openssl rand -hex 32
+Available at Buildtime: tidak
+Available at Runtime: ya
+Is Literal: tidak
+Is Multiline: tidak
+```
+
+Simpan, lalu lakukan redeploy. Jangan memakai contoh
+`rahasia-acak-minimal-32-karakter` sebagai nilai produksi dan jangan menampilkan
+secret pada screenshot.
 
 ## Sebelum redeploy
 
-1. Buka resource PostgreSQL `lajurin-postgres` dan buat backup manual.
+1. Buka resource PostgreSQL yang sekarang dipakai aplikasi (`lajurin-postgres` bila nama resource lama belum diubah) dan buat backup manual.
 2. Pastikan backup berstatus berhasil sebelum melanjutkan.
 3. Di aplikasi, pastikan `DATABASE_URL` masih menunjuk ke database yang sama.
 4. Tambahkan persistent storage dengan mount path **`/app/data/payment-proofs`**.
@@ -52,7 +73,7 @@ Untuk StarSender dan Mailketing:
 NOTIFICATIONS_ENABLED=true
 STARSENDER_API_KEY=api-key-device-starsender
 MAILKETING_API_TOKEN=token-api-mailketing
-MAILKETING_FROM_NAME=Lajurin
+MAILKETING_FROM_NAME=Rizqhub
 MAILKETING_FROM_EMAIL=email-pengirim-yang-sudah-diverifikasi
 ```
 
@@ -82,6 +103,18 @@ openssl rand -base64 32
 ```
 
 Gunakan nilai yang sama pada setiap redeploy/replica. Jangan menggantinya tanpa alasan karena browser pengguna yang masih memuat versi lama dapat gagal menjalankan aksi.
+
+## Membuat secret job internal
+
+Jalankan sekali pada komputer yang aman:
+
+```bash
+openssl rand -hex 32
+```
+
+Simpan hasilnya sebagai `INTERNAL_JOB_SECRET`. Nilai ini hanya dibutuhkan pada
+runtime. Scheduler yang memanggil `POST /api/jobs/broadcast` harus memakai nilai
+yang sama pada header `Authorization: Bearer <secret>`.
 
 ## Redeploy
 

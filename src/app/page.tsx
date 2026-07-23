@@ -25,7 +25,7 @@ import { Nav } from "@/components/nav";
 import { Brand } from "@/components/brand";
 
 export const metadata: Metadata = {
-  title: "Lajurin — Platform Jualan Produk Digital",
+  title: "Rizqhub — Platform Jualan Produk Digital",
   description: "Buat halaman jualan, terima pembayaran, kelola produk digital, pelanggan, tim, dan komunitas dari satu dashboard.",
 };
 
@@ -88,7 +88,7 @@ const useCases = [
 ];
 
 const faqs = [
-  ["Produk apa yang bisa dijual?", "Lajurin dirancang untuk kursus online dan berbagai produk digital seperti e-book, template, rekaman kelas, panduan, atau akses komunitas."],
+  ["Produk apa yang bisa dijual?", "Rizqhub dirancang untuk kursus online dan berbagai produk digital seperti e-book, template, rekaman kelas, panduan, atau akses komunitas."],
   ["Apakah bisa memakai domain sendiri?", "Bisa. Fitur Custom Domain memungkinkan merchant menghubungkan domain yang sudah diverifikasi ke etalase publiknya."],
   ["Bagaimana pembayarannya?", "Merchant dapat menggunakan payment gateway yang dikonfigurasi platform atau transfer bank manual dengan unggah dan verifikasi bukti pembayaran."],
   ["Apakah tim bisa mengelola toko bersama?", "Bisa. Workspace mendukung peran Owner, Admin, Finance, dan Staff agar akses setiap anggota tetap sesuai tugasnya."],
@@ -105,7 +105,7 @@ export default function Home() {
             <div className="home-hero-copy">
               <span className="eyebrow"><Sparkles size={14} /> Platform bisnis digital Indonesia</span>
               <h1 className="display">Jual produk digital tanpa merangkai banyak aplikasi.</h1>
-              <p className="home-lead">Lajurin menyatukan halaman jualan, checkout, pembayaran, kursus, pelanggan, tim, dan komunitas dalam satu sistem yang mudah dikelola.</p>
+              <p className="home-lead">Rizqhub menyatukan halaman jualan, checkout, pembayaran, kursus, pelanggan, tim, dan komunitas dalam satu sistem yang mudah dikelola.</p>
               <div className="home-hero-actions">
                 <Link className="btn btn-primary home-primary-cta" href="/register">Mulai jualan <ArrowRight size={17} /></Link>
                 <a className="btn" href="#cara-kerja"><PlayCircle size={17} /> Lihat cara kerja</a>
@@ -117,10 +117,10 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="home-product-preview" aria-label="Ilustrasi dashboard Lajurin">
+            <div className="home-product-preview" aria-label="Ilustrasi dashboard Rizqhub">
               <div className="home-preview-window">
                 <div className="home-preview-topbar">
-                  <span className="home-preview-brand"><Zap size={14} fill="currentColor" /> Lajurin</span>
+                  <span className="home-preview-brand"><Zap size={14} fill="currentColor" /> Rizqhub</span>
                   <span className="home-preview-avatar">A</span>
                 </div>
                 <div className="home-preview-body">
@@ -168,7 +168,7 @@ export default function Home() {
           <div className="shell">
             <div className="home-section-heading">
               <div><span className="eyebrow">Fitur terhubung</span><h2 className="display">Satu alur dari produk sampai pelanggan.</h2></div>
-              <p>Anda tidak hanya mendapat halaman checkout. Lajurin membantu mengelola pekerjaan sebelum, saat, dan setelah penjualan berlangsung.</p>
+              <p>Anda tidak hanya mendapat halaman checkout. Rizqhub membantu mengelola pekerjaan sebelum, saat, dan setelah penjualan berlangsung.</p>
             </div>
             <div className="home-feature-grid">
               {features.map(({ icon: Icon, title, description }, index) => (
@@ -228,7 +228,7 @@ export default function Home() {
                 <li><Check size={17} /> Draf dan versi terbit landing page dikelola terpisah.</li>
                 <li><Check size={17} /> Data produk, pelanggan, dan aktivitas berada dalam satu dashboard.</li>
               </ul>
-              <Link className="btn btn-primary" href="/register">Buat akun Lajurin <ArrowRight size={17} /></Link>
+              <Link className="btn btn-primary" href="/register">Buat akun Rizqhub <ArrowRight size={17} /></Link>
             </div>
             <div className="home-control-cards">
               <article><span><ShieldCheck size={22} /></span><div><small>Hak akses</small><h3>Workspace berbasis peran</h3><p>Setiap anggota mendapat menu dan tindakan sesuai tanggung jawabnya.</p></div></article>
@@ -243,7 +243,7 @@ export default function Home() {
             <div>
               <span className="eyebrow">Pertanyaan umum</span>
               <h2 className="display">Yang perlu diketahui sebelum mulai.</h2>
-              <p>Jawaban singkat mengenai produk, pembayaran, akses tim, dan pengalaman pembeli di Lajurin.</p>
+              <p>Jawaban singkat mengenai produk, pembayaran, akses tim, dan pengalaman pembeli di Rizqhub.</p>
               <Link className="home-text-link" href="/register">Siap mencoba? Buat akun <ArrowRight size={16} /></Link>
             </div>
             <div className="home-faq-list">
@@ -262,7 +262,7 @@ export default function Home() {
             <div>
               <span className="eyebrow">Mulai langkah pertama</span>
               <h2 className="display">Produk Anda layak punya sistem jualan yang lebih rapi.</h2>
-              <p>Buat akun, siapkan produk pertama, dan kelola pertumbuhan usaha digital Anda dari Lajurin.</p>
+              <p>Buat akun, siapkan produk pertama, dan kelola pertumbuhan usaha digital Anda dari Rizqhub.</p>
               <div className="home-hero-actions">
                 <Link className="btn btn-lime" href="/register">Mulai sekarang <ArrowRight size={17} /></Link>
                 <Link className="btn home-dark-secondary" href="/login">Masuk ke akun</Link>
@@ -276,7 +276,7 @@ export default function Home() {
         <div className="shell home-footer-grid">
           <div><Brand /><p>Platform untuk menjual, mengelola, dan mengembangkan produk digital.</p></div>
           <nav aria-label="Navigasi footer"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><a href="#faq">FAQ</a><Link href="/login">Masuk</Link></nav>
-          <span>© 2026 Lajurin. Dibuat untuk bisnis digital Indonesia.</span>
+          <span>© 2026 Rizqhub. Dibuat untuk bisnis digital Indonesia.</span>
         </div>
       </footer>
     </>

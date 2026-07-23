@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.1 — 23 Juli 2026
+
+### Rebrand Rizqhub dan perbaikan deployment
+
+- Mengganti branding aktif Lajurin menjadi Rizqhub pada UI, metadata, email, sertifikat, ekspor, health response, seed, backup, konfigurasi, dan dokumentasi operasional.
+- Menjaga kompatibilitas cookie sesi/workspace, visitor analytics, dan record TXT verifikasi domain lama selama rolling update.
+- Menambah migration aditif `0017_rizqhub_rebrand.sql` untuk memperbarui ruang komunitas umum tanpa mengubah migration historis.
+- Memperjelas `INTERNAL_JOB_SECRET` sebagai secret runtime wajib minimal 32 karakter, menolak Docker Compose yang kosong lebih awal, dan menambah langkah pengisian Coolify.
+- Memasang `wget` secara eksplisit pada runner image agar perintah Docker healthcheck tersedia.
+- Menambah `.dockerignore` agar secret lokal, dependency, build cache, data, dan arsip tidak masuk build context.
+- Menambah logo mark Rizqhub dan favicon baru.
+
 ## 1.5.0 — 23 Juli 2026
 
 ### Penyelesaian lima tahap

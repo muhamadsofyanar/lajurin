@@ -32,15 +32,17 @@ type TikTokQueue = unknown[][] & {
 
 export function ConversionTracker({ productId, utmSource, utmMedium, utmCampaign, facebookPixelId, tiktokPixelId, providerEvent = "PageView", value }: Props) {
   useEffect(() => {
-    const key = "lajurin_visitor";
-    let visitorId = window.localStorage.getItem(key);
+    const key = "rizqhub_visitor";
+    const legacyKey = "lajurin_visitor";
+    let visitorId = window.localStorage.getItem(key) ?? window.localStorage.getItem(legacyKey);
     if (!visitorId) {
       visitorId = crypto.randomUUID();
-      window.localStorage.setItem(key, visitorId);
     }
+    window.localStorage.setItem(key, visitorId);
     if (providerEvent === "PageView") {
-      const viewKey = `lajurin_view_${productId}`;
-      const lastView = Number(window.sessionStorage.getItem(viewKey) ?? 0);
+      const viewKey = `rizqhub_view_${productId}`;
+      const legacyViewKey = `lajurin_view_${productId}`;
+      const lastView = Number(window.sessionStorage.getItem(viewKey) ?? window.sessionStorage.getItem(legacyViewKey) ?? 0);
       if (Date.now() - lastView > 30 * 60 * 1000) {
         window.sessionStorage.setItem(viewKey, String(Date.now()));
         void fetch("/api/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId, visitorId, utmSource, utmMedium, utmCampaign }), keepalive: true });

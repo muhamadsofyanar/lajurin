@@ -9,14 +9,14 @@ Backup belum dianggap valid sampai berhasil dipulihkan pada database terpisah da
 Gunakan credential baca yang sesuai dan simpan hasil pada lokasi terenkripsi dengan retensi terbatas.
 
 ```bash
-pg_dump --format=custom --no-owner --no-acl --dbname="$DATABASE_URL" --file=lajurin.backup
+pg_dump --format=custom --no-owner --no-acl --dbname="$DATABASE_URL" --file=rizqhub.backup
 ```
 
 Source v1.5.0 menyediakan perintah yang membuat dump custom dan metadata SHA-256:
 
 ```bash
 npm run ops:backup -- /path/backup-terpisah
-npm run ops:backup:verify -- /path/backup-terpisah/lajurin-TIMESTAMP.dump
+npm run ops:backup:verify -- /path/backup-terpisah/rizqhub-TIMESTAMP.dump
 ```
 
 Host yang menjalankan perintah harus memiliki `pg_dump` dan `pg_restore` dengan
@@ -35,7 +35,7 @@ Catat waktu mulai, waktu selesai, ukuran file, checksum SHA-256, versi PostgreSQ
 7. Hapus database drill mengikuti kebijakan retensi setelah bukti disimpan.
 
 ```bash
-pg_restore --clean --if-exists --no-owner --no-acl --dbname="$DRILL_DATABASE_URL" lajurin.backup
+pg_restore --clean --if-exists --no-owner --no-acl --dbname="$DRILL_DATABASE_URL" rizqhub.backup
 ```
 
 ## Rekonsiliasi minimum

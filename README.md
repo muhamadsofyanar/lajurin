@@ -1,4 +1,4 @@
-# Lajurin v1.5.0
+# Rizqhub v1.5.1
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -71,7 +71,7 @@ XENDIT_WEBHOOK_TOKEN=token_verifikasi_webhook_xendit
 NOTIFICATIONS_ENABLED=true
 STARSENDER_API_KEY=api-key-device-starsender
 MAILKETING_API_TOKEN=token-api-mailketing
-MAILKETING_FROM_NAME=Lajurin
+MAILKETING_FROM_NAME=Rizqhub
 MAILKETING_FROM_EMAIL=sender-terverifikasi@domain-anda.id
 INTERNAL_JOB_SECRET=rahasia-acak-minimal-32-karakter
 BROADCAST_BATCH_SIZE=20
@@ -80,10 +80,10 @@ BROADCAST_DAILY_RECIPIENT_LIMIT=500
 # Tujuan transfer manual
 MANUAL_BANK_NAME=BCA
 MANUAL_BANK_ACCOUNT=1234567890
-MANUAL_BANK_HOLDER=PT Lajurin Indonesia
+MANUAL_BANK_HOLDER=PT Rizqhub Indonesia
 
 # Akun administrator pertama
-SEED_ADMIN_EMAIL=admin@lajurin.id
+SEED_ADMIN_EMAIL=admin@rizqhub.id
 SEED_ADMIN_PASSWORD=password-kuat-minimal-12-karakter
 
 # Stabilkan Server Actions saat redeploy
@@ -127,7 +127,7 @@ Gunakan Test Mode sampai seluruh skenario webhook berhasil. Jika kredensial Xend
 ## Deployment Docker/Coolify
 
 1. Hubungkan repository sebagai resource Dockerfile.
-2. Tambahkan PostgreSQL dan isi seluruh environment variable yang diperlukan.
+2. Tambahkan PostgreSQL dan isi seluruh environment variable yang diperlukan. Untuk deployment yang sudah berjalan, pertahankan `DATABASE_URL` lama; rebranding tidak memerlukan database baru.
 3. Pasang persistent volume ke `/app/data/payment-proofs` (bukan `/app/uploads`).
 4. Pasang persistent volume kedua ke `/app/data/course-files` untuk PDF/ebook/file bonus.
 5. Pasang persistent volume ketiga ke `/app/data/landing-media` untuk cover dan foto pengajar.
@@ -136,6 +136,22 @@ Gunakan Test Mode sampai seluruh skenario webhook berhasil. Jika kredensial Xend
 8. Deploy. Migrasi dijalankan otomatis sebelum aplikasi aktif.
 9. Jalankan seed sekali untuk membuat atau memperbarui akun admin.
 10. Buka menu ADMIN → Integrasi dan pastikan kedua provider berstatus Aktif.
+
+### Secret wajib sebelum redeploy
+
+`INTERNAL_JOB_SECRET` wajib tersedia pada **runtime** dan minimal 32 karakter.
+Jangan menyimpan nilainya di repository. Buat dua kunci berbeda pada mesin yang
+aman:
+
+```bash
+openssl rand -hex 32
+openssl rand -base64 32
+```
+
+Masukkan hasil pertama sebagai `INTERNAL_JOB_SECRET` (Runtime aktif, Buildtime
+tidak diperlukan). Masukkan hasil kedua sebagai
+`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (Runtime dan Buildtime aktif), lalu simpan
+dan redeploy. Nilai Server Actions harus tetap sama pada redeploy berikutnya.
 
 ## Pemeriksaan sebelum rilis
 

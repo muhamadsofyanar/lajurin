@@ -40,7 +40,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   const totalLogs = statusCounts.reduce((sum, item) => sum + item.total, 0);
 
   return <main className="app-main"><div className="shell">
-    <div className="page-head"><div><span className="eyebrow">Automation</span><h1 className="display" style={{marginTop:12}}>Integrasi notifikasi</h1><p>Lajurin menentukan kapan pesan dikirim; StarSender mengirim WhatsApp dan Mailketing mengirim email.</p></div></div>
+    <div className="page-head"><div><span className="eyebrow">Automation</span><h1 className="display" style={{marginTop:12}}>Integrasi notifikasi</h1><p>Rizqhub menentukan kapan pesan dikirim; StarSender mengirim WhatsApp dan Mailketing mengirim email.</p></div></div>
     {success && <p className="alert alert-success">{success}</p>}{error && <p className="alert">{error}</p>}
     {!config.enabled && <p className="alert">Notifikasi sedang dinonaktifkan melalui environment variable.</p>}
     <section className="integration-grid">

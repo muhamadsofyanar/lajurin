@@ -1,4 +1,4 @@
-# Cara Melanjutkan Lajurin dari Akun ChatGPT Lain
+# Cara Melanjutkan Rizqhub dari Akun ChatGPT Lain
 
 ## File yang diberikan ke akun baru
 
@@ -7,15 +7,15 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Lajurin berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_v1.5.0.md, dan AGENTS.md. Versi kandidat terakhir harus 1.5.0 dengan migration 0016. Lima tahap sudah diimplementasikan pada source, tetapi rilis tetap wajib melewati migration database staging, domain canary, provider sandbox, backup/restore drill, dan smoke test sebelum produksi. Jangan memperluas hak Staff ke finance, team, broadcast, atau domain. Draft builder tidak boleh mengubah publik sebelum publish. Broadcast wajib consent, antrean, batas, attempt log, dan retry maksimal tiga. Automatic payout dan automatic refund belum boleh diaktifkan.
+Lanjutkan Rizqhub berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_v1.5.1.md, dan AGENTS.md. Versi kandidat terakhir harus 1.5.1 dengan migration 0017. Rebrand harus tetap kompatibel dengan cookie, analytics, dan TXT domain legacy. Lima tahap sudah diimplementasikan pada source, tetapi rilis tetap wajib melewati migration database staging, domain canary, provider sandbox, backup/restore drill, dan smoke test sebelum produksi. Jangan memperluas hak Staff ke finance, team, broadcast, atau domain. Draft builder tidak boleh mengubah publik sebelum publish. Broadcast wajib consent, antrean, batas, attempt log, dan retry maksimal tiga. Automatic payout dan automatic refund belum boleh diaktifkan.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `1.5.0` atau lebih baru.
-- Migration terbaru minimal `drizzle/0016_five_stage_production.sql`.
+- `package.json` memiliki versi `1.5.1` atau lebih baru.
+- Migration terbaru minimal `drizzle/0017_rizqhub_rebrand.sql`.
 - Ada `src/modules/workspace`, `src/platform/auth/workspace-context.ts`, dan `src/platform/feature-flags/workspace.ts`.
 - Ada tabel `workspaces`, `workspaceMemberships`, `workspaceBranding`, `workspaceModules`, `workspaceDomains`, dan `legacyMerchantWorkspaceLinks`.
 - Feature flag Workspace default nonaktif dan canary memakai UUID eksplisit.
@@ -55,7 +55,7 @@ Jika salah satu tanda tersebut tidak ada, kemungkinan ZIP yang digunakan adalah 
 
 - Domain: `https://legaone.id`
 - Platform: Coolify
-- Database: PostgreSQL resource `lajurin-postgres`
+- Database: pertahankan PostgreSQL resource yang sudah dipakai (`lajurin-postgres` bila nama resource lama belum diubah)
 - Persistent payment proof path: `/app/data/payment-proofs`
 - Persistent commission proof path: `/app/data/commission-proofs`
 - Persistent course file path: `/app/data/course-files`

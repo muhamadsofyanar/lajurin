@@ -1,3 +1,3 @@
 export function GET() {
-  return Response.json({ status: "ok", service: "lajurin" }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ status: "ok", service: "rizqhub" }, { headers: { "cache-control": "no-store" } });
 }

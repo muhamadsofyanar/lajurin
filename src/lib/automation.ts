@@ -73,7 +73,7 @@ export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: st
     const values = {
       nama: context.customerName.trim().split(/\s+/)[0] || context.customerName,
       produk: context.productName,
-      nama_toko: context.merchantName ?? "Lajurin",
+      nama_toko: context.merchantName ?? "Rizqhub",
       link_kelas: `${baseUrl}/member`,
     };
     const config = getNotificationConfig();

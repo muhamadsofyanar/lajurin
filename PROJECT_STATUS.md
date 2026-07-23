@@ -1,13 +1,21 @@
-# Status Proyek Lajurin
+# Status Proyek Rizqhub
 
 ## Versi aktif source
 
-- Versi paket source: **1.5.0 — Five-stage Production Candidate**
+- Versi paket source: **1.5.1 — Rizqhub Rebrand & Configuration Fix**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
 - Deployment pengguna: Coolify, domain `legaone.id`
-- Produksi terakhir yang tercatat tetap deployment v1.4.2. Source v1.5.0 belum boleh disebut stabil sebelum migration `0016`, provider sandbox, DNS canary, backup/restore drill, dan smoke test staging lulus.
+- Source v1.5.1 menambahkan rebrand Rizqhub, kompatibilitas transisi, migration `0017`, dan runbook perbaikan `INTERNAL_JOB_SECRET`. Promosi produksi tetap wajib melewati migration staging, provider sandbox, DNS canary, backup/restore drill, dan smoke test.
+
+## Rizqhub v1.5.1
+
+- Seluruh branding aktif pada UI, metadata, notifikasi, sertifikat, ekspor, seed, backup, health response, dan konfigurasi default sudah memakai Rizqhub.
+- Cookie sesi, cookie workspace, visitor analytics, dan verifikasi TXT legacy tetap dibaca selama masa transisi.
+- Migration aditif `0017_rizqhub_rebrand.sql` memperbarui ruang komunitas umum tanpa mengubah migration lama.
+- `INTERNAL_JOB_SECRET` tetap wajib minimal 32 karakter; Docker Compose sekarang menolak konfigurasi kosong lebih awal dan runbook Coolify menjelaskan pengisian yang benar.
+- Image runner memasang `wget` secara eksplisit untuk healthcheck `/api/ready`.
 
 ## Lima tahap v1.5.0
 
@@ -207,7 +215,7 @@ Migration v1.0.0 (`0010`):
 Migration v0.9.0 (`0009`):
 
 1. Menambah ruang komunitas, reaction, laporan, status moderasi, dan media postingan.
-2. Memindahkan postingan lama ke ruang umum Lajurin tanpa kehilangan post atau komentar.
+2. Memindahkan postingan lama ke ruang umum Rizqhub tanpa kehilangan post atau komentar.
 3. Menambah conversation, message, notifikasi dalam aplikasi, automation rule, dan delivery log.
 4. Menambah constraint idempotensi pengiriman serta pemisahan percakapan merchant–member–produk.
 

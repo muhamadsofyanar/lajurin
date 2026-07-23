@@ -14,7 +14,7 @@ concurrency:
 
 env:
   NODE_ENV: test
-  DATABASE_URL: postgresql://lajurin_ci:lajurin_ci@localhost:5432/lajurin_ci
+  DATABASE_URL: postgresql://rizqhub_ci:rizqhub_ci@localhost:5432/rizqhub_ci
   APP_URL: http://localhost:3000
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=
   NOTIFICATIONS_ENABLED: "false"
@@ -43,13 +43,13 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_DB: lajurin_ci
-          POSTGRES_USER: lajurin_ci
-          POSTGRES_PASSWORD: lajurin_ci
+          POSTGRES_DB: rizqhub_ci
+          POSTGRES_USER: rizqhub_ci
+          POSTGRES_PASSWORD: rizqhub_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U lajurin_ci -d lajurin_ci"
+          --health-cmd "pg_isready -U rizqhub_ci -d rizqhub_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10

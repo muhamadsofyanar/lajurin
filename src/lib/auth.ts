@@ -9,7 +9,8 @@ export { merchantCan } from "@/lib/merchant-access";
 export type { MerchantCapability } from "@/lib/merchant-access";
 import { merchantCan, type MerchantCapability } from "@/lib/merchant-access";
 
-const SESSION_COOKIE = "lajurin_session";
+const SESSION_COOKIE = "rizqhub_session";
+const LEGACY_SESSION_COOKIE = "lajurin_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 function hashToken(token: string) {
@@ -47,15 +48,17 @@ export async function createSession(userId: string) {
 
 export async function deleteSession() {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const token = cookieStore.get(SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_SESSION_COOKIE)?.value;
   if (token) {
     await db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token)));
   }
   cookieStore.delete(SESSION_COOKIE);
+  cookieStore.delete(LEGACY_SESSION_COOKIE);
 }
 
 export async function getCurrentUser() {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const [result] = await db.select({ user: users }).from(sessions).innerJoin(users, eq(sessions.userId, users.id)).where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date()))).limit(1);

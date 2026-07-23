@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { spawn } from "node:child_process";
 
 const backupFile = process.argv[2];
-if (!backupFile) throw new Error("Gunakan: npm run ops:backup:verify -- /path/lajurin.dump");
+if (!backupFile) throw new Error("Gunakan: npm run ops:backup:verify -- /path/rizqhub.dump");
 await access(backupFile, constants.R_OK);
 
 await new Promise((resolve, reject) => {

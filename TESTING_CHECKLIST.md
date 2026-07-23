@@ -1,6 +1,16 @@
-# Checklist Pengujian Lajurin v1.5.0 Candidate
+# Checklist Pengujian Rizqhub v1.5.1 Candidate
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
+
+## Gate rebrand dan deployment v1.5.1
+
+- [ ] Semua halaman publik, autentikasi, dashboard, email, sertifikat, dan nama file ekspor memakai nama Rizqhub.
+- [ ] Cookie sesi lama masih dapat dibaca setelah rolling update; login baru membuat cookie `rizqhub_session`.
+- [ ] Visitor analytics lama dimigrasikan ke key Rizqhub tanpa membuat visitor baru.
+- [ ] Record TXT baru memakai `_rizqhub` dan `rizqhub-verification`; record legacy `_lajurin` masih dapat lolos selama masa transisi.
+- [ ] Migration `0017_rizqhub_rebrand.sql` mengubah nama ruang komunitas umum tanpa mengubah post atau komentar.
+- [ ] Startup produksi gagal secara jelas jika `INTERNAL_JOB_SECRET` kosong atau kurang dari 32 karakter.
+- [ ] Image runner memiliki `wget` dan healthcheck `/api/ready` lulus setelah konfigurasi lengkap.
 
 ## Gate lima tahap v1.5.0
 
@@ -46,7 +56,7 @@ Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nya
 ### 5. Stabilisasi produksi
 
 - [ ] `npm run verify` lulus.
-- [ ] Migration `0016` lulus pada clone database staging dan aman saat migrator dijalankan ulang.
+- [ ] Migration `0016` dan `0017` lulus pada clone database staging dan aman saat migrator dijalankan ulang.
 - [ ] Webhook Xendit identik tidak menggandakan order, enrollment, ledger, kupon, atau notifikasi.
 - [ ] Webhook dengan metode non-Xendit, nominal berbeda, session berbeda, atau timestamp masa depan ditolak.
 - [ ] `npm run ops:backup -- /path/aman` menghasilkan dump dan metadata SHA-256.

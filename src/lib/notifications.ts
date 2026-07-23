@@ -80,7 +80,7 @@ function notificationCopy(input: {
 }
 
 function emailHtml(copy: ReturnType<typeof notificationCopy>) {
-  return `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(copy.subject)}</h2><p>${escapeHtml(copy.text).replace(escapeHtml(copy.actionUrl), "")}</p><p><a href="${escapeHtml(copy.actionUrl)}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">${escapeHtml(copy.actionLabel)}</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Lajurin.</p></div>`;
+  return `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(copy.subject)}</h2><p>${escapeHtml(copy.text).replace(escapeHtml(copy.actionUrl), "")}</p><p><a href="${escapeHtml(copy.actionUrl)}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">${escapeHtml(copy.actionLabel)}</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Rizqhub.</p></div>`;
 }
 
 async function responseBody(response: Response) {
@@ -143,7 +143,7 @@ export async function sendExternalNotification(input: {
     ? sendMailketing({
         recipient: input.recipient,
         subject: input.subject,
-        content: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(input.subject)}</h2><p>${escapeHtml(input.text).replace(/\n/g, "<br>")}</p><p><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">${escapeHtml(input.actionLabel ?? "Buka Lajurin")}</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Lajurin.</p></div>`,
+        content: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(input.subject)}</h2><p>${escapeHtml(input.text).replace(/\n/g, "<br>")}</p><p><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">${escapeHtml(input.actionLabel ?? "Buka Rizqhub")}</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Rizqhub.</p></div>`,
       })
     : sendStarSender({ recipient: input.recipient, body: input.text });
 }

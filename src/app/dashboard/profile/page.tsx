@@ -17,7 +17,7 @@ export default async function MerchantProfilePage({ searchParams }: {
   const suggestedSlug = `${slugify(merchant.name) || "toko"}-${merchant.id.slice(0, 6)}`;
 
   return <main className="app-main"><div className="shell profile-shell">
-    <div className="page-head"><div><span className="eyebrow">Identitas merchant</span><h1 className="display" style={{ marginTop: 12 }}>Profil toko</h1><p>Profil ini membedakan usaha Anda dari merchant lain di Lajurin.</p></div>{profile && <Link className="btn" href={`/m/${profile.slug}`} target="_blank">Lihat toko <ExternalLink size={15} /></Link>}</div>
+    <div className="page-head"><div><span className="eyebrow">Identitas merchant</span><h1 className="display" style={{ marginTop: 12 }}>Profil toko</h1><p>Profil ini membedakan usaha Anda dari merchant lain di Rizqhub.</p></div>{profile && <Link className="btn" href={`/m/${profile.slug}`} target="_blank">Lihat toko <ExternalLink size={15} /></Link>}</div>
     {error && <p className="alert">{error}</p>}{success && <p className="alert alert-success">{success}</p>}
     <div className="profile-layout"><section className="panel form-panel"><form className="form" action={updateMerchantProfileAction}>
       <div className="field"><label htmlFor="brandName">Nama toko/brand</label><input className="input" id="brandName" name="brandName" defaultValue={profile?.brandName ?? merchant.name} required minLength={2} /></div>
@@ -29,6 +29,6 @@ export default async function MerchantProfilePage({ searchParams }: {
       <div className="field color-field"><label htmlFor="accentColor">Warna brand</label><input id="accentColor" name="accentColor" type="color" defaultValue={profile?.accentColor ?? "#163d2d"} /></div>
       <button className="btn btn-primary" type="submit">Simpan profil toko</button>
     </form></section>
-    <aside className="panel profile-preview"><span className="profile-logo">{profile?.logoUrl ? <img src={profile.logoUrl} alt="" /> : <Store size={28} />}</span><small>PRATINJAU TOKO</small><h2 className="display">{profile?.brandName ?? merchant.name}</h2><p>{profile?.headline || "Kalimat utama merchant akan tampil di sini."}</p><span className="badge badge-live">Merchant Lajurin</span></aside></div>
+    <aside className="panel profile-preview"><span className="profile-logo">{profile?.logoUrl ? <img src={profile.logoUrl} alt="" /> : <Store size={28} />}</span><small>PRATINJAU TOKO</small><h2 className="display">{profile?.brandName ?? merchant.name}</h2><p>{profile?.headline || "Kalimat utama merchant akan tampil di sini."}</p><span className="badge badge-live">Merchant Rizqhub</span></aside></div>
   </div></main>;
 }

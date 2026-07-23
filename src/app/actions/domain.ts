@@ -23,7 +23,7 @@ export async function addWorkspaceDomainAction(formData: FormData) {
   await requireFeature("CUSTOM_DOMAINS", merchant.id);
   const parsed = hostnameSchema.safeParse(normalizedHostname(formData.get("hostname")));
   if (!parsed.success) redirect("/dashboard/domains?error=Nama+domain+tidak+valid");
-  if (isPlatformHostname(parsed.data)) redirect("/dashboard/domains?error=Gunakan+domain+milik+Anda,+bukan+domain+utama+Lajurin");
+  if (isPlatformHostname(parsed.data)) redirect("/dashboard/domains?error=Gunakan+domain+milik+Anda,+bukan+domain+utama+Rizqhub");
   const token = randomBytes(24).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const [existing] = await db.select({ id: workspaceDomains.id, workspaceId: workspaceDomains.workspaceId }).from(workspaceDomains).where(eq(workspaceDomains.hostname, parsed.data)).limit(1);
@@ -52,12 +52,18 @@ export async function verifyWorkspaceDomainAction(domainId: string) {
   const [domain] = await db.select().from(workspaceDomains).where(and(eq(workspaceDomains.id, domainId), eq(workspaceDomains.workspaceId, workspace.id))).limit(1);
   if (!domain?.verificationToken) redirect("/dashboard/domains?error=Token+verifikasi+domain+tidak+tersedia");
   const checkedAt = new Date();
-  const [txtResult, cnameResult] = await Promise.allSettled([
+  const [txtResult, legacyTxtResult, cnameResult] = await Promise.allSettled([
+    resolveTxt(`_rizqhub.${domain.hostname}`),
     resolveTxt(`_lajurin.${domain.hostname}`),
     resolveCname(domain.hostname),
   ]);
-  const txtVerified = txtResult.status === "fulfilled"
-    && txtResult.value.some((parts) => parts.join("") === `lajurin-verification=${domain.verificationToken}`);
+  const txtVerified = (
+    txtResult.status === "fulfilled"
+    && txtResult.value.some((parts) => parts.join("") === `rizqhub-verification=${domain.verificationToken}`)
+  ) || (
+    legacyTxtResult.status === "fulfilled"
+    && legacyTxtResult.value.some((parts) => parts.join("") === `lajurin-verification=${domain.verificationToken}`)
+  );
   const cnameTargets = cnameResult.status === "fulfilled" ? cnameResult.value.map(normalizeHostname) : [];
   const platformTargets = platformHostnameSet();
   const cnameVerified = cnameTargets.some((target) => platformTargets.has(target));

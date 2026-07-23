@@ -3,7 +3,7 @@ import { Pool } from "pg";
 
 const globalForDb = globalThis as unknown as { pool?: Pool };
 const pool = globalForDb.pool ?? new Pool({
-  connectionString: process.env.DATABASE_URL ?? "postgresql://lajurin:dev@localhost:5432/lajurin",
+  connectionString: process.env.DATABASE_URL ?? "postgresql://rizqhub:dev@localhost:5432/rizqhub",
   max: 10,
 });
 if (process.env.NODE_ENV !== "production") globalForDb.pool = pool;

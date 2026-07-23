@@ -18,7 +18,7 @@ if (!["postgres:", "postgresql:"].includes(parsed.protocol)) throw new Error("DA
 
 await mkdir(outputDirectory, { recursive: true, mode: 0o700 });
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-const backupFile = path.join(outputDirectory, `lajurin-${timestamp}.dump`);
+const backupFile = path.join(outputDirectory, `rizqhub-${timestamp}.dump`);
 const metadataFile = `${backupFile}.json`;
 const childEnvironment = {
   ...process.env,

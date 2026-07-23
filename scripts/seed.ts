@@ -5,7 +5,7 @@ import { db, pool } from "../src/lib/db";
 import { courses, lessons, products, users } from "../src/lib/schema";
 
 async function main() {
-  const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@lajurin.id").toLowerCase();
+  const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@rizqhub.id").toLowerCase();
   if (!process.env.SEED_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD.length < 12) {
     throw new Error("SEED_ADMIN_PASSWORD wajib diisi minimal 12 karakter.");
   }
@@ -13,7 +13,7 @@ async function main() {
   const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   const [admin] = existing
     ? await db.update(users).set({ role: "ADMIN", updatedAt: new Date() }).where(eq(users.id, existing.id)).returning()
-    : await db.insert(users).values({ name: "Admin Lajurin", email, passwordHash, role: "ADMIN" }).returning();
+    : await db.insert(users).values({ name: "Admin Rizqhub", email, passwordHash, role: "ADMIN" }).returning();
 
   const [existingProduct] = await db.select().from(products).where(eq(products.slug, "kelas-jualan-digital")).limit(1);
   if (!existingProduct) {

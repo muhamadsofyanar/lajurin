@@ -7,7 +7,7 @@ const script = path.resolve("scripts/validate-env.mjs");
 const validEnvironment: NodeJS.ProcessEnv = {
   NODE_ENV: "test",
   DEPLOYMENT_ENV: "test",
-  DATABASE_URL: "postgresql://user:password@localhost:5432/lajurin_test",
+  DATABASE_URL: "postgresql://user:password@localhost:5432/rizqhub_test",
   APP_URL: "http://localhost:3000",
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: Buffer.alloc(32, "a").toString("base64"),
   NOTIFICATIONS_ENABLED: "false",

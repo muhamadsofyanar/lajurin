@@ -1,0 +1,14 @@
+.git
+.github
+.next
+node_modules
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.staging.example
+data
+uploads
+*.log
+*.zip
+coverage

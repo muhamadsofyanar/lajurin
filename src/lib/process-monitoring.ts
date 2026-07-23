@@ -1,8 +1,8 @@
 import { logEvent } from "@/lib/security";
 
 export function registerProcessMonitoring() {
-  const marker = globalThis as typeof globalThis & { __lajurinProcessMonitoring?: boolean };
-  if (marker.__lajurinProcessMonitoring) return;
+  const marker = globalThis as typeof globalThis & { __rizqhubProcessMonitoring?: boolean };
+  if (marker.__rizqhubProcessMonitoring) return;
   process.on("uncaughtExceptionMonitor", (error) => {
     logEvent("error", "uncaught_exception", { name: error.name, message: error.message.slice(0, 500) });
   });
@@ -10,5 +10,5 @@ export function registerProcessMonitoring() {
     const error = reason instanceof Error ? reason : new Error(String(reason));
     logEvent("error", "unhandled_rejection", { name: error.name, message: error.message.slice(0, 500) });
   });
-  marker.__lajurinProcessMonitoring = true;
+  marker.__rizqhubProcessMonitoring = true;
 }

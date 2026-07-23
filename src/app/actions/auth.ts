@@ -158,7 +158,7 @@ export async function requestPasswordResetAction(formData: FormData) {
       if (config.mailketingActive) {
         const resetUrl = `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/reset-password/${token}`;
         await sendExternalNotification({
-          channel: "EMAIL", recipient: parsed.data.email, subject: "Atur ulang password Lajurin",
+          channel: "EMAIL", recipient: parsed.data.email, subject: "Atur ulang password Rizqhub",
           text: `Halo ${user.name}, gunakan tombol berikut untuk membuat password baru. Tautan berlaku selama 60 menit.`,
           actionUrl: resetUrl, actionLabel: "Buat password baru",
         }).catch((error) => console.error("Password reset email failed", error instanceof Error ? error.message : error));

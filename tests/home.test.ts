@@ -18,7 +18,7 @@ test("domain utama produksi tidak diperlakukan sebagai custom domain merchant", 
 });
 
 test("routing root mengenali host publik saat URL internal reverse proxy digunakan", () => {
-  const response = proxy(new NextRequest("http://lajurin-container:3000/", {
+  const response = proxy(new NextRequest("http://rizqhub-container:3000/", {
     headers: { host: "legaone.id" },
   }));
   assert.equal(response.headers.get("x-middleware-next"), "1");
@@ -26,9 +26,9 @@ test("routing root mengenali host publik saat URL internal reverse proxy digunak
 });
 
 test("routing root mengenali forwarded host Coolify yang berantai", () => {
-  const response = proxy(new NextRequest("http://lajurin-container:3000/", {
+  const response = proxy(new NextRequest("http://rizqhub-container:3000/", {
     headers: {
-      host: "lajurin-container:3000",
+      host: "rizqhub-container:3000",
       "x-forwarded-host": "legaone.id, coolify-proxy",
     },
   }));

@@ -1,4 +1,4 @@
-# Kontrak Environment Lajurin
+# Kontrak Environment Rizqhub
 
 ## Wajib pada runtime
 
@@ -16,7 +16,7 @@
 
 - `XENDIT_SECRET_KEY` dan `XENDIT_WEBHOOK_TOKEN` harus diisi bersama.
 - Jika `NOTIFICATIONS_ENABLED=true`, isi `STARSENDER_API_KEY`, `MAILKETING_API_TOKEN`, dan `MAILKETING_FROM_EMAIL`.
-- `MAILKETING_FROM_NAME` boleh memakai nilai bawaan `Lajurin`.
+- `MAILKETING_FROM_NAME` boleh memakai nilai bawaan `Rizqhub`.
 
 ## Aturan keamanan
 

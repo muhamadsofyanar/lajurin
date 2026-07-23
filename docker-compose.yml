@@ -3,13 +3,13 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: lajurin
-      POSTGRES_USER: lajurin
+      POSTGRES_DB: rizqhub
+      POSTGRES_USER: rizqhub
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lajurin -d lajurin"]
+      test: ["CMD-SHELL", "pg_isready -U rizqhub -d rizqhub"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,22 +20,22 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://lajurin:${POSTGRES_PASSWORD:-change-this-password}@postgres:5432/lajurin
+      DATABASE_URL: postgresql://rizqhub:${POSTGRES_PASSWORD:-change-this-password}@postgres:5432/rizqhub
       APP_URL: ${APP_URL:-http://localhost:3000}
-      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:?NEXT_SERVER_ACTIONS_ENCRYPTION_KEY wajib diisi}
       XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY}
       XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN}
       NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
       STARSENDER_API_KEY: ${STARSENDER_API_KEY}
       MAILKETING_API_TOKEN: ${MAILKETING_API_TOKEN}
-      MAILKETING_FROM_NAME: ${MAILKETING_FROM_NAME:-Lajurin}
+      MAILKETING_FROM_NAME: ${MAILKETING_FROM_NAME:-Rizqhub}
       MAILKETING_FROM_EMAIL: ${MAILKETING_FROM_EMAIL}
-      INTERNAL_JOB_SECRET: ${INTERNAL_JOB_SECRET}
+      INTERNAL_JOB_SECRET: ${INTERNAL_JOB_SECRET:?INTERNAL_JOB_SECRET wajib diisi dan minimal 32 karakter}
       BROADCAST_BATCH_SIZE: ${BROADCAST_BATCH_SIZE:-20}
       BROADCAST_DAILY_RECIPIENT_LIMIT: ${BROADCAST_DAILY_RECIPIENT_LIMIT:-500}
       MANUAL_BANK_NAME: ${MANUAL_BANK_NAME:-BCA}
       MANUAL_BANK_ACCOUNT: ${MANUAL_BANK_ACCOUNT:-1234567890}
-      MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-PT Lajurin Indonesia}
+      MANUAL_BANK_HOLDER: ${MANUAL_BANK_HOLDER:-PT Rizqhub Indonesia}
       WORKSPACE_FOUNDATION_ENABLED: ${WORKSPACE_FOUNDATION_ENABLED:-false}
       WORKSPACE_CANARY_USER_IDS: ${WORKSPACE_CANARY_USER_IDS:-}
     volumes:
