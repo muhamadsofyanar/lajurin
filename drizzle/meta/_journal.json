@@ -169,6 +169,13 @@
       "when": 1784845800000,
       "tag": "0023_trust_growth",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784851200000,
+      "tag": "0024_trust_growth_impact",
+      "breakpoints": true
     }
   ]
 }

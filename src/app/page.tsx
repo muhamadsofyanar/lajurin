@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -21,7 +22,6 @@ import {
   Store,
   Users,
   Workflow,
-  Zap,
 } from "lucide-react";
 import { Nav } from "@/components/nav";
 import { Brand } from "@/components/brand";
@@ -124,38 +124,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="home-product-preview" aria-label="Ilustrasi dashboard Rizqhub">
-              <div className="home-preview-window">
-                <div className="home-preview-topbar">
-                  <span className="home-preview-brand"><Zap size={14} fill="currentColor" /> Rizqhub</span>
-                  <span className="home-preview-avatar">A</span>
-                </div>
-                <div className="home-preview-body">
-                  <div className="home-preview-heading">
-                    <span><small>Dashboard usaha</small><strong>Bisnis Anda, satu kendali.</strong></span>
-                    <i>+ Produk baru</i>
-                  </div>
-                  <div className="home-preview-stats">
-                    <span><small>Landing page</small><strong>Terbit</strong><em>Siap dibagikan</em></span>
-                    <span><small>Checkout</small><strong>Aktif</strong><em>Pembayaran tercatat</em></span>
-                    <span><small>Delivery</small><strong>Otomatis</strong><em>Sesuai tipe produk</em></span>
-                  </div>
-                  <div className="home-preview-chart">
-                    <div><small>Ringkasan penjualan</small><strong>Performa 7 hari terakhir</strong></div>
-                    <span className="bar bar-1" />
-                    <span className="bar bar-2" />
-                    <span className="bar bar-3" />
-                    <span className="bar bar-4" />
-                    <span className="bar bar-5" />
-                    <span className="bar bar-6" />
-                    <span className="bar bar-7" />
-                  </div>
-                  <div className="home-preview-orders">
-                    <span><i /><strong>Produk unggulan Anda</strong><small>Pesanan baru</small></span>
-                    <b>LUNAS</b>
-                  </div>
-                </div>
-              </div>
+            <div className="home-product-preview home-photo-preview" aria-label="Ekosistem pelaku usaha dan pembelajar Indonesia">
+              <Image className="home-hero-photo" src="/images/rizqhub-hero-ecosystem.webp" alt="Pendidik, profesional, kreator digital, dan pelaku usaha Indonesia berkolaborasi" width={1600} height={900} priority sizes="(max-width: 900px) 100vw, 50vw" />
               <span className="home-floating-card home-floating-sales"><BarChart3 size={18} /><span><small>Funnel terlihat</small><strong>Ukur & optimalkan</strong></span></span>
               <span className="home-floating-card home-floating-secure"><ShieldCheck size={18} /><span><small>Akses pembeli</small><strong>Privat & tercatat</strong></span></span>
             </div>
@@ -266,6 +236,10 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="section home-impact-visual">
+          <div className="shell home-impact-visual-grid"><div className="home-impact-image"><Image src="/images/rizqhub-impact-community.webp" alt="Mentor dan pelaku usaha muda Indonesia mengembangkan produk bersama" width={1200} height={900} sizes="(max-width: 900px) 100vw, 48vw" /></div><div><span className="eyebrow">Dari transaksi menuju transformasi</span><h2 className="display">Ketika potensi dipertemukan dengan peluang, manfaat dapat tumbuh lebih luas.</h2><p>RizqHub dirancang bukan hanya untuk menerima pembayaran, tetapi untuk membantu ilmu dibagikan, karya ditemukan, usaha berkembang, dan hubungan profesional terus bertumbuh.</p><ul><li><Check size={17}/> Pembelajar menemukan ilmu yang dibutuhkan.</li><li><Check size={17}/> Profesional menjangkau klien yang tepat.</li><li><Check size={17}/> Pelaku usaha membangun proses yang lebih tertata.</li><li><Check size={17}/> Affiliate membuka peluang melalui rekomendasi yang bertanggung jawab.</li></ul><Link className="btn btn-primary" href="/manifesto">Baca manifesto RizqHub <ArrowRight size={16}/></Link></div></div>
+        </section>
+
         <section className="section home-faq" id="faq">
           <div className="shell home-faq-grid">
             <div>
@@ -303,7 +277,7 @@ export default function Home() {
       <footer className="footer home-footer">
         <div className="shell home-footer-grid">
           <div><Brand /><p>Platform untuk menjual kursus, produk digital, dan jasa dari satu tempat.</p></div>
-          <nav aria-label="Navigasi footer"><Link href="/marketplace">Marketplace</Link><Link href="/filosofi">Filosofi</Link><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/refund-policy">Refund</Link><Link href="/login">Masuk</Link></nav>
+          <nav aria-label="Navigasi footer"><Link href="/marketplace">Marketplace</Link><Link href="/tentang">Tentang</Link><Link href="/filosofi">Filosofi</Link><Link href="/manifesto">Manifesto</Link><Link href="/trust">Trust Center</Link><a href="#fitur">Fitur</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/login">Masuk</Link></nav>
           <span>© 2026 Rizqhub. Dibuat untuk bisnis digital Indonesia.</span>
         </div>
       </footer>

@@ -57,6 +57,8 @@ export const merchantProfiles = pgTable("merchant_profiles", {
   platformFeeBps: integer("platform_fee_bps"),
   plan: merchantPlanEnum("plan").default("STARTER").notNull(),
   isVerified: boolean("is_verified").default(false).notNull(),
+  verificationLevel: text("verification_level").default("BASIC").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [
   uniqueIndex("merchant_profiles_user_unique").on(table.userId),
@@ -284,6 +286,36 @@ export const affiliateCommissions = pgTable("affiliate_commissions", {
   index("affiliate_commissions_partner_idx").on(table.partnerId, table.status, table.createdAt),
 ]);
 
+export const affiliateClicks = pgTable("affiliate_clicks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id").notNull().references(() => affiliatePartners.id, { onDelete: "cascade" }),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  visitorHash: text("visitor_hash").notNull(),
+  referer: text("referer"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("affiliate_clicks_partner_created_idx").on(table.partnerId, table.createdAt),
+  index("affiliate_clicks_product_created_idx").on(table.productId, table.createdAt),
+]);
+
+export const affiliatePayoutRequests = pgTable("affiliate_payout_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  amount: integer("amount").notNull(),
+  bankName: text("bank_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  accountHolder: text("account_holder").notNull(),
+  status: text("status").default("REQUESTED").notNull(),
+  adminNote: text("admin_note"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index("affiliate_payout_requests_user_idx").on(table.userId, table.createdAt),
+  index("affiliate_payout_requests_status_idx").on(table.status, table.createdAt),
+]);
+
 export const productVariants = pgTable("product_variants", {
   id: uuid("id").primaryKey().defaultRandom(),
   productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
@@ -492,6 +524,22 @@ export const productReviews = pgTable("product_reviews", {
   uniqueIndex("product_reviews_order_unique").on(table.orderId),
   index("product_reviews_product_status_idx").on(table.productId, table.status, table.createdAt),
   index("product_reviews_customer_idx").on(table.customerId, table.createdAt),
+]);
+
+export const productReports = pgTable("product_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  reporterId: uuid("reporter_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  reason: text("reason").notNull(),
+  details: text("details").notNull(),
+  status: text("status").default("OPEN").notNull(),
+  adminNote: text("admin_note"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index("product_reports_product_status_idx").on(table.productId, table.status),
+  index("product_reports_status_created_idx").on(table.status, table.createdAt),
 ]);
 
 export const bookingSlots = pgTable("booking_slots", {

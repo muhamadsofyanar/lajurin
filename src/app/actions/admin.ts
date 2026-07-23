@@ -280,6 +280,30 @@ export async function toggleMerchantVerificationAction(merchantId: string, verif
   revalidatePath("/marketplace");
 }
 
+export async function setMerchantVerificationLevelAction(merchantId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const level = z.enum(["BASIC", "IDENTITY", "BUSINESS", "PROFESSIONAL"]).safeParse(formData.get("verificationLevel"));
+  if (!level.success) redirect("/admin/merchants?error=Level+verifikasi+tidak+valid");
+  const verified = level.data !== "BASIC";
+  const [profile] = await db.update(merchantProfiles).set({
+    verificationLevel: level.data,
+    isVerified: verified,
+    verifiedAt: verified ? new Date() : null,
+    updatedAt: new Date(),
+  }).where(eq(merchantProfiles.userId, merchantId)).returning({ id: merchantProfiles.id });
+  if (!profile) redirect("/admin/merchants?error=Merchant+tidak+ditemukan");
+  await db.insert(auditLogs).values({
+    actorId: admin.id,
+    action: "MERCHANT_VERIFICATION_LEVEL_UPDATED",
+    entityType: "MERCHANT",
+    entityId: merchantId,
+    metadata: { level: level.data },
+  });
+  revalidatePath("/admin/merchants");
+  revalidatePath("/marketplace");
+  redirect("/admin/merchants?success=Level+verifikasi+merchant+berhasil+diperbarui");
+}
+
 export async function toggleProductFeaturedAction(productId: string, featured: boolean) {
   const admin = await requireAdmin();
   const [product] = await db.update(products).set({ isFeatured: featured, updatedAt: new Date() })

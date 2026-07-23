@@ -37,6 +37,9 @@ const roleLinks = {
       { href: "/admin/members", label: "Member platform" },
       { href: "/admin/integrations", label: "Integrasi" },
       { href: "/admin/reviews", label: "Moderasi ulasan" },
+      { href: "/admin/reports", label: "Laporan produk" },
+      { href: "/admin/affiliate-payouts", label: "Pencairan affiliate" },
+      { href: "/admin/impact", label: "Dampak platform" },
       { href: "/admin/audit", label: "Audit log" },
       { href: "/admin/settings", label: "Pengaturan" },
     ],
@@ -77,7 +80,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
   const flags = merchantAccess ? await enabledFeatureMap(merchantAccess.ownerId) : null;
 
   if (!app || !user) {
-    return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><Link href="/marketplace">Marketplace</Link><Link href="/filosofi">Filosofi</Link><Link href="/#fitur">Fitur</Link><Link href="/#cara-kerja">Cara kerja</Link></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
+    return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><Link href="/marketplace">Marketplace</Link><Link href="/tentang">Tentang</Link><Link href="/manifesto">Manifesto</Link><Link href="/trust">Kepercayaan</Link></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
   }
 
   const effectiveRole = user.role === "ADMIN" ? "ADMIN" : merchantAccess ? "MERCHANT" : "MEMBER";
