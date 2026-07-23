@@ -4,14 +4,15 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
+  BriefcaseBusiness,
   Check,
   CircleCheck,
   CreditCard,
   Globe2,
   LayoutDashboard,
   Mail,
+  FileDown,
   MessageCircle,
-  Package,
   Palette,
   PlayCircle,
   ShieldCheck,
@@ -25,15 +26,15 @@ import { Nav } from "@/components/nav";
 import { Brand } from "@/components/brand";
 
 export const metadata: Metadata = {
-  title: "Rizqhub — Platform Jualan Produk Digital",
-  description: "Buat halaman jualan, terima pembayaran, kelola produk digital, pelanggan, tim, dan komunitas dari satu dashboard.",
+  title: "Rizqhub — Ubah Keahlian Menjadi Penghasilan",
+  description: "Jual kursus, produk digital, dan jasa dari satu platform: landing page, checkout, pembayaran, delivery, pelanggan, dan analitik.",
 };
 
 const features = [
   {
     icon: Palette,
     title: "Landing Page Builder",
-    description: "Susun halaman penawaran secara visual, simpan sebagai draf, lihat preview desktop atau mobile, lalu terbitkan saat siap.",
+    description: "Susun penawaran yang meyakinkan, lihat preview desktop atau mobile, lalu terbitkan tanpa menyentuh kode.",
   },
   {
     icon: CreditCard,
@@ -42,8 +43,8 @@ const features = [
   },
   {
     icon: BookOpen,
-    title: "Kursus & member area",
-    description: "Atur modul, materi, video, lampiran, progres belajar, dan sertifikat dalam area member yang rapi.",
+    title: "Delivery otomatis",
+    description: "Berikan kursus, file digital privat, atau portal pengerjaan jasa kepada pelanggan dari satu akun.",
   },
   {
     icon: Users,
@@ -63,10 +64,10 @@ const features = [
 ];
 
 const steps = [
-  ["01", "Buat produk", "Tentukan nama, harga, deskripsi, materi, dan penawaran produk digital Anda."],
-  ["02", "Susun halaman", "Gunakan builder untuk menyusun landing page yang sesuai dengan identitas usaha."],
-  ["03", "Bagikan & jual", "Publikasikan halaman, bagikan tautannya, lalu terima pesanan dan pembayaran."],
-  ["04", "Layani pelanggan", "Berikan akses produk, rawat komunitas, dan pantau pertumbuhan dari dashboard."],
+  ["01", "Buat penawaran", "Pilih kursus, produk digital, atau jasa. Tentukan hasil, harga, dan isi yang diterima pembeli."],
+  ["02", "Terbitkan halaman", "Susun landing page sesuai brand, tambahkan promo, lalu lihat hasilnya sebelum dipublikasikan."],
+  ["03", "Terima pembayaran", "Bagikan satu tautan. Pesanan, kupon, checkout, dan pembayaran tercatat otomatis."],
+  ["04", "Tumbuhkan penjualan", "Kirim produk, layani pelanggan, dan gunakan data funnel untuk memperbaiki konversi."],
 ];
 
 const useCases = [
@@ -76,23 +77,28 @@ const useCases = [
     description: "Jual kelas video, program belajar, webinar, dan materi pendamping dalam satu alur.",
   },
   {
-    icon: Package,
+    icon: FileDown,
     title: "Produk digital",
-    description: "Pasarkan e-book, template, panduan, dokumen, atau produk unduhan lainnya.",
+    description: "Jual e-book, template, panduan, rekaman, atau file privat yang hanya terbuka bagi pembeli lunas.",
+  },
+  {
+    icon: BriefcaseBusiness,
+    title: "Jasa profesional",
+    description: "Terima pesanan jasa, kumpulkan kebutuhan klien, kelola dokumen, dan laporkan progres lewat portal.",
   },
   {
     icon: MessageCircle,
-    title: "Komunitas & mentoring",
-    description: "Bangun ruang diskusi eksklusif dan jaga hubungan dengan pelanggan setelah transaksi.",
+    title: "Mentoring & konsultasi",
+    description: "Jual sesi konsultasi atau program pendampingan dan lanjutkan komunikasi setelah transaksi.",
   },
 ];
 
 const faqs = [
-  ["Produk apa yang bisa dijual?", "Rizqhub dirancang untuk kursus online dan berbagai produk digital seperti e-book, template, rekaman kelas, panduan, atau akses komunitas."],
+  ["Produk apa yang bisa dijual?", "Anda dapat menjual kursus online, e-book, template, rekaman, dokumen, layanan profesional, konsultasi, dan program pendampingan."],
   ["Apakah bisa memakai domain sendiri?", "Bisa. Fitur Custom Domain memungkinkan merchant menghubungkan domain yang sudah diverifikasi ke etalase publiknya."],
   ["Bagaimana pembayarannya?", "Merchant dapat menggunakan payment gateway yang dikonfigurasi platform atau transfer bank manual dengan unggah dan verifikasi bukti pembayaran."],
   ["Apakah tim bisa mengelola toko bersama?", "Bisa. Workspace mendukung peran Owner, Admin, Finance, dan Staff agar akses setiap anggota tetap sesuai tugasnya."],
-  ["Apa yang diterima pembeli setelah membayar?", "Setelah pembayaran terkonfirmasi, pembeli memperoleh akses member ke produk atau materi yang dibeli sesuai pengaturan merchant."],
+  ["Apa yang diterima pembeli setelah membayar?", "Pembeli mendapatkan akses sesuai tipe produk: kelas untuk kursus, unduhan privat untuk produk digital, atau portal pengerjaan untuk jasa."],
 ];
 
 export default function Home() {
@@ -103,17 +109,17 @@ export default function Home() {
         <section className="home-hero">
           <div className="shell home-hero-grid">
             <div className="home-hero-copy">
-              <span className="eyebrow"><Sparkles size={14} /> Platform bisnis digital Indonesia</span>
-              <h1 className="display">Jual produk digital tanpa merangkai banyak aplikasi.</h1>
-              <p className="home-lead">Rizqhub menyatukan halaman jualan, checkout, pembayaran, kursus, pelanggan, tim, dan komunitas dalam satu sistem yang mudah dikelola.</p>
+              <span className="eyebrow"><Sparkles size={14} /> Satu platform untuk mulai dan bertumbuh</span>
+              <h1 className="display">Ubah keahlian Anda menjadi bisnis yang terus menghasilkan.</h1>
+              <p className="home-lead">Jual kursus, produk digital, dan jasa tanpa merangkai banyak aplikasi. Dari halaman penawaran hingga pelanggan menerima hasilnya—semua berjalan di Rizqhub.</p>
               <div className="home-hero-actions">
-                <Link className="btn btn-primary home-primary-cta" href="/register">Mulai jualan <ArrowRight size={17} /></Link>
-                <a className="btn" href="#cara-kerja"><PlayCircle size={17} /> Lihat cara kerja</a>
+                <Link className="btn btn-primary home-primary-cta" href="/register">Buat toko Anda <ArrowRight size={17} /></Link>
+                <a className="btn" href="#cara-kerja"><PlayCircle size={17} /> Lihat alurnya</a>
               </div>
               <div className="home-trust-list" aria-label="Keunggulan utama">
-                <span><CircleCheck size={16} /> Siap untuk produk digital</span>
-                <span><CircleCheck size={16} /> Akses sesuai peran</span>
-                <span><CircleCheck size={16} /> Pembayaran tercatat</span>
+                <span><CircleCheck size={16} /> Tidak perlu coding</span>
+                <span><CircleCheck size={16} /> Mulai dari satu produk</span>
+                <span><CircleCheck size={16} /> Data bisnis tetap tertata</span>
               </div>
             </div>
 
@@ -125,13 +131,13 @@ export default function Home() {
                 </div>
                 <div className="home-preview-body">
                   <div className="home-preview-heading">
-                    <span><small>Dashboard usaha</small><strong>Selamat datang, Abu.</strong></span>
+                    <span><small>Dashboard usaha</small><strong>Bisnis Anda, satu kendali.</strong></span>
                     <i>+ Produk baru</i>
                   </div>
                   <div className="home-preview-stats">
-                    <span><small>Penjualan</small><strong>Rp12,8 jt</strong><em>+18% bulan ini</em></span>
-                    <span><small>Pesanan</small><strong>148</strong><em>132 terbayar</em></span>
-                    <span><small>Pelanggan</small><strong>96</strong><em>12 pelanggan baru</em></span>
+                    <span><small>Landing page</small><strong>Terbit</strong><em>Siap dibagikan</em></span>
+                    <span><small>Checkout</small><strong>Aktif</strong><em>Pembayaran tercatat</em></span>
+                    <span><small>Delivery</small><strong>Otomatis</strong><em>Sesuai tipe produk</em></span>
                   </div>
                   <div className="home-preview-chart">
                     <div><small>Ringkasan penjualan</small><strong>Performa 7 hari terakhir</strong></div>
@@ -144,13 +150,13 @@ export default function Home() {
                     <span className="bar bar-7" />
                   </div>
                   <div className="home-preview-orders">
-                    <span><i /><strong>Kelas Bisnis Digital</strong><small>Pesanan baru</small></span>
+                    <span><i /><strong>Produk unggulan Anda</strong><small>Pesanan baru</small></span>
                     <b>LUNAS</b>
                   </div>
                 </div>
               </div>
-              <span className="home-floating-card home-floating-sales"><BarChart3 size={18} /><span><small>Konversi naik</small><strong>+24,6%</strong></span></span>
-              <span className="home-floating-card home-floating-secure"><ShieldCheck size={18} /><span><small>Akses member</small><strong>Aktif otomatis</strong></span></span>
+              <span className="home-floating-card home-floating-sales"><BarChart3 size={18} /><span><small>Funnel terlihat</small><strong>Ukur & optimalkan</strong></span></span>
+              <span className="home-floating-card home-floating-secure"><ShieldCheck size={18} /><span><small>Akses pembeli</small><strong>Privat & tercatat</strong></span></span>
             </div>
           </div>
         </section>
@@ -167,8 +173,8 @@ export default function Home() {
         <section className="section home-features" id="fitur">
           <div className="shell">
             <div className="home-section-heading">
-              <div><span className="eyebrow">Fitur terhubung</span><h2 className="display">Satu alur dari produk sampai pelanggan.</h2></div>
-              <p>Anda tidak hanya mendapat halaman checkout. Rizqhub membantu mengelola pekerjaan sebelum, saat, dan setelah penjualan berlangsung.</p>
+              <div><span className="eyebrow">Bukan sekadar link pembayaran</span><h2 className="display">Semua yang dibutuhkan untuk mengubah pengunjung menjadi pelanggan.</h2></div>
+              <p>Rizqhub menghubungkan penawaran, checkout, pembayaran, delivery, dan hubungan pelanggan agar tidak ada langkah penting yang tercecer.</p>
             </div>
             <div className="home-feature-grid">
               {features.map(({ icon: Icon, title, description }, index) => (
@@ -186,8 +192,8 @@ export default function Home() {
         <section className="section home-workflow" id="cara-kerja">
           <div className="shell">
             <div className="home-section-heading home-section-heading-light">
-              <div><span className="eyebrow">Cara kerja</span><h2 className="display">Mulai dari ide. Berakhir pada bisnis yang terkelola.</h2></div>
-              <p>Alur kerja dibuat singkat agar Anda dapat lebih banyak fokus pada isi produk, pemasaran, dan pelanggan.</p>
+              <div><span className="eyebrow">Dari nol sampai siap dijual</span><h2 className="display">Empat langkah untuk mulai menerima pesanan.</h2></div>
+              <p>Anda fokus pada nilai yang dijual. Rizqhub merapikan perjalanan pelanggan dari klik pertama sampai produk diterima.</p>
             </div>
             <div className="home-step-grid">
               {steps.map(([number, title, description]) => (
@@ -204,14 +210,28 @@ export default function Home() {
         <section className="section home-use-cases">
           <div className="shell">
             <div className="home-centered-heading">
-              <span className="eyebrow">Dibuat untuk bertumbuh</span>
-              <h2 className="display">Cocok untuk banyak model bisnis digital.</h2>
-              <p>Mulai dengan satu produk, lalu kembangkan katalog, pelanggan, dan tim tanpa harus berpindah sistem.</p>
+              <span className="eyebrow">Satu sistem, banyak sumber penghasilan</span>
+              <h2 className="display">Apa pun yang Anda jual, alurnya tetap sederhana.</h2>
+              <p>Mulai dengan satu penawaran, validasi pasar, lalu kembangkan katalog dan tim tanpa memindahkan data ke sistem lain.</p>
             </div>
             <div className="home-use-grid">
               {useCases.map(({ icon: Icon, title, description }) => (
                 <article key={title}><span><Icon size={24} /></span><h3>{title}</h3><p>{description}</p><Link href="/register">Mulai sekarang <ArrowRight size={15} /></Link></article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section home-before-after">
+          <div className="shell">
+            <div className="home-centered-heading">
+              <span className="eyebrow">Berhenti kehilangan momentum</span>
+              <h2 className="display">Bisnis tumbuh lebih cepat ketika semua proses saling terhubung.</h2>
+              <p>Kurangi pekerjaan berulang dan buat pengalaman membeli yang lebih meyakinkan.</p>
+            </div>
+            <div className="home-compare-grid">
+              <article className="home-compare-old"><span>Tanpa sistem terpadu</span><h3>Banyak alat, banyak pekerjaan manual</h3><ul><li>Landing page, pembayaran, dan data pelanggan terpisah</li><li>File dibagikan manual setelah mengecek transfer</li><li>Progres jasa tersebar di chat pribadi</li><li>Sulit mengetahui titik kebocoran penjualan</li></ul></article>
+              <article className="home-compare-new"><span>Dengan Rizqhub</span><h3>Satu alur yang siap menghasilkan</h3><ul><li><Check size={17} /> Buat penawaran dan checkout dalam satu tempat</li><li><Check size={17} /> Berikan akses sesuai produk setelah pembayaran</li><li><Check size={17} /> Kelola pelanggan, tim, dan layanan secara tertata</li><li><Check size={17} /> Lihat funnel lalu perbaiki konversi berdasarkan data</li></ul><Link className="btn btn-lime" href="/register">Mulai bangun toko <ArrowRight size={17} /></Link></article>
             </div>
           </div>
         </section>
@@ -261,10 +281,10 @@ export default function Home() {
           <div className="shell">
             <div>
               <span className="eyebrow">Mulai langkah pertama</span>
-              <h2 className="display">Produk Anda layak punya sistem jualan yang lebih rapi.</h2>
-              <p>Buat akun, siapkan produk pertama, dan kelola pertumbuhan usaha digital Anda dari Rizqhub.</p>
+              <h2 className="display">Jangan biarkan produk bagus berhenti sebagai rencana.</h2>
+              <p>Buat toko Anda, terbitkan penawaran pertama, dan mulai kumpulkan pelanggan dalam sistem yang siap ikut bertumbuh.</p>
               <div className="home-hero-actions">
-                <Link className="btn btn-lime" href="/register">Mulai sekarang <ArrowRight size={17} /></Link>
+                <Link className="btn btn-lime" href="/register">Buat toko saya <ArrowRight size={17} /></Link>
                 <Link className="btn home-dark-secondary" href="/login">Masuk ke akun</Link>
               </div>
             </div>
@@ -274,7 +294,7 @@ export default function Home() {
 
       <footer className="footer home-footer">
         <div className="shell home-footer-grid">
-          <div><Brand /><p>Platform untuk menjual, mengelola, dan mengembangkan produk digital.</p></div>
+          <div><Brand /><p>Platform untuk menjual kursus, produk digital, dan jasa dari satu tempat.</p></div>
           <nav aria-label="Navigasi footer"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><a href="#faq">FAQ</a><Link href="/login">Masuk</Link></nav>
           <span>© 2026 Rizqhub. Dibuat untuk bisnis digital Indonesia.</span>
         </div>

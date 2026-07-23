@@ -48,7 +48,7 @@ test("home publik memiliki informasi produk dan jalur konversi yang lengkap", as
   for (const content of [
     "Landing Page Builder",
     "Checkout & pembayaran",
-    "Kursus & member area",
+    "Delivery otomatis",
     "Tim workspace",
     "Pelanggan & broadcast",
     "Analitik usaha",
