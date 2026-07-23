@@ -10,7 +10,7 @@ import { orders, products } from "@/lib/schema";
 const periods: { value: ReportPeriod; label: string }[] = [{ value: "7", label: "7 hari" }, { value: "30", label: "30 hari" }, { value: "90", label: "90 hari" }, { value: "all", label: "Semua" }];
 
 export default async function SalesReportsPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("SALES_REPORTS", merchant.id);
   const raw = (await searchParams).period;
   const period: ReportPeriod = raw === "7" || raw === "90" || raw === "all" ? raw : "30";

@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/order";
 import { orders, products } from "@/lib/schema";
 
 export default async function MerchantPaymentsPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("DIRECT_MANUAL_PAYMENTS", merchant.id);
   const { error, success } = await searchParams;
   const rows = await db.select({ order: orders, productName: products.name }).from(orders)

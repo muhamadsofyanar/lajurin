@@ -17,7 +17,7 @@ export default async function FunnelPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const { id } = await params;
   const { error, success } = await searchParams;
   const [[product], productCoupons, [funnel], offers] = await Promise.all([

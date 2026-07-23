@@ -8,14 +8,15 @@ import { requireWorkspacePermission } from "@/modules/workspace/domain/policy";
 import type { WorkspacePermission } from "@/modules/workspace/domain/types";
 
 export async function requireMerchantWorkspace(permission: WorkspacePermission = "workspace.read") {
-  const merchant = await requireMerchant();
+  const capability = permission === "workspace.members.manage" ? "members" : permission === "workspace.billing.manage" ? "finance" : permission === "workspace.manage" ? "manage" : "read";
+  const merchant = await requireMerchant(capability);
   await requireFeature("WORKSPACE_TEAMS", merchant.id);
   const [row] = await db.select({ workspace: workspaces, membership: workspaceMemberships })
     .from(legacyMerchantWorkspaceLinks)
     .innerJoin(workspaces, eq(workspaces.id, legacyMerchantWorkspaceLinks.workspaceId))
     .innerJoin(workspaceMemberships, and(
       eq(workspaceMemberships.workspaceId, workspaces.id),
-      eq(workspaceMemberships.userId, merchant.id),
+      eq(workspaceMemberships.userId, merchant.actorId),
     ))
     .where(eq(legacyMerchantWorkspaceLinks.legacyMerchantUserId, merchant.id)).limit(1);
   if (!row) redirect("/dashboard?error=Workspace+merchant+belum+tersedia");

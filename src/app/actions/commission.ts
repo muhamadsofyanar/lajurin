@@ -16,7 +16,7 @@ import { commissionProofDirectory, commissionProofPath } from "@/lib/storage";
 const proofTypes: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "application/pdf": ".pdf" };
 
 export async function submitCommissionPaymentAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("COMMISSION_BILLING", merchant.id);
   const rateLimit = await enforceRateLimit(await currentRequestIdentity("commission-proof", merchant.id), { limit: 5, windowMs: 30 * 60_000, blockMs: 60 * 60_000 });
   if (rateLimit.limited) redirect("/dashboard/commissions?error=Terlalu+banyak+percobaan.+Coba+lagi+nanti");

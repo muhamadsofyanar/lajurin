@@ -24,6 +24,7 @@ export const workspaceMembershipStatusEnum = pgEnum("workspace_membership_status
 export const workspaceDomainStatusEnum = pgEnum("workspace_domain_status", ["PENDING", "VERIFIED", "FAILED", "DISABLED"]);
 export const featureFlagRolloutEnum = pgEnum("feature_flag_rollout", ["OFF", "ALL", "USERS"]);
 export const commissionPaymentStatusEnum = pgEnum("commission_payment_status", ["SUBMITTED", "APPROVED", "REJECTED"]);
+export const workspaceInvitationStatusEnum = pgEnum("workspace_invitation_status", ["PENDING", "ACCEPTED", "REVOKED", "EXPIRED"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -82,6 +83,24 @@ export const workspaceMemberships = pgTable("workspace_memberships", {
   index("workspace_memberships_workspace_status_idx").on(table.workspaceId, table.status),
 ]);
 
+export const workspaceInvitations = pgTable("workspace_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: workspaceMembershipRoleEnum("role").notNull(),
+  status: workspaceInvitationStatusEnum("status").default("PENDING").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  invitedBy: uuid("invited_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: "set null" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("workspace_invitations_token_unique").on(table.tokenHash),
+  index("workspace_invitations_workspace_status_idx").on(table.workspaceId, table.status, table.createdAt),
+  index("workspace_invitations_email_status_idx").on(table.email, table.status),
+]);
+
 export const workspaceBranding = pgTable("workspace_branding", {
   workspaceId: uuid("workspace_id").primaryKey().references(() => workspaces.id, { onDelete: "restrict" }),
   displayName: text("display_name").notNull(),
@@ -110,6 +129,7 @@ export const workspaceDomains = pgTable("workspace_domains", {
   hostname: text("hostname").notNull(),
   status: workspaceDomainStatusEnum("status").default("PENDING").notNull(),
   verificationTokenHash: text("verification_token_hash").notNull(),
+  verificationToken: text("verification_token"),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   isPrimary: boolean("is_primary").default(false).notNull(),
   ...timestamps,
@@ -196,6 +216,18 @@ export const sessions = pgTable("sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("sessions_token_unique").on(table.tokenHash), index("sessions_user_idx").on(table.userId)]);
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("password_reset_tokens_token_unique").on(table.tokenHash),
+  index("password_reset_tokens_user_idx").on(table.userId, table.createdAt),
+]);
+
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(), merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), slug: text("slug").notNull(), headline: text("headline").notNull(), description: text("description").notNull(),
@@ -228,6 +260,9 @@ export const productLandingPages = pgTable("product_landing_pages", {
   promoEndsAt: timestamp("promo_ends_at", { withTimezone: true }),
   facebookPixelId: text("facebook_pixel_id"),
   tiktokPixelId: text("tiktok_pixel_id"),
+  draftData: jsonb("draft_data").$type<Record<string, unknown>>().default({}).notNull(),
+  sectionOrder: jsonb("section_order").$type<string[]>().default(["AUDIENCE", "INSTRUCTOR", "CURRICULUM", "BONUSES", "TESTIMONIALS", "OFFER", "FAQ"]).notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [uniqueIndex("product_landing_pages_product_unique").on(table.productId)]);
 
@@ -560,5 +595,38 @@ export const automationDeliveries = pgTable("automation_deliveries", {
   status: notificationStatusEnum("status").default("PENDING").notNull(), attemptCount: integer("attempt_count").default(0).notNull(),
   responseCode: integer("response_code"), providerResponse: jsonb("provider_response"), errorMessage: text("error_message"), sentAt: timestamp("sent_at", { withTimezone: true }), ...timestamps,
 }, (table) => [uniqueIndex("automation_deliveries_rule_source_channel_unique").on(table.ruleId, table.sourceKey, table.channel), index("automation_deliveries_status_idx").on(table.status, table.createdAt)]);
+
+export const broadcastCampaigns = pgTable("broadcast_campaigns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  audience: text("audience").notNull(),
+  subject: text("subject"),
+  message: text("message").notNull(),
+  sendEmail: boolean("send_email").default(true).notNull(),
+  sendWhatsapp: boolean("send_whatsapp").default(false).notNull(),
+  status: text("status").default("DRAFT").notNull(),
+  recipientCount: integer("recipient_count").default(0).notNull(),
+  sentCount: integer("sent_count").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [index("broadcast_campaigns_merchant_idx").on(table.merchantId, table.createdAt)]);
+
+export const broadcastDeliveries = pgTable("broadcast_deliveries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id").notNull().references(() => broadcastCampaigns.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  channel: notificationChannelEnum("channel").notNull(),
+  recipient: text("recipient").notNull(),
+  status: notificationStatusEnum("status").default("PENDING").notNull(),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("broadcast_deliveries_campaign_channel_recipient_unique").on(table.campaignId, table.channel, table.recipient),
+  index("broadcast_deliveries_campaign_status_idx").on(table.campaignId, table.status),
+]);
 
 export type User = typeof users.$inferSelect;

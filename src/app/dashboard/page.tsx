@@ -48,6 +48,9 @@ export default async function DashboardPage() {
   const statusText = profile?.status === "ACTIVE" ? "Aktif" : profile?.status === "SUSPENDED" ? "Ditangguhkan" : "Menunggu aktivasi";
   const statusClass = profile?.status === "ACTIVE" ? "status-active" : profile?.status === "SUSPENDED" ? "status-suspended" : "status-pending";
   const storeUrl = profile?.status === "ACTIVE" && profile.slug ? `/m/${profile.slug}` : null;
+  const canManage = ["OWNER", "ADMIN", "STAFF"].includes(merchant.membershipRole);
+  const canFinance = ["OWNER", "FINANCE"].includes(merchant.membershipRole);
+  const workspaceRole = merchant.membershipRole === "OWNER" ? "Owner" : merchant.membershipRole === "ADMIN" ? "Admin tim" : merchant.membershipRole === "FINANCE" ? "Finance" : "Staff";
 
   return (
     <main className="app-main dashboard-main">
@@ -57,14 +60,15 @@ export default async function DashboardPage() {
             <div className="dashboard-kicker">
               <span className="eyebrow">Dashboard usaha{profile ? ` · ${profile.brandName}` : ""}</span>
               <span className={`badge ${statusClass}`}>{statusText}</span>
+              <span className="badge">{workspaceRole}</span>
             </div>
-            <h1 className="display" id="dashboard-title">Halo, {merchant.name.split(" ")[0]}.</h1>
+            <h1 className="display" id="dashboard-title">Halo, {merchant.actorName.split(" ")[0]}.</h1>
             <p>Pantau performa penjualan dan kelola produk Anda dari satu ringkasan.</p>
           </div>
           <div className="dashboard-hero-actions">
             {storeUrl && <Link className="btn" href={storeUrl}><Eye size={17} /> Lihat toko</Link>}
             <Link className="btn" href="/dashboard/analytics"><BarChart3 size={17} /> Analitik</Link>
-            <Link className="btn btn-primary" href="/dashboard/products/new"><Plus size={17} /> Produk baru</Link>
+            {canManage && <Link className="btn btn-primary" href="/dashboard/products/new"><Plus size={17} /> Produk baru</Link>}
           </div>
         </section>
 
@@ -89,11 +93,11 @@ export default async function DashboardPage() {
             <span className="dashboard-stat-icon"><BarChart3 size={18} /></span>
             <div><span>Pendapatan bersih</span><strong>{formatRupiah(net)}</strong><small>Hak merchant setelah komisi</small></div>
           </article>
-          <Link className="stat stat-link stat-highlight dashboard-stat" href="/dashboard/finance">
+          {canFinance ? <Link className="stat stat-link stat-highlight dashboard-stat" href="/dashboard/finance">
             <span className="dashboard-stat-icon"><WalletCards size={18} /></span>
             <div><span>Saldo tersedia</span><strong>{formatRupiah(balance)}</strong><small>{pendingPayouts ? `${pendingPayouts} payout sedang diproses` : "Siap dicairkan sesuai minimum"}</small></div>
             <ArrowRight className="dashboard-stat-arrow" size={17} aria-hidden="true" />
-          </Link>
+          </Link> : <article className="stat stat-highlight dashboard-stat"><span className="dashboard-stat-icon"><WalletCards size={18} /></span><div><span>Saldo usaha</span><strong>{formatRupiah(balance)}</strong><small>Dikelola Owner atau Finance</small></div></article>}
         </section>
 
         <div className="dashboard-content-grid">
@@ -133,8 +137,8 @@ export default async function DashboardPage() {
             <section className="panel dashboard-shortcuts">
               <div className="panel-head"><h2>Aksi cepat</h2></div>
               <nav aria-label="Aksi cepat dashboard">
-                <Link href="/dashboard/finance"><WalletCards size={18} /><span><strong>Saldo & payout</strong><small>Kelola pencairan dana</small></span><ArrowRight size={16} /></Link>
-                <Link href="/dashboard/profile"><Settings2 size={18} /><span><strong>Profil toko</strong><small>Atur identitas dan kontak</small></span><ArrowRight size={16} /></Link>
+                {canFinance && <Link href="/dashboard/finance"><WalletCards size={18} /><span><strong>Saldo & payout</strong><small>Kelola pencairan dana</small></span><ArrowRight size={16} /></Link>}
+                {canManage && <Link href="/dashboard/profile"><Settings2 size={18} /><span><strong>Profil toko</strong><small>Atur identitas dan kontak</small></span><ArrowRight size={16} /></Link>}
                 <Link href="/dashboard/orders"><ReceiptText size={18} /><span><strong>Transaksi</strong><small>Lihat status pesanan</small></span><ArrowRight size={16} /></Link>
               </nav>
             </section>

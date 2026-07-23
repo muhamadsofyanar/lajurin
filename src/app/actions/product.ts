@@ -56,7 +56,7 @@ async function uniqueSlug(name: string) {
 }
 
 export async function createProductAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect("/dashboard/products/new?error=Data+produk+belum+valid");
 
@@ -74,7 +74,7 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(productId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/dashboard/products/${productId}?error=Data+produk+belum+valid`);
 
@@ -85,7 +85,7 @@ export async function updateProductAction(productId: string, formData: FormData)
 }
 
 export async function addLessonAction(productId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = z
     .object({
       title: z.string().trim().min(3).max(150),
@@ -115,7 +115,7 @@ export async function addLessonAction(productId: string, formData: FormData) {
 }
 
 export async function updateLessonAction(productId: string, lessonId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = z.object({
     title: z.string().trim().min(3).max(150),
     content: z.string().trim().min(10).max(20000),
@@ -145,7 +145,7 @@ export async function updateLessonAction(productId: string, lessonId: string, fo
 }
 
 export async function addCourseModuleAction(productId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = z.object({
     title: z.string().trim().min(3).max(120),
     description: z.string().trim().max(500).optional(),
@@ -165,7 +165,7 @@ export async function addCourseModuleAction(productId: string, formData: FormDat
 }
 
 export async function updateCourseModuleAction(productId: string, moduleId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = z.object({
     title: z.string().trim().min(3).max(120),
     description: z.string().trim().max(500).optional(),
@@ -183,7 +183,7 @@ export async function updateCourseModuleAction(productId: string, moduleId: stri
 }
 
 export async function moveCourseModuleAction(productId: string, moduleId: string, direction: "up" | "down") {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const course = await getOwnedCourse(productId, merchant.id);
   if (!course) redirect("/dashboard");
   const orderedModules = await db.select({ id: courseModules.id, position: courseModules.position }).from(courseModules)
@@ -200,7 +200,7 @@ export async function moveCourseModuleAction(productId: string, moduleId: string
 }
 
 export async function deleteCourseModuleAction(productId: string, moduleId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const course = await getOwnedCourse(productId, merchant.id);
   if (!course) redirect("/dashboard");
   const [ownedModule] = await db.select({ id: courseModules.id }).from(courseModules)
@@ -218,7 +218,7 @@ export async function deleteCourseModuleAction(productId: string, moduleId: stri
 }
 
 export async function uploadLessonAttachmentAction(productId: string, lessonId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const file = formData.get("file");
   if (!(file instanceof File) || !file.size) redirect(`/dashboard/products/${productId}?error=Pilih+file+materi`);
   const extension = path.extname(file.name).toLowerCase();
@@ -253,7 +253,7 @@ export async function uploadLessonAttachmentAction(productId: string, lessonId: 
 }
 
 export async function deleteLessonAttachmentAction(productId: string, attachmentId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [attachment] = await db.select({ id: lessonAttachments.id, storageKey: lessonAttachments.storageKey }).from(lessonAttachments)
     .innerJoin(lessons, eq(lessonAttachments.lessonId, lessons.id))
     .innerJoin(courses, eq(lessons.courseId, courses.id))
@@ -266,7 +266,7 @@ export async function deleteLessonAttachmentAction(productId: string, attachment
 }
 
 export async function moveLessonAction(productId: string, lessonId: string, direction: "up" | "down") {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [ownedCourse] = await db.select({ id: courses.id }).from(courses)
     .innerJoin(products, eq(courses.productId, products.id))
     .where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
@@ -287,7 +287,7 @@ export async function moveLessonAction(productId: string, lessonId: string, dire
 }
 
 export async function deleteLessonAction(productId: string, lessonId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [ownedLesson] = await db.select({ id: lessons.id, courseId: lessons.courseId }).from(lessons)
     .innerJoin(courses, eq(lessons.courseId, courses.id))
     .innerJoin(products, eq(courses.productId, products.id))
@@ -309,7 +309,7 @@ export async function deleteLessonAction(productId: string, lessonId: string) {
 }
 
 export async function togglePublishAction(productId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [product] = await db.select({ status: products.status, slug: products.slug, courseId: courses.id }).from(products).leftJoin(courses, eq(courses.productId, products.id)).where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
   if (!product) redirect("/dashboard");
   const hasLessons = product.courseId ? (await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.courseId, product.courseId)).limit(1)).length > 0 : false;

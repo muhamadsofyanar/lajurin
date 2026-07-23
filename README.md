@@ -1,4 +1,4 @@
-# Lajurin v1.3.1
+# Lajurin v1.4.0
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
@@ -9,7 +9,7 @@ Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 - Dashboard member: kursus aktif, pesanan yang perlu ditindaklanjuti, dan akses komunitas.
 - Isolasi multi-merchant: setiap dashboard usaha hanya membaca produk dan transaksi merchant yang login.
 - Profil toko merchant dengan URL publik `/m/[slug]`, identitas brand, kontak, dan etalase produk.
-- Editor landing page dengan tiga template, upload media, hero video, pengajar, bonus, testimoni, FAQ, jaminan, promo, dan pixel.
+- Landing Page Builder visual dengan tiga template, preview desktop/mobile, urutan section, draft terpisah, publish, upload media, hero video, pengajar, bonus, testimoni, FAQ, jaminan, promo, dan pixel.
 - Kelas member menampilkan merchant pemilik; satu member tetap dapat mengakses pembelian dari beberapa merchant dalam satu area belajar.
 - Checkout Xendit dan transfer bank manual.
 - Unggah bukti transfer privat; hanya customer, merchant terkait, dan admin yang dapat membukanya.
@@ -29,10 +29,12 @@ Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 - Halaman produk, materi kursus, autentikasi cookie, webhook Xendit, Docker, dan health check.
 - Production readiness: rate limit, validasi signature upload, security headers, log webhook, readiness check, refund penuh tercatat, dan pusat operasional admin.
 - Feature flag berbasis database dengan mode nonaktif, canary per User ID, atau aktif untuk semua tanpa redeploy.
-- Workspace team management dengan peran Owner, Admin, Finance, dan Staff serta proteksi owner terakhir.
+- Workspace team management dengan peran Owner, Admin, Finance, dan Staff, undangan bertoken, pembuatan password oleh anggota, lupa/reset password, hapus/nonaktif anggota, akses data toko Owner, dan proteksi owner terakhir.
 - Pelunasan tagihan komisi: rekening platform, upload bukti privat, antrean admin, audit log, dan pengurangan piutang atomik.
 - Landing Page Builder terpusat untuk mengelola seluruh halaman penjualan merchant.
 - Laporan penjualan berperiode dengan ringkasan bruto, net, komisi, metode pembayaran, performa produk, dan ekspor CSV aman.
+- Custom Domain dengan verifikasi TXT, routing host toko, dan panduan CNAME/Coolify.
+- Broadcast pelanggan dan tindak lanjut checkout terbengkalai melalui Mailketing/StarSender dengan riwayat pengiriman.
 
 ## Dokumentasi proyek
 

@@ -13,7 +13,7 @@ import { auditLogs, merchantLedgerEntries, merchantManualPaymentAccounts, mercha
 class FinanceActionError extends Error {}
 
 export async function updateManualPaymentAccountAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("DIRECT_MANUAL_PAYMENTS", merchant.id);
   const parsed = z.object({
     bankName: z.string().trim().min(2).max(80),
@@ -42,7 +42,7 @@ export async function updateManualPaymentAccountAction(formData: FormData) {
 }
 
 export async function updatePayoutAccountAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   if (merchant.role !== "MERCHANT") redirect("/admin");
   const parsed = z.object({
     bankName: z.string().trim().min(2).max(80),
@@ -67,7 +67,7 @@ export async function updatePayoutAccountAction(formData: FormData) {
 }
 
 export async function requestPayoutAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   if (merchant.role !== "MERCHANT") redirect("/admin");
   const parsed = z.object({
     amount: z.coerce.number().int().positive().max(2_000_000_000),

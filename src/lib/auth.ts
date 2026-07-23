@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { sessions, users } from "@/lib/schema";
+import { legacyMerchantWorkspaceLinks, merchantProfiles, sessions, users, workspaceMemberships, workspaces } from "@/lib/schema";
 
 const SESSION_COOKIE = "lajurin_session";
 const SESSION_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -65,10 +65,63 @@ export async function requireUser() {
   return user;
 }
 
-export async function requireMerchant() {
-  const user = await requireUser();
-  if (user.role !== "MERCHANT") redirect(user.role === "ADMIN" ? "/admin" : "/member");
-  return user;
+export type MerchantCapability = "read" | "manage" | "members" | "finance";
+
+const merchantCapabilities: Record<"OWNER" | "ADMIN" | "FINANCE" | "STAFF" | "MEMBER", readonly MerchantCapability[]> = {
+  OWNER: ["read", "manage", "members", "finance"],
+  ADMIN: ["read", "manage", "members"],
+  FINANCE: ["read", "finance"],
+  STAFF: ["read", "manage"],
+  MEMBER: [],
+};
+
+export async function getMerchantAccess(userId: string) {
+  const [ownedProfile] = await db.select({ id: merchantProfiles.id }).from(merchantProfiles)
+    .where(eq(merchantProfiles.userId, userId)).limit(1);
+  if (ownedProfile) return { ownerId: userId, membershipRole: "OWNER" as const, workspaceId: null as string | null };
+  const [access] = await db.select({
+    ownerId: legacyMerchantWorkspaceLinks.legacyMerchantUserId,
+    workspaceId: workspaceMemberships.workspaceId,
+    membershipRole: workspaceMemberships.role,
+  }).from(workspaceMemberships)
+    .innerJoin(workspaces, eq(workspaces.id, workspaceMemberships.workspaceId))
+    .innerJoin(legacyMerchantWorkspaceLinks, eq(legacyMerchantWorkspaceLinks.workspaceId, workspaceMemberships.workspaceId))
+    .where(and(
+      eq(workspaceMemberships.userId, userId),
+      eq(workspaceMemberships.status, "ACTIVE"),
+      eq(workspaces.status, "ACTIVE"),
+    )).limit(1);
+  return access ?? null;
+}
+
+export async function userHome(user: typeof users.$inferSelect) {
+  if (user.role === "ADMIN") return "/admin";
+  if (await getMerchantAccess(user.id)) return "/dashboard";
+  return "/member";
+}
+
+export async function requireMerchant(capability: MerchantCapability = "read") {
+  const actor = await requireUser();
+  if (actor.role === "ADMIN") redirect("/admin");
+
+  const access = await getMerchantAccess(actor.id);
+  if (!access || !merchantCapabilities[access.membershipRole].includes(capability)) redirect(actor.role === "MEMBER" ? "/member" : "/dashboard?error=Akses+tim+tidak+mencukupi");
+
+  if (access.ownerId === actor.id) return Object.assign(actor, {
+    actorId: actor.id,
+    actorName: actor.name,
+    membershipRole: access.membershipRole,
+    workspaceId: access.workspaceId,
+  });
+
+  const [owner] = await db.select().from(users).where(eq(users.id, access.ownerId)).limit(1);
+  if (!owner) redirect("/member");
+  return Object.assign(owner, {
+    actorId: actor.id,
+    actorName: actor.name,
+    membershipRole: access.membershipRole,
+    workspaceId: access.workspaceId,
+  });
 }
 
 export async function requireAdmin() {

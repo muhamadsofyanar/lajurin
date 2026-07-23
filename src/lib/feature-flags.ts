@@ -10,6 +10,8 @@ export const featureFlagDefinitions = [
   { key: "LANDING_PAGE_BUILDER", name: "Landing Page Builder", description: "Editor halaman penjualan dan pratinjau publik." },
   { key: "SALES_REPORTS", name: "Laporan penjualan", description: "Ringkasan berperiode dan ekspor CSV penjualan." },
   { key: "BASIC_NOTIFICATIONS", name: "Notifikasi dasar", description: "Notifikasi in-app untuk kejadian operasional penting." },
+  { key: "CUSTOM_DOMAINS", name: "Custom Domain", description: "Verifikasi domain milik merchant dan routing toko publik." },
+  { key: "CUSTOMER_BROADCASTS", name: "Broadcast & checkout terbengkalai", description: "Kampanye pelanggan dan tindak lanjut checkout yang belum selesai." },
 ] as const;
 
 export type FeatureFlagKey = typeof featureFlagDefinitions[number]["key"];

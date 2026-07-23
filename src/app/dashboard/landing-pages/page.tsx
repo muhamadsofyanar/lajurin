@@ -7,7 +7,7 @@ import { requireFeature } from "@/lib/feature-flags";
 import { productLandingPages, products } from "@/lib/schema";
 
 export default async function LandingPagesPage() {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   await requireFeature("LANDING_PAGE_BUILDER", merchant.id);
   const rows = await db.select({ product: products, landing: productLandingPages }).from(products)
     .leftJoin(productLandingPages, eq(productLandingPages.productId, products.id))

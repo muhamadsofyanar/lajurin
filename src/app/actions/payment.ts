@@ -197,7 +197,7 @@ async function reviewManualPayment(input: {
 }
 
 export async function reviewMerchantManualPaymentAction(orderId: string, decision: "approve" | "reject", formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("DIRECT_MANUAL_PAYMENTS", merchant.id);
   const parsed = z.object({ reason: z.string().trim().max(500).optional() }).safeParse({
     reason: formData.get("reason") || undefined,

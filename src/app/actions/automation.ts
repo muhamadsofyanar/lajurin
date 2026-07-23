@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { automationRules, products } from "@/lib/schema";
 
 export async function createAutomationRuleAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = z.object({
     name: z.string().trim().min(3).max(100),
     trigger: z.enum(["PURCHASED", "COURSE_COMPLETED"]),
@@ -36,7 +36,7 @@ export async function createAutomationRuleAction(formData: FormData) {
 }
 
 export async function toggleAutomationRuleAction(ruleId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [rule] = await db.select({ isActive: automationRules.isActive }).from(automationRules)
     .where(and(eq(automationRules.id, ruleId), eq(automationRules.merchantId, merchant.id))).limit(1);
   if (!rule) redirect("/dashboard/automation");

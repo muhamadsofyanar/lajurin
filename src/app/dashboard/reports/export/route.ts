@@ -6,7 +6,7 @@ import { reportPeriodStart, safeCsvCell, type ReportPeriod } from "@/lib/reporti
 import { orders, products } from "@/lib/schema";
 
 export async function GET(request: Request) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("SALES_REPORTS", merchant.id);
   const raw = new URL(request.url).searchParams.get("period");
   const period: ReportPeriod = raw === "7" || raw === "90" || raw === "all" ? raw : "30";

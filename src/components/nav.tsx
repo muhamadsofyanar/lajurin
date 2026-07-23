@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell, ChevronDown, Menu } from "lucide-react";
 import { Brand } from "@/components/brand";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getMerchantAccess } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/auth";
 import { unreadNotificationCount } from "@/lib/in-app-notifications";
 import { enabledFeatureMap } from "@/lib/feature-flags";
@@ -63,27 +63,31 @@ function MenuLinks({ items }: { items: readonly NavItem[] }) {
 
 export async function Nav({ app = false }: { app?: boolean }) {
   const user = await getCurrentUser();
-  const dashboard = user?.role === "ADMIN" ? "/admin" : user?.role === "MEMBER" ? "/member" : "/dashboard";
-  const dashboardLabel = user?.role === "ADMIN" ? "Admin" : user?.role === "MERCHANT" ? "Dashboard usaha" : "Kelas saya";
+  const merchantAccess = user && user.role !== "ADMIN" ? await getMerchantAccess(user.id) : null;
+  const dashboard = user?.role === "ADMIN" ? "/admin" : merchantAccess ? "/dashboard" : "/member";
+  const dashboardLabel = user?.role === "ADMIN" ? "Admin" : merchantAccess ? "Dashboard usaha" : "Kelas saya";
   const unread = user ? await unreadNotificationCount(user.id) : 0;
-  const flags = user?.role === "MERCHANT" ? await enabledFeatureMap(user.id) : null;
+  const flags = merchantAccess ? await enabledFeatureMap(merchantAccess.ownerId) : null;
 
   if (!app || !user) {
     return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
   }
 
-  const navigation = roleLinks[user.role];
-  const featureLinks: NavItem[] = user.role === "MERCHANT" && flags ? [
+  const effectiveRole = user.role === "ADMIN" ? "ADMIN" : merchantAccess ? "MERCHANT" : "MEMBER";
+  const navigation = roleLinks[effectiveRole];
+  const featureLinks: NavItem[] = merchantAccess && flags ? [
     flags.DIRECT_MANUAL_PAYMENTS && { href: "/dashboard/payments", label: "Konfirmasi transfer" },
     flags.LANDING_PAGE_BUILDER && { href: "/dashboard/landing-pages", label: "Landing Page Builder" },
     flags.SALES_REPORTS && { href: "/dashboard/reports", label: "Laporan penjualan" },
     flags.COMMISSION_BILLING && { href: "/dashboard/commissions", label: "Tagihan komisi" },
     flags.WORKSPACE_TEAMS && { href: "/dashboard/team", label: "Tim workspace" },
+    flags.CUSTOM_DOMAINS && { href: "/dashboard/domains", label: "Custom Domain" },
+    flags.CUSTOMER_BROADCASTS && { href: "/dashboard/broadcasts", label: "Broadcast pelanggan" },
   ].filter((item): item is NavItem => Boolean(item)) : [];
   const secondaryLinks: readonly NavItem[] = [...navigation.secondary, ...featureLinks];
   const initial = user.name.trim().slice(0, 1).toUpperCase();
-  const roleLabel = user.role === "ADMIN" ? "Administrator" : user.role === "MERCHANT" ? "Merchant" : "Member";
-  const additionalLinks = user.role === "MEMBER" ? [] : commonLinks;
+  const roleLabel = user.role === "ADMIN" ? "Administrator" : merchantAccess ? (merchantAccess.membershipRole === "OWNER" ? "Owner merchant" : `Tim · ${merchantAccess.membershipRole}`) : "Member";
+  const additionalLinks = effectiveRole === "MEMBER" ? [] : commonLinks;
 
   return <header className="app-nav">
     <nav aria-label="Navigasi aplikasi" className="shell nav app-nav-shell">

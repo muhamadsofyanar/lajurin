@@ -19,7 +19,7 @@ async function ownedProduct(productId: string, merchantId: string) {
 }
 
 export async function createCouponAction(productId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const product = await ownedProduct(productId, merchant.id);
   if (!product) redirect("/dashboard");
   const parsed = z.object({
@@ -40,7 +40,7 @@ export async function createCouponAction(productId: string, formData: FormData) 
 }
 
 export async function toggleCouponAction(productId: string, couponId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [coupon] = await db.select({ id: coupons.id, isActive: coupons.isActive }).from(coupons)
     .innerJoin(products, eq(coupons.productId, products.id))
     .where(and(eq(coupons.id, couponId), eq(coupons.productId, productId), eq(products.merchantId, merchant.id))).limit(1);
@@ -50,7 +50,7 @@ export async function toggleCouponAction(productId: string, couponId: string) {
 }
 
 export async function deleteCouponAction(productId: string, couponId: string) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const [coupon] = await db.select({ id: coupons.id, redemptionCount: coupons.redemptionCount }).from(coupons)
     .innerJoin(products, eq(coupons.productId, products.id))
     .where(and(eq(coupons.id, couponId), eq(coupons.productId, productId), eq(products.merchantId, merchant.id))).limit(1);
@@ -61,7 +61,7 @@ export async function deleteCouponAction(productId: string, couponId: string) {
 }
 
 export async function updateFunnelAction(productId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   if (!await ownedProduct(productId, merchant.id)) redirect("/dashboard");
   const parsed = z.object({
     orderBumpProductId: optionalProductId,

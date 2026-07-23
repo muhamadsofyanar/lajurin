@@ -27,7 +27,7 @@ const optionalDate = z.preprocess((value) => value === "" || value === null ? un
 const landingImageTypes: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
 
 export async function updateMerchantProfileAction(formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const parsed = z.object({
     brandName: z.string().trim().min(2).max(100),
     slug: z.string().trim().min(3).max(80).transform(slugify),
@@ -79,9 +79,11 @@ export async function updateMerchantProfileAction(formData: FormData) {
 }
 
 export async function updateLandingPageAction(productId: string, formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   await requireFeature("LANDING_PAGE_BUILDER", merchant.id);
   const parsed = z.object({
+    intent: z.enum(["DRAFT", "PUBLISH"]),
+    sectionOrder: z.string().max(1000),
     eyebrow: z.string().trim().max(80).optional(),
     heroTitle: z.string().trim().max(180).optional(),
     heroSubtitle: z.string().trim().max(1000).optional(),
@@ -108,12 +110,22 @@ export async function updateLandingPageAction(productId: string, formData: FormD
   }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/dashboard/products/${productId}/landing?error=Periksa+kembali+isi+landing+page`);
 
+  const sectionKeys = ["AUDIENCE", "INSTRUCTOR", "CURRICULUM", "BONUSES", "TESTIMONIALS", "OFFER", "FAQ"] as const;
+  let sectionOrder: string[];
+  try {
+    const rawOrder = JSON.parse(parsed.data.sectionOrder) as unknown;
+    if (!Array.isArray(rawOrder)) throw new Error("invalid");
+    sectionOrder = [...new Set(rawOrder.filter((item): item is string => typeof item === "string" && sectionKeys.includes(item as typeof sectionKeys[number])))];
+    for (const key of sectionKeys) if (!sectionOrder.includes(key)) sectionOrder.push(key);
+  } catch {
+    redirect(`/dashboard/products/${productId}/landing?error=Urutan+section+tidak+valid`);
+  }
+
   const [ownedProduct] = await db.select({ id: products.id, slug: products.slug }).from(products)
     .where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
   if (!ownedProduct) redirect("/dashboard");
 
-  await db.insert(productLandingPages).values({
-    productId: ownedProduct.id,
+  const landingData = {
     eyebrow: parsed.data.eyebrow || null,
     heroTitle: parsed.data.heroTitle || null,
     heroSubtitle: parsed.data.heroSubtitle || null,
@@ -137,43 +149,20 @@ export async function updateLandingPageAction(productId: string, formData: FormD
     promoEndsAt: parsed.data.promoEndsAt ?? null,
     facebookPixelId: parsed.data.facebookPixelId || null,
     tiktokPixelId: parsed.data.tiktokPixelId || null,
-  }).onConflictDoUpdate({
-    target: productLandingPages.productId,
-    set: {
-      eyebrow: parsed.data.eyebrow || null,
-      heroTitle: parsed.data.heroTitle || null,
-      heroSubtitle: parsed.data.heroSubtitle || null,
-      coverImageUrl: parsed.data.coverImageUrl || null,
-      heroVideoUrl: parsed.data.heroVideoUrl || null,
-      benefitsText: parsed.data.benefitsText || null,
-      audienceText: parsed.data.audienceText || null,
-      ctaText: parsed.data.ctaText,
-      accentColor: parsed.data.accentColor.toLowerCase(),
-      template: parsed.data.template,
-      instructorName: parsed.data.instructorName || null,
-      instructorRole: parsed.data.instructorRole || null,
-      instructorBio: parsed.data.instructorBio || null,
-      instructorImageUrl: parsed.data.instructorImageUrl || null,
-      bonusesText: parsed.data.bonusesText || null,
-      testimonialsText: parsed.data.testimonialsText || null,
-      faqText: parsed.data.faqText || null,
-      guaranteeTitle: parsed.data.guaranteeTitle || null,
-      guaranteeText: parsed.data.guaranteeText || null,
-      compareAtPrice: parsed.data.compareAtPrice ?? null,
-      promoEndsAt: parsed.data.promoEndsAt ?? null,
-      facebookPixelId: parsed.data.facebookPixelId || null,
-      tiktokPixelId: parsed.data.tiktokPixelId || null,
-      updatedAt: new Date(),
-    },
-  });
+  };
+  const draftData = Object.fromEntries(Object.entries(landingData).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value]));
+  const publishData = parsed.data.intent === "PUBLISH" ? { ...landingData, sectionOrder, publishedAt: new Date() } : {};
+
+  await db.insert(productLandingPages).values({ productId: ownedProduct.id, draftData, sectionOrder, ...publishData })
+    .onConflictDoUpdate({ target: productLandingPages.productId, set: { draftData, sectionOrder, ...publishData, updatedAt: new Date() } });
 
   revalidatePath(`/dashboard/products/${ownedProduct.id}/landing`);
   revalidatePath(`/p/${ownedProduct.slug}`);
-  redirect(`/dashboard/products/${ownedProduct.id}/landing?success=Landing+page+berhasil+disimpan`);
+  redirect(`/dashboard/products/${ownedProduct.id}/landing?success=${parsed.data.intent === "PUBLISH" ? "Landing+page+berhasil+dipublikasikan" : "Draft+landing+page+berhasil+disimpan"}`);
 }
 
 export async function uploadLandingMediaAction(productId: string, slot: "cover" | "instructor", formData: FormData) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   await requireFeature("LANDING_PAGE_BUILDER", merchant.id);
   const file = formData.get("file");
   if (!(file instanceof File) || !landingImageTypes[file.type] || file.size < 1 || file.size > 5 * 1024 * 1024) {

@@ -135,12 +135,15 @@ export async function sendExternalNotification(input: {
   recipient: string;
   subject: string;
   text: string;
+  actionUrl?: string;
+  actionLabel?: string;
 }) {
+  const actionUrl = input.actionUrl ?? appUrl();
   return input.channel === "EMAIL"
     ? sendMailketing({
         recipient: input.recipient,
         subject: input.subject,
-        content: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(input.subject)}</h2><p>${escapeHtml(input.text).replace(/\n/g, "<br>")}</p><p><a href="${escapeHtml(appUrl())}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">Buka Lajurin</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Lajurin.</p></div>`,
+        content: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17212b;max-width:600px;margin:auto"><h2>${escapeHtml(input.subject)}</h2><p>${escapeHtml(input.text).replace(/\n/g, "<br>")}</p><p><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;background:#173f35;color:#fff;text-decoration:none;border-radius:8px">${escapeHtml(input.actionLabel ?? "Buka Lajurin")}</a></p><p style="font-size:12px;color:#667085">Pesan otomatis dari Lajurin.</p></div>`,
       })
     : sendStarSender({ recipient: input.recipient, body: input.text });
 }

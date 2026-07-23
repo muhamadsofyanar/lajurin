@@ -11,7 +11,7 @@ const triggerLabels = { PURCHASED: "Pembayaran lunas", COURSE_COMPLETED: "Kelas 
 const statusLabels = { PENDING: "Menunggu", SENT: "Terkirim", FAILED: "Gagal", SKIPPED: "Dilewati" };
 
 export default async function AutomationPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const query = await searchParams;
   const [merchantProducts, rules, deliveries] = await Promise.all([
     db.select({ id: products.id, name: products.name }).from(products).where(eq(products.merchantId, merchant.id)),

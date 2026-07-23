@@ -1,14 +1,17 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
 import {
   auditLogs,
   legacyMerchantWorkspaceLinks,
   merchantProfiles,
+  passwordResetTokens,
+  sessions,
   users,
   workspaceBranding,
   workspaceMemberships,
@@ -19,8 +22,19 @@ import {
   createSession,
   deleteSession,
   hashPassword,
+  userHome,
   verifyPassword,
 } from "@/lib/auth";
+import { getNotificationConfig, sendExternalNotification } from "@/lib/notifications";
+
+function accountTokenHash(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function safeNextPath(value: FormDataEntryValue | null) {
+  const next = typeof value === "string" ? value.trim() : "";
+  return next.startsWith("/") && !next.startsWith("//") ? next : null;
+}
 
 const credentialsSchema = z.object({
   email: z.string().email().transform((value) => value.toLowerCase().trim()),
@@ -45,7 +59,7 @@ export async function loginAction(formData: FormData) {
 
   await clearRateLimit(rateLimitKey);
   await createSession(user.id);
-  redirect(user.role === "ADMIN" ? "/admin" : user.role === "MEMBER" ? "/member" : "/dashboard");
+  redirect(safeNextPath(formData.get("next")) ?? await userHome(user));
 }
 
 export async function registerAction(formData: FormData) {
@@ -124,4 +138,54 @@ export async function registerAction(formData: FormData) {
 export async function logoutAction() {
   await deleteSession();
   redirect("/");
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const parsed = z.object({ email: z.string().email().transform((value) => value.toLowerCase().trim()) }).safeParse({ email: formData.get("email") });
+  if (!parsed.success) redirect("/forgot-password?error=Masukkan+alamat+email+yang+valid");
+  const rateLimitKey = await currentRequestIdentity("password-reset", parsed.data.email);
+  const rateLimit = await enforceRateLimit(rateLimitKey, { limit: 3, windowMs: 60 * 60_000, blockMs: 60 * 60_000 });
+  if (!rateLimit.limited) {
+    const [user] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.email, parsed.data.email)).limit(1);
+    if (user) {
+      const token = randomBytes(32).toString("base64url");
+      const expiresAt = new Date(Date.now() + 60 * 60_000);
+      await db.transaction(async (tx) => {
+        await tx.delete(passwordResetTokens).where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt)));
+        await tx.insert(passwordResetTokens).values({ userId: user.id, tokenHash: accountTokenHash(token), expiresAt });
+      });
+      const config = getNotificationConfig();
+      if (config.mailketingActive) {
+        const resetUrl = `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/reset-password/${token}`;
+        await sendExternalNotification({
+          channel: "EMAIL", recipient: parsed.data.email, subject: "Atur ulang password Lajurin",
+          text: `Halo ${user.name}, gunakan tombol berikut untuk membuat password baru. Tautan berlaku selama 60 menit.`,
+          actionUrl: resetUrl, actionLabel: "Buat password baru",
+        }).catch((error) => console.error("Password reset email failed", error instanceof Error ? error.message : error));
+      }
+    }
+  }
+  redirect("/forgot-password?success=Jika+email+terdaftar,+tautan+reset+akan+dikirim");
+}
+
+export async function resetPasswordAction(token: string, formData: FormData) {
+  const parsed = z.object({ password: z.string().min(8).max(128), confirmation: z.string().min(8).max(128) }).safeParse({
+    password: formData.get("password"), confirmation: formData.get("confirmation"),
+  });
+  if (!parsed.success || parsed.data.password !== parsed.data.confirmation) redirect(`/reset-password/${token}?error=Password+minimal+8+karakter+dan+konfirmasi+harus+sama`);
+  const tokenHash = accountTokenHash(token);
+  const [record] = await db.select().from(passwordResetTokens).where(and(
+    eq(passwordResetTokens.tokenHash, tokenHash), isNull(passwordResetTokens.usedAt), gt(passwordResetTokens.expiresAt, new Date()),
+  )).limit(1);
+  if (!record) redirect("/forgot-password?error=Tautan+reset+tidak+valid+atau+sudah+kedaluwarsa");
+  const passwordHash = await hashPassword(parsed.data.password);
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, record.userId));
+    await tx.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, record.id));
+    await tx.delete(sessions).where(eq(sessions.userId, record.userId));
+    await tx.insert(auditLogs).values({ actorId: record.userId, action: "PASSWORD_RESET", entityType: "USER", entityId: record.userId });
+  });
+  await createSession(record.userId);
+  const [user] = await db.select().from(users).where(eq(users.id, record.userId)).limit(1);
+  redirect(user ? await userHome(user) : "/login");
 }

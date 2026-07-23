@@ -11,7 +11,7 @@ import { commissionPayments, platformReceivableEntries, platformSettings } from 
 const statusLabels = { SUBMITTED: "Menunggu admin", APPROVED: "Disetujui", REJECTED: "Ditolak" };
 
 export default async function CommissionPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   await requireFeature("COMMISSION_BILLING", merchant.id);
   const { error, success } = await searchParams;
   const [[{ due }], [settings], payments, ledger] = await Promise.all([

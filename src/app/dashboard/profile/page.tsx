@@ -11,7 +11,7 @@ import { merchantProfiles } from "@/lib/schema";
 export default async function MerchantProfilePage({ searchParams }: {
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const { error, success } = await searchParams;
   const [profile] = await db.select().from(merchantProfiles).where(eq(merchantProfiles.userId, merchant.id)).limit(1);
   const suggestedSlug = `${slugify(merchant.name) || "toko"}-${merchant.id.slice(0, 6)}`;

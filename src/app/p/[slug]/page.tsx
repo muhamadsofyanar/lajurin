@@ -49,7 +49,10 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const testimonials = fields(landing?.testimonialsText, 3);
   const faqs = fields(landing?.faqText, 2);
   const accentColor = landing?.accentColor ?? row.merchantProfile.accentColor ?? "#0f9f91";
-  const pageStyle = { "--landing-accent": accentColor } as CSSProperties;
+  const configuredOrder = Array.isArray(landing?.sectionOrder) ? landing.sectionOrder : ["AUDIENCE", "INSTRUCTOR", "CURRICULUM", "BONUSES", "TESTIMONIALS", "OFFER", "FAQ"];
+  const sectionPosition = (key: string) => 10 + Math.max(0, configuredOrder.indexOf(key));
+  const sectionStyles = `.audience-section{order:${sectionPosition("AUDIENCE")}}.sales-page>.sales-section:has(.instructor-grid){order:${sectionPosition("INSTRUCTOR")}}.curriculum-section{order:${sectionPosition("CURRICULUM")}}.bonus-section{order:${sectionPosition("BONUSES")}}.testimonial-section{order:${sectionPosition("TESTIMONIALS")}}.final-offer{order:${sectionPosition("OFFER")}}.faq-section{order:${sectionPosition("FAQ")}}`;
+  const pageStyle = { "--landing-accent": accentColor, display: "flex", flexDirection: "column" } as CSSProperties;
   const template = landing?.template?.toLowerCase() ?? "editorial";
   const promoActive = Boolean(landing?.promoEndsAt && landing.promoEndsAt > new Date());
   const query = new URLSearchParams();
@@ -60,7 +63,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const lessonRow = (lesson: typeof courseLessons[number]) => <div className="course-item" key={lesson.id}><span className="course-number">{lesson.position}</span><div><strong>{lesson.title}</strong>{lesson.isPreview ? <p><Link className="preview-link" href={`/p/${product.slug}/preview/${lesson.id}`}><PlayCircle size={15} /> Preview gratis</Link></p> : <p className="muted">Tersedia setelah pembayaran</p>}</div></div>;
 
   return <><Nav /><ConversionTracker productId={product.id} utmSource={search.utm_source} utmMedium={search.utm_medium} utmCampaign={search.utm_campaign} facebookPixelId={landing?.facebookPixelId} tiktokPixelId={landing?.tiktokPixelId} />
-    <main className={`sales-page template-${template}`} style={pageStyle}>
+    <main className={`sales-page template-${template}`} style={pageStyle}><style>{sectionStyles}</style>
       <section className="sales-hero"><div className="shell sales-hero-grid"><div className="sales-copy"><span className="sales-eyebrow"><Users size={16} /> {landing?.eyebrow || "Kursus digital"}</span><h1 className="display">{landing?.heroTitle || product.headline}</h1><p className="sales-lead">{landing?.heroSubtitle || product.description}</p>
         {benefits.length > 0 && <div className="sales-benefits">{benefits.slice(0, 3).map((benefit) => <span key={benefit}><CheckCircle2 size={18} /> {benefit}</span>)}</div>}
         <Link className="sales-merchant" href={`/m/${row.merchantProfile.slug}`}><span className="profile-logo small">{row.merchantProfile.logoUrl ? <img src={row.merchantProfile.logoUrl} alt="" /> : <Store size={18} />}</span><strong>{merchantBrand}</strong></Link>

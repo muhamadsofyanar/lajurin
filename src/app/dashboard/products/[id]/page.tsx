@@ -30,7 +30,7 @@ export default async function EditProductPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("manage");
   const { id } = await params;
   const { error } = await searchParams;
   const [row] = await db.select({ product: products, course: courses }).from(products)

@@ -20,7 +20,7 @@ const ledgerLabels = {
 const payoutLabels = { REQUESTED: "Menunggu admin", PAID: "Sudah dibayar", REJECTED: "Ditolak" };
 
 export default async function MerchantFinancePage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
-  const merchant = await requireMerchant();
+  const merchant = await requireMerchant("finance");
   if (merchant.role !== "MERCHANT") return null;
   const { error, success } = await searchParams;
   const [[profile], [account], [manualAccount], [settings], ledger, payouts, paidOrders, balance, [receivable]] = await Promise.all([
