@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.2 — 23 Juli 2026
+
+### Routing Home di belakang Coolify
+
+- Membaca hostname publik dari header `Host` dan `X-Forwarded-Host`, termasuk nilai berantai dari reverse proxy.
+- Memastikan `legaone.id` dan `www.legaone.id` tetap membuka Home ketika URL internal container berbeda dari domain browser.
+- Mempertahankan resolver Custom Domain merchant untuk hostname selain domain platform.
+- Menambah regression test perilaku untuk domain utama, forwarded host Coolify, dan custom domain merchant.
+- Tidak menambah migration atau mengubah database, data merchant, transaksi, payment, maupun feature flag.
+
 ## 1.4.1 — 23 Juli 2026
 
 ### Home dan pemulihan domain utama
