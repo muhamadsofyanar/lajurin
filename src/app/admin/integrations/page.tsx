@@ -11,6 +11,7 @@ const eventLabel = {
   ORDER_CREATED: "Pesanan dibuat",
   PAYMENT_APPROVED: "Pembayaran disetujui",
   PAYMENT_REJECTED: "Pembayaran ditolak",
+  CHECKOUT_REMINDER: "Pengingat checkout",
 } as const;
 
 const statusLabel = {

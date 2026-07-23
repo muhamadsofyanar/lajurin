@@ -4,7 +4,7 @@ import { formatRupiah } from "@/lib/format";
 import { notificationDeliveries, orders, products } from "@/lib/schema";
 import { createInAppNotification } from "@/lib/in-app-notifications";
 
-export type NotificationEvent = "ORDER_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_REJECTED";
+export type NotificationEvent = "ORDER_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_REJECTED" | "CHECKOUT_REMINDER";
 type NotificationChannel = "EMAIL" | "WHATSAPP";
 
 const PROVIDER_TIMEOUT_MS = 10_000;
@@ -72,6 +72,12 @@ function notificationCopy(input: {
     const subject = `Bukti pembayaran #${orderNumber} perlu diperbaiki`;
     const text = `Halo ${name}, bukti pembayaran pesanan #${orderNumber} belum dapat kami setujui. Silakan periksa dan unggah kembali bukti yang benar: ${paymentUrl}`;
     return { subject, text, actionUrl: paymentUrl, actionLabel: "Unggah ulang bukti" };
+  }
+
+  if (input.event === "CHECKOUT_REMINDER") {
+    const subject = `Pesanan #${orderNumber} masih menunggu pembayaran`;
+    const text = `Halo ${name}, pesanan ${input.productName} senilai ${formatRupiah(input.amount)} belum selesai. Lanjutkan pembayaran sebelum pesanan berakhir: ${paymentUrl}`;
+    return { subject, text, actionUrl: paymentUrl, actionLabel: "Lanjutkan pembayaran" };
   }
 
   const subject = `Pesanan #${orderNumber} berhasil dibuat`;

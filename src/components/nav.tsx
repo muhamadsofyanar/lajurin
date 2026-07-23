@@ -13,6 +13,9 @@ const commonLinks: NavItem[] = [
   { href: "/member", label: "Kelas saya" },
   { href: "/member/orders", label: "Pesanan saya" },
   { href: "/member/downloads", label: "Unduhan" },
+  { href: "/member/bookings", label: "Booking" },
+  { href: "/member/subscriptions", label: "Langganan" },
+  { href: "/member/affiliates", label: "Affiliate" },
   { href: "/community", label: "Komunitas" },
   { href: "/inbox", label: "Inbox" },
   { href: "/help", label: "Bantuan" },
@@ -73,7 +76,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
   const flags = merchantAccess ? await enabledFeatureMap(merchantAccess.ownerId) : null;
 
   if (!app || !user) {
-    return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
+    return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><Link href="/marketplace">Marketplace</Link><Link href="/#fitur">Fitur</Link><Link href="/#cara-kerja">Cara kerja</Link></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
   }
 
   const effectiveRole = user.role === "ADMIN" ? "ADMIN" : merchantAccess ? "MERCHANT" : "MEMBER";
@@ -84,6 +87,10 @@ export async function Nav({ app = false }: { app?: boolean }) {
     can("read") && { href: "/dashboard/getting-started", label: "Panduan mulai" },
     can("read") && { href: "/dashboard/customers", label: "Pelanggan" },
     can("manage") && { href: "/dashboard/automation", label: "Automation" },
+    can("manage") && { href: "/dashboard/affiliates", label: "Affiliate" },
+    can("manage") && { href: "/dashboard/bookings", label: "Booking & jadwal" },
+    can("manage") && { href: "/dashboard/subscriptions", label: "Subscription" },
+    can("manage") && { href: "/dashboard/assistant", label: "Asisten copy" },
     can("finance") && { href: "/dashboard/finance", label: "Saldo & payout" },
     can("manage") && { href: "/dashboard/profile", label: "Profil toko" },
   ].filter((item): item is NavItem => Boolean(item)) : navigation.secondary;

@@ -114,7 +114,7 @@ export default function Home() {
               <p className="home-lead">Jual kursus, produk digital, dan jasa tanpa merangkai banyak aplikasi. Dari halaman penawaran hingga pelanggan menerima hasilnya—semua berjalan di Rizqhub.</p>
               <div className="home-hero-actions">
                 <Link className="btn btn-primary home-primary-cta" href="/register">Buat toko Anda <ArrowRight size={17} /></Link>
-                <a className="btn" href="#cara-kerja"><PlayCircle size={17} /> Lihat alurnya</a>
+                <Link className="btn" href="/marketplace"><Store size={17} /> Jelajahi marketplace</Link>
               </div>
               <div className="home-trust-list" aria-label="Keunggulan utama">
                 <span><CircleCheck size={16} /> Tidak perlu coding</span>
@@ -295,7 +295,7 @@ export default function Home() {
       <footer className="footer home-footer">
         <div className="shell home-footer-grid">
           <div><Brand /><p>Platform untuk menjual kursus, produk digital, dan jasa dari satu tempat.</p></div>
-          <nav aria-label="Navigasi footer"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/refund-policy">Refund</Link><Link href="/login">Masuk</Link></nav>
+          <nav aria-label="Navigasi footer"><Link href="/marketplace">Marketplace</Link><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/refund-policy">Refund</Link><Link href="/login">Masuk</Link></nav>
           <span>© 2026 Rizqhub. Dibuat untuk bisnis digital Indonesia.</span>
         </div>
       </footer>

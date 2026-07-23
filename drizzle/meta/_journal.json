@@ -155,6 +155,13 @@
       "when": 1784836800000,
       "tag": "0021_workspace_status_alignment",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784840400000,
+      "tag": "0022_distribution_automation",
+      "breakpoints": true
     }
   ]
 }

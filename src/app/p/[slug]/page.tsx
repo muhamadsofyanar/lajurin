@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { formatRupiah } from "@/lib/format";
 import { courseModules, courses, lessons, merchantProfiles, productLandingPages, products, users } from "@/lib/schema";
 
-type ProductSearch = { utm_source?: string; utm_medium?: string; utm_campaign?: string };
+type ProductSearch = { ref?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 
 function lines(value: string | null | undefined) {
   return value?.split("\n").map((item) => item.trim()).filter(Boolean) ?? [];
@@ -59,6 +59,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   if (search.utm_source) query.set("utm_source", search.utm_source);
   if (search.utm_medium) query.set("utm_medium", search.utm_medium);
   if (search.utm_campaign) query.set("utm_campaign", search.utm_campaign);
+  if (search.ref) query.set("ref", search.ref);
   const checkoutHref = `/checkout/${product.slug}${query.size ? `?${query.toString()}` : ""}`;
   const isCourse = product.type === "COURSE";
   const typeName = isCourse ? "Kursus digital" : product.type === "DIGITAL" ? "Produk digital" : "Jasa profesional";

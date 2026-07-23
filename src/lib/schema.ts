@@ -10,7 +10,7 @@ export const serviceDocumentAudienceEnum = pgEnum("service_document_audience", [
 export const serviceFieldTypeEnum = pgEnum("service_field_type", ["TEXT", "TEXTAREA"]);
 export const merchantPlanEnum = pgEnum("merchant_plan", ["STARTER", "PRO", "BUSINESS"]);
 export const notificationChannelEnum = pgEnum("notification_channel", ["EMAIL", "WHATSAPP"]);
-export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED"]);
+export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED", "CHECKOUT_REMINDER"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "PROCESSING", "SENT", "FAILED", "SKIPPED"]);
 export const merchantStatusEnum = pgEnum("merchant_status", ["PENDING", "ACTIVE", "SUSPENDED"]);
 export const payoutStatusEnum = pgEnum("payout_status", ["REQUESTED", "PAID", "REJECTED"]);
@@ -248,6 +248,39 @@ export const products = pgTable("products", {
   status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("products_slug_unique").on(table.slug), index("products_merchant_idx").on(table.merchantId, table.status)]);
 
+export const affiliatePrograms = pgTable("affiliate_programs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  commissionBps: integer("commission_bps").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [uniqueIndex("affiliate_programs_product_unique").on(table.productId)]);
+
+export const affiliatePartners = pgTable("affiliate_partners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  programId: uuid("program_id").notNull().references(() => affiliatePrograms.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  status: text("status").default("ACTIVE").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("affiliate_partners_program_user_unique").on(table.programId, table.userId),
+  uniqueIndex("affiliate_partners_code_unique").on(table.code),
+]);
+
+export const affiliateCommissions = pgTable("affiliate_commissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id").notNull().references(() => affiliatePartners.id, { onDelete: "restrict" }),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
+  amount: integer("amount").notNull(),
+  status: text("status").default("PENDING").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("affiliate_commissions_order_unique").on(table.orderId),
+  index("affiliate_commissions_partner_idx").on(table.partnerId, table.status, table.createdAt),
+]);
+
 export const productVariants = pgTable("product_variants", {
   id: uuid("id").primaryKey().defaultRandom(),
   productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
@@ -422,6 +455,7 @@ export const orders = pgTable("orders", {
   amount: integer("amount").notNull(), status: orderStatusEnum("status").default("PENDING").notNull(), xenditSessionId: text("xendit_invoice_id"),
   productVariantId: uuid("product_variant_id").references(() => productVariants.id, { onDelete: "set null" }),
   productVariantName: text("product_variant_name"),
+  affiliatePartnerId: uuid("affiliate_partner_id").references(() => affiliatePartners.id, { onDelete: "set null" }),
   subtotalAmount: integer("subtotal_amount"), discountAmount: integer("discount_amount").default(0).notNull(),
   couponId: uuid("coupon_id").references(() => coupons.id, { onDelete: "set null" }), couponCode: text("coupon_code"),
   orderBumpProductId: uuid("order_bump_product_id").references(() => products.id, { onDelete: "set null" }), orderBumpAmount: integer("order_bump_amount").default(0).notNull(),
@@ -438,6 +472,45 @@ export const orders = pgTable("orders", {
   refundedAt: timestamp("refunded_at", { withTimezone: true }), refundAmount: integer("refund_amount"), refundReference: text("refund_reference"),
   refundReason: text("refund_reason"), refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
 }, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
+
+export const bookingSlots = pgTable("booking_slots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  capacity: integer("capacity").default(1).notNull(),
+  bookedCount: integer("booked_count").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [index("booking_slots_product_start_idx").on(table.productId, table.startsAt)]);
+
+export const bookingAppointments = pgTable("booking_appointments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slotId: uuid("slot_id").notNull().references(() => bookingSlots.id, { onDelete: "restrict" }),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  customerId: uuid("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").default("CONFIRMED").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("booking_appointments_order_unique").on(table.orderId),
+  index("booking_appointments_customer_idx").on(table.customerId, table.createdAt),
+]);
+
+export const productSubscriptions = pgTable("product_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "restrict" }),
+  customerId: uuid("customer_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
+  intervalMonths: integer("interval_months").default(1).notNull(),
+  status: text("status").default("ACTIVE").notNull(),
+  renewsAt: timestamp("renews_at", { withTimezone: true }),
+  endsAt: timestamp("ends_at", { withTimezone: true }),
+  externalSubscriptionId: text("external_subscription_id"),
+  ...timestamps,
+}, (table) => [
+  index("product_subscriptions_customer_idx").on(table.customerId, table.status),
+  index("product_subscriptions_product_idx").on(table.productId, table.status),
+]);
 
 export const serviceCases = pgTable("service_cases", {
   id: uuid("id").primaryKey().defaultRandom(),

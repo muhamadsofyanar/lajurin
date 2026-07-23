@@ -12,7 +12,7 @@ import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { dispatchOrderNotifications } from "@/lib/notifications";
-import { analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, productVariants, serviceCases, users } from "@/lib/schema";
+import { affiliatePartners, affiliatePrograms, analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, productVariants, serviceCases, users } from "@/lib/schema";
 import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 
 export async function checkoutAction(slug: string, formData: FormData) {
@@ -30,6 +30,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
       utmSource: z.string().trim().max(100).optional(),
       utmMedium: z.string().trim().max(100).optional(),
       utmCampaign: z.string().trim().max(120).optional(),
+      affiliateCode: z.string().trim().max(48).optional(),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(`/checkout/${slug}?error=Periksa+kembali+data+Anda`);
@@ -78,6 +79,15 @@ export async function checkoutAction(slug: string, formData: FormData) {
   const [settings] = await db.select({ defaultFeeBps: platformSettings.defaultPlatformFeeBps })
     .from(platformSettings).where(eq(platformSettings.id, 1)).limit(1);
   const accounting = calculateOrderAccounting(finalAmount, product.merchantFeeBps ?? settings?.defaultFeeBps ?? DEFAULT_PLATFORM_FEE_BPS);
+  const [affiliate] = parsed.data.affiliateCode ? await db.select({ id: affiliatePartners.id })
+    .from(affiliatePartners)
+    .innerJoin(affiliatePrograms, eq(affiliatePrograms.id, affiliatePartners.programId))
+    .where(and(
+      eq(affiliatePartners.code, parsed.data.affiliateCode),
+      eq(affiliatePartners.status, "ACTIVE"),
+      eq(affiliatePrograms.productId, product.product.id),
+      eq(affiliatePrograms.isActive, true),
+    )).limit(1) : [];
 
   let [customer] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
   if (customer) {
@@ -115,6 +125,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
       utmSource: parsed.data.utmSource || null,
       utmMedium: parsed.data.utmMedium || null,
       utmCampaign: parsed.data.utmCampaign || null,
+      affiliatePartnerId: affiliate?.id ?? null,
       paymentMethod: parsed.data.paymentMethod,
       ...accounting,
       settlementMode: manualAccount ? "MERCHANT_DIRECT" : "PLATFORM",

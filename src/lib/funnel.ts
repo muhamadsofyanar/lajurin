@@ -2,7 +2,7 @@ import { and, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { normalizeCouponCode } from "@/lib/discount";
 import type { AppTransaction } from "@/lib/finance";
-import { analyticsEvents, couponRedemptions, coupons, courses, enrollments, orders } from "@/lib/schema";
+import { affiliateCommissions, affiliatePartners, affiliatePrograms, analyticsEvents, couponRedemptions, coupons, courses, enrollments, orders } from "@/lib/schema";
 
 export async function findValidCoupon(productId: string, rawCode: string | null | undefined) {
   const code = normalizeCouponCode(rawCode ?? "");
@@ -30,6 +30,8 @@ export async function fulfillPaidOrder(tx: AppTransaction, orderId: string) {
     utmSource: orders.utmSource,
     utmMedium: orders.utmMedium,
     utmCampaign: orders.utmCampaign,
+    affiliatePartnerId: orders.affiliatePartnerId,
+    amount: orders.amount,
   }).from(orders).where(eq(orders.id, orderId)).limit(1);
   if (!order?.customerId) throw new Error("Order customer not found");
 
@@ -49,6 +51,27 @@ export async function fulfillPaidOrder(tx: AppTransaction, orderId: string) {
     }).onConflictDoNothing({ target: couponRedemptions.orderId }).returning({ id: couponRedemptions.id });
     if (inserted.length) {
       await tx.update(coupons).set({ redemptionCount: sql`${coupons.redemptionCount} + 1`, updatedAt: new Date() }).where(eq(coupons.id, order.couponId));
+    }
+  }
+
+  if (order.affiliatePartnerId) {
+    const [affiliate] = await tx.select({
+      partnerId: affiliatePartners.id,
+      commissionBps: affiliatePrograms.commissionBps,
+    }).from(affiliatePartners)
+      .innerJoin(affiliatePrograms, eq(affiliatePrograms.id, affiliatePartners.programId))
+      .where(and(
+        eq(affiliatePartners.id, order.affiliatePartnerId),
+        eq(affiliatePartners.status, "ACTIVE"),
+        eq(affiliatePrograms.productId, order.productId),
+        eq(affiliatePrograms.isActive, true),
+      )).limit(1);
+    if (affiliate) {
+      await tx.insert(affiliateCommissions).values({
+        partnerId: affiliate.partnerId,
+        orderId,
+        amount: Math.floor(order.amount * affiliate.commissionBps / 10_000),
+      }).onConflictDoNothing({ target: affiliateCommissions.orderId });
     }
   }
 
