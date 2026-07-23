@@ -15,6 +15,7 @@ const commonLinks: NavItem[] = [
   { href: "/member/downloads", label: "Unduhan" },
   { href: "/community", label: "Komunitas" },
   { href: "/inbox", label: "Inbox" },
+  { href: "/help", label: "Bantuan" },
 ];
 
 const roleLinks = {

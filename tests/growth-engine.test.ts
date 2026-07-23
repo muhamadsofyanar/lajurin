@@ -37,3 +37,9 @@ test("checkout menjelaskan delivery sesuai tipe produk", async () => {
   assert.match(checkout, /File privat tersedia/);
   assert.match(checkout, /Portal layanan terbuka/);
 });
+
+test("halaman tim memakai workspace aktif yang sama dengan sesi merchant", async () => {
+  const resolver = await source("src/lib/merchant-workspace.ts");
+  assert.match(resolver, /merchant\.workspaceId \? eq\(workspaces\.id, merchant\.workspaceId\)/);
+  assert.match(resolver, /eq\(workspaceMemberships\.status, "ACTIVE"\)/);
+});

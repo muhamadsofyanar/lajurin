@@ -34,6 +34,8 @@ export async function updateMerchantControlAction(merchantId: string, formData: 
     feePercent: formData.get("feePercent"),
   });
   if (!parsed.success) redirect(merchantEditPath(merchantId, "Periksa kembali nama, email, status, dan komisi merchant", "error"));
+  const plan = z.enum(["STARTER", "PRO", "BUSINESS"]).safeParse(formData.get("plan"));
+  if (!plan.success) redirect(merchantEditPath(merchantId, "Paket merchant tidak valid", "error"));
 
   const [current] = await db.select({ user: users, profile: merchantProfiles }).from(users)
     .innerJoin(merchantProfiles, eq(merchantProfiles.userId, users.id))
@@ -50,6 +52,7 @@ export async function updateMerchantControlAction(merchantId: string, formData: 
     current.profile.supportEmail !== parsed.data.supportEmail && "supportEmail",
     current.profile.status !== parsed.data.status && "status",
     current.profile.platformFeeBps !== parsed.data.platformFeeBps && "platformFeeBps",
+    current.profile.plan !== plan.data && "plan",
   ].filter((field): field is string => Boolean(field));
 
   if (changedFields.length === 0) redirect(merchantEditPath(merchantId, "Tidak ada perubahan untuk disimpan", "success"));
@@ -65,6 +68,7 @@ export async function updateMerchantControlAction(merchantId: string, formData: 
         supportEmail: parsed.data.supportEmail,
         status: parsed.data.status,
         platformFeeBps: parsed.data.platformFeeBps,
+        plan: plan.data,
         updatedAt: new Date(),
       }).where(eq(merchantProfiles.userId, merchantId));
       await tx.insert(auditLogs).values({
@@ -76,6 +80,7 @@ export async function updateMerchantControlAction(merchantId: string, formData: 
           changedFields,
           status: parsed.data.status,
           platformFeeBps: parsed.data.platformFeeBps,
+          plan: plan.data,
         },
       });
     });

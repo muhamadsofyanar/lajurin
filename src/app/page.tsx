@@ -295,7 +295,7 @@ export default function Home() {
       <footer className="footer home-footer">
         <div className="shell home-footer-grid">
           <div><Brand /><p>Platform untuk menjual kursus, produk digital, dan jasa dari satu tempat.</p></div>
-          <nav aria-label="Navigasi footer"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><a href="#faq">FAQ</a><Link href="/login">Masuk</Link></nav>
+          <nav aria-label="Navigasi footer"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/refund-policy">Refund</Link><Link href="/login">Masuk</Link></nav>
           <span>© 2026 Rizqhub. Dibuat untuk bisnis digital Indonesia.</span>
         </div>
       </footer>

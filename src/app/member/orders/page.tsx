@@ -31,6 +31,7 @@ export default async function MemberOrdersPage({ searchParams }: {
         <div className="row-action"><span className={`badge status-${order.status.toLowerCase()}`}>{orderStatusLabel[order.status]}</span>
           {productType === "SERVICE" && serviceCaseId && <Link className="btn btn-compact" href={`/member/services/${serviceCaseId}`}>Portal layanan</Link>}
           {productType === "DIGITAL" && order.status === "PAID" && <Link className="btn btn-compact" href="/member/downloads">Unduh produk</Link>}
+          {order.status === "PAID" && <Link className="btn btn-compact" href={`/member/orders/${order.id}/invoice`}>Bukti bayar</Link>}
           {order.paymentMethod === "MANUAL_TRANSFER" && ["PENDING", "REJECTED"].includes(order.status) && <Link className="btn btn-compact" href={`/payment/manual/${order.id}`}>{order.status === "REJECTED" ? "Kirim ulang bukti" : "Bayar"}</Link>}
         </div>
       </div>) : <div className="empty"><p>Belum ada pesanan.</p></div>}

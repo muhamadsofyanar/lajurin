@@ -29,7 +29,7 @@ export default async function ProductsPage({ searchParams }: {
       {rows.length ? rows.map(({ product, orderCount }) => <div className="table-row" key={product.id}>
         <div><strong>{product.name}</strong><small>{productTypeLabel[product.type]} · /p/{product.slug} · {orderCount} pesanan</small></div>
         <div><strong>{formatRupiah(product.price)}</strong><small>{product.status === "PUBLISHED" ? "Aktif dijual" : product.status === "ARCHIVED" ? "Diarsipkan" : "Belum terbit"}</small></div>
-        <div className="row-action"><Link className="btn btn-compact" href={`/dashboard/products/${product.id}/landing`}>Landing Page</Link><Link className="btn btn-compact" href={productEditHref(product)}>Kelola</Link>{canManage && <>
+        <div className="row-action"><Link className="btn btn-compact" href={`/dashboard/products/${product.id}/landing`}>Landing Page</Link><Link className="btn btn-compact" href={`/dashboard/products/${product.id}/pricing`}>Harga</Link><Link className="btn btn-compact" href={productEditHref(product)}>Kelola</Link>{canManage && <>
           <form action={duplicateProductAction.bind(null, product.id)}><button className="btn btn-compact" type="submit">Duplikat</button></form>
           <form action={setProductArchivedAction.bind(null, product.id, product.status !== "ARCHIVED")}><button className="btn btn-compact" type="submit">{product.status === "ARCHIVED" ? "Pulihkan" : "Arsipkan"}</button></form>
           {product.status !== "PUBLISHED" && <form action={deleteProductAction.bind(null, product.id)}><button className="btn btn-compact btn-danger" type="submit">Hapus</button></form>}

@@ -61,6 +61,7 @@ export default async function DashboardPage() {
             <div className="dashboard-kicker">
               <span className="eyebrow">Dashboard usaha{profile ? ` · ${profile.brandName}` : ""}</span>
               <span className={`badge ${statusClass}`}>{statusText}</span>
+              <span className="badge">Paket {profile?.plan ?? "STARTER"}</span>
               <span className="badge">{workspaceRole}</span>
             </div>
             <h1 className="display" id="dashboard-title">Halo, {merchant.actorName.split(" ")[0]}.</h1>

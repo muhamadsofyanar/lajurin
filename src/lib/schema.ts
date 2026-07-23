@@ -8,6 +8,7 @@ export const serviceCaseStatusEnum = pgEnum("service_case_status", ["WAITING_PAY
 export const serviceNoteVisibilityEnum = pgEnum("service_note_visibility", ["INTERNAL", "CLIENT"]);
 export const serviceDocumentAudienceEnum = pgEnum("service_document_audience", ["MERCHANT", "CLIENT"]);
 export const serviceFieldTypeEnum = pgEnum("service_field_type", ["TEXT", "TEXTAREA"]);
+export const merchantPlanEnum = pgEnum("merchant_plan", ["STARTER", "PRO", "BUSINESS"]);
 export const notificationChannelEnum = pgEnum("notification_channel", ["EMAIL", "WHATSAPP"]);
 export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "PROCESSING", "SENT", "FAILED", "SKIPPED"]);
@@ -54,6 +55,7 @@ export const merchantProfiles = pgTable("merchant_profiles", {
   accentColor: text("accent_color").default("#163d2d").notNull(),
   status: merchantStatusEnum("status").default("PENDING").notNull(),
   platformFeeBps: integer("platform_fee_bps"),
+  plan: merchantPlanEnum("plan").default("STARTER").notNull(),
   ...timestamps,
 }, (table) => [
   uniqueIndex("merchant_profiles_user_unique").on(table.userId),
@@ -246,6 +248,32 @@ export const products = pgTable("products", {
   status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("products_slug_unique").on(table.slug), index("products_merchant_idx").on(table.merchantId, table.status)]);
 
+export const productVariants = pgTable("product_variants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  stock: integer("stock"),
+  position: integer("position").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("product_variants_position_unique").on(table.productId, table.position),
+  index("product_variants_product_active_idx").on(table.productId, table.isActive),
+]);
+
+export const merchantCustomerRecords = pgTable("merchant_customer_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  customerId: uuid("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tags: jsonb("tags").$type<string[]>().default([]).notNull(),
+  note: text("note"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("merchant_customer_records_unique").on(table.merchantId, table.customerId),
+  index("merchant_customer_records_merchant_idx").on(table.merchantId, table.updatedAt),
+]);
+
 export const productFiles = pgTable("product_files", {
   id: uuid("id").primaryKey().defaultRandom(),
   productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
@@ -392,6 +420,8 @@ export const orders = pgTable("orders", {
   marketingConsentAt: timestamp("marketing_consent_at", { withTimezone: true }),
   marketingConsentSource: text("marketing_consent_source"),
   amount: integer("amount").notNull(), status: orderStatusEnum("status").default("PENDING").notNull(), xenditSessionId: text("xendit_invoice_id"),
+  productVariantId: uuid("product_variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+  productVariantName: text("product_variant_name"),
   subtotalAmount: integer("subtotal_amount"), discountAmount: integer("discount_amount").default(0).notNull(),
   couponId: uuid("coupon_id").references(() => coupons.id, { onDelete: "set null" }), couponCode: text("coupon_code"),
   orderBumpProductId: uuid("order_bump_product_id").references(() => products.id, { onDelete: "set null" }), orderBumpAmount: integer("order_bump_amount").default(0).notNull(),

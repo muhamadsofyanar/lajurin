@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { calculateDiscount } from "@/lib/discount";
 import { calculateOrderAccounting, DEFAULT_PLATFORM_FEE_BPS } from "@/lib/finance";
@@ -12,7 +12,7 @@ import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { dispatchOrderNotifications } from "@/lib/notifications";
-import { analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, serviceCases, users } from "@/lib/schema";
+import { analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, productVariants, serviceCases, users } from "@/lib/schema";
 import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 
 export async function checkoutAction(slug: string, formData: FormData) {
@@ -22,6 +22,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
       email: z.string().email().transform((value) => value.toLowerCase().trim()),
       phone: z.string().trim().regex(/^\+?[0-9\s().-]{9,20}$/).transform((value) => value.replace(/[^0-9+]/g, "")),
       password: z.string().min(8).max(128),
+      variantId: z.union([z.literal(""), z.string().uuid()]).optional(),
       paymentMethod: z.enum(["XENDIT", "MANUAL_TRANSFER"]).default("MANUAL_TRANSFER"),
       couponCode: z.string().trim().max(24).optional(),
       orderBump: z.preprocess((value) => value === "on", z.boolean()),
@@ -42,6 +43,14 @@ export async function checkoutAction(slug: string, formData: FormData) {
     .innerJoin(merchantProfiles, eq(merchantProfiles.userId, products.merchantId))
     .where(and(eq(products.slug, slug), eq(products.status, "PUBLISHED"), eq(merchantProfiles.status, "ACTIVE"))).limit(1);
   if (!product) redirect("/");
+  const [variant] = parsed.data.variantId ? await db.select().from(productVariants).where(and(
+    eq(productVariants.id, parsed.data.variantId),
+    eq(productVariants.productId, product.product.id),
+    eq(productVariants.isActive, true),
+    or(isNull(productVariants.stock), gt(productVariants.stock, 0)),
+  )).limit(1) : [];
+  if (parsed.data.variantId && (!variant || variant.stock === 0)) redirect(`/checkout/${slug}?error=Paket+harga+sudah+tidak+tersedia`);
+  const primaryPrice = variant?.price ?? product.product.price;
 
   const directManualEnabled = parsed.data.paymentMethod === "MANUAL_TRANSFER" && await featureEnabled("DIRECT_MANUAL_PAYMENTS", product.product.merchantId);
   const [manualAccount] = directManualEnabled
@@ -62,9 +71,9 @@ export async function checkoutAction(slug: string, formData: FormData) {
     bumpProduct = candidate ?? null;
   }
   const coupon = await findValidCoupon(product.product.id, parsed.data.couponCode);
-  const discountAmount = coupon ? calculateDiscount(product.product.price, coupon.discountType, coupon.discountValue) : 0;
+  const discountAmount = coupon ? calculateDiscount(primaryPrice, coupon.discountType, coupon.discountValue) : 0;
   const bumpAmount = bumpProduct?.price ?? 0;
-  const subtotalAmount = product.product.price + bumpAmount;
+  const subtotalAmount = primaryPrice + bumpAmount;
   const finalAmount = subtotalAmount - discountAmount;
   const [settings] = await db.select({ defaultFeeBps: platformSettings.defaultPlatformFeeBps })
     .from(platformSettings).where(eq(platformSettings.id, 1)).limit(1);
@@ -87,6 +96,8 @@ export async function checkoutAction(slug: string, formData: FormData) {
   const [order] = await db.insert(orders).values({
       externalId,
       productId: product.product.id,
+      productVariantId: variant?.id ?? null,
+      productVariantName: variant?.name ?? null,
       customerId: customer.id,
       customerName: parsed.data.name,
       customerEmail: parsed.data.email,
@@ -111,6 +122,16 @@ export async function checkoutAction(slug: string, formData: FormData) {
       manualDestinationAccount: manualAccount?.accountNumber ?? null,
       manualDestinationHolder: manualAccount?.accountHolder ?? null,
     }).returning();
+
+  if (variant?.stock !== null && variant?.stock !== undefined) {
+    const [reserved] = await db.update(productVariants).set({
+      stock: variant.stock - 1, updatedAt: new Date(),
+    }).where(and(eq(productVariants.id, variant.id), gt(productVariants.stock, 0))).returning({ id: productVariants.id });
+    if (!reserved) {
+      await db.delete(orders).where(eq(orders.id, order.id));
+      redirect(`/checkout/${slug}?error=Kuota+paket+baru+saja+habis`);
+    }
+  }
 
   if (product.product.type === "SERVICE") {
     await db.insert(serviceCases).values({
@@ -146,7 +167,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
       amount: finalAmount,
       customerName: parsed.data.name,
       customerEmail: parsed.data.email,
-      productName: bumpProduct ? `${product.product.name} + ${bumpProduct.name}` : product.product.name,
+      productName: `${product.product.name}${variant ? ` — ${variant.name}` : ""}${bumpProduct ? ` + ${bumpProduct.name}` : ""}`,
       productUrl: `${appUrl}/p/${product.product.slug}`,
       successUrl: `${appUrl}/payment/success?order=${order.id}`,
       failureUrl: `${appUrl}/checkout/${product.product.slug}?error=Pembayaran+belum+berhasil`,

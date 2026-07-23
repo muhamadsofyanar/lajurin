@@ -18,7 +18,11 @@ export async function requireMerchantWorkspace(permission: WorkspacePermission =
       eq(workspaceMemberships.workspaceId, workspaces.id),
       eq(workspaceMemberships.userId, merchant.actorId),
     ))
-    .where(eq(legacyMerchantWorkspaceLinks.legacyMerchantUserId, merchant.id)).limit(1);
+    .where(and(
+      eq(legacyMerchantWorkspaceLinks.legacyMerchantUserId, merchant.id),
+      merchant.workspaceId ? eq(workspaces.id, merchant.workspaceId) : undefined,
+      eq(workspaceMemberships.status, "ACTIVE"),
+    )).limit(1);
   if (!row) redirect("/dashboard?error=Workspace+merchant+belum+tersedia");
   const context = {
     workspaceId: row.workspace.id,
