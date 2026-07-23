@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { featureFlagDefinitions } from "@/lib/feature-flags";
 import { merchantControlUpdateSchema } from "@/lib/merchant-control";
-import { auditLogs, merchantProfiles, platformFeatureFlags, platformSettings, products, users } from "@/lib/schema";
+import { auditLogs, merchantProfiles, platformFeatureFlags, platformSettings, productReviews, products, users } from "@/lib/schema";
 
 function merchantEditPath(merchantId: string, message: string, type: "error" | "success") {
   return `/admin/merchants/${merchantId}?${type}=${encodeURIComponent(message)}`;
@@ -268,4 +268,35 @@ export async function updateProductStatusAdminAction(productId: string, status: 
   });
   revalidatePath("/admin/products");
   revalidatePath("/dashboard");
+}
+
+export async function toggleMerchantVerificationAction(merchantId: string, verified: boolean) {
+  const admin = await requireAdmin();
+  const [profile] = await db.update(merchantProfiles).set({ isVerified: verified, updatedAt: new Date() })
+    .where(eq(merchantProfiles.userId, merchantId)).returning({ id: merchantProfiles.id });
+  if (!profile) redirect("/admin/merchants?error=Merchant+tidak+ditemukan");
+  await db.insert(auditLogs).values({ actorId: admin.id, action: verified ? "MERCHANT_VERIFIED" : "MERCHANT_UNVERIFIED", entityType: "MERCHANT", entityId: merchantId });
+  revalidatePath("/admin/merchants");
+  revalidatePath("/marketplace");
+}
+
+export async function toggleProductFeaturedAction(productId: string, featured: boolean) {
+  const admin = await requireAdmin();
+  const [product] = await db.update(products).set({ isFeatured: featured, updatedAt: new Date() })
+    .where(eq(products.id, productId)).returning({ id: products.id });
+  if (!product) redirect("/admin/products?error=Produk+tidak+ditemukan");
+  await db.insert(auditLogs).values({ actorId: admin.id, action: featured ? "PRODUCT_FEATURED" : "PRODUCT_UNFEATURED", entityType: "PRODUCT", entityId: productId });
+  revalidatePath("/admin/products");
+  revalidatePath("/marketplace");
+}
+
+export async function moderateProductReviewAction(reviewId: string, status: "PUBLISHED" | "HIDDEN") {
+  const admin = await requireAdmin();
+  const parsedStatus = z.enum(["PUBLISHED", "HIDDEN"]).parse(status);
+  const [review] = await db.update(productReviews).set({ status: parsedStatus, updatedAt: new Date() })
+    .where(eq(productReviews.id, reviewId)).returning({ id: productReviews.id, productId: productReviews.productId });
+  if (!review) redirect("/admin/reviews?error=Ulasan+tidak+ditemukan");
+  await db.insert(auditLogs).values({ actorId: admin.id, action: `REVIEW_${parsedStatus}`, entityType: "PRODUCT_REVIEW", entityId: reviewId });
+  revalidatePath("/admin/reviews");
+  revalidatePath("/marketplace");
 }

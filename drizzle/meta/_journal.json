@@ -162,6 +162,13 @@
       "when": 1784840400000,
       "tag": "0022_distribution_automation",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784845800000,
+      "tag": "0023_trust_growth",
+      "breakpoints": true
     }
   ]
 }

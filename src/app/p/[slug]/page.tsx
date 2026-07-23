@@ -2,15 +2,15 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { ArrowRight, Award, CheckCircle2, Clock3, Gift, PlayCircle, ShieldCheck, Star, Store, Users } from "lucide-react";
+import { ArrowRight, Award, BadgeCheck, CheckCircle2, Clock3, Gift, PlayCircle, ShieldCheck, Star, Store, Users } from "lucide-react";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { ConversionTracker } from "@/components/conversion-tracker";
 import { Nav } from "@/components/nav";
 import { VideoPlayer } from "@/components/video-player";
 import { db } from "@/lib/db";
 import { formatRupiah } from "@/lib/format";
-import { courseModules, courses, lessons, merchantProfiles, productLandingPages, products, users } from "@/lib/schema";
+import { courseModules, courses, lessons, merchantProfiles, productLandingPages, productReviews, products, users } from "@/lib/schema";
 
 type ProductSearch = { ref?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 
@@ -40,6 +40,11 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
   const modules = await db.select({ id: courseModules.id, title: courseModules.title, position: courseModules.position }).from(courseModules).where(eq(courseModules.courseId, row.courseId)).orderBy(asc(courseModules.position));
   const courseLessons = await db.select({ id: lessons.id, title: lessons.title, position: lessons.position, isPreview: lessons.isPreview, moduleId: lessons.moduleId }).from(lessons).where(eq(lessons.courseId, row.courseId)).orderBy(asc(lessons.position));
+  const verifiedReviews = await db.select({ review: productReviews, customerName: users.name }).from(productReviews)
+    .innerJoin(users, eq(users.id, productReviews.customerId))
+    .where(and(eq(productReviews.productId, row.product.id), eq(productReviews.status, "PUBLISHED")))
+    .orderBy(desc(productReviews.createdAt)).limit(12);
+  const averageRating = verifiedReviews.length ? verifiedReviews.reduce((sum, item) => sum + item.review.rating, 0) / verifiedReviews.length : 0;
   const grouped = modules.map((module) => ({ module, lessons: courseLessons.filter((lesson) => lesson.moduleId === module.id) }));
   const ungrouped = courseLessons.filter((lesson) => !lesson.moduleId || !modules.some((module) => module.id === lesson.moduleId));
   const { product, landing } = row;
@@ -70,7 +75,8 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     <main className={`sales-page template-${template}`} style={pageStyle}><style>{sectionStyles}</style>
       <section className="sales-hero"><div className="shell sales-hero-grid"><div className="sales-copy"><span className="sales-eyebrow"><Users size={16} /> {landing?.eyebrow || typeName}</span><h1 className="display">{landing?.heroTitle || product.headline}</h1><p className="sales-lead">{landing?.heroSubtitle || product.description}</p>
         {benefits.length > 0 && <div className="sales-benefits">{benefits.slice(0, 3).map((benefit) => <span key={benefit}><CheckCircle2 size={18} /> {benefit}</span>)}</div>}
-        <Link className="sales-merchant" href={`/m/${row.merchantProfile.slug}`}><span className="profile-logo small">{row.merchantProfile.logoUrl ? <img src={row.merchantProfile.logoUrl} alt="" /> : <Store size={18} />}</span><strong>{merchantBrand}</strong></Link>
+        <Link className="sales-merchant" href={`/m/${row.merchantProfile.slug}`}><span className="profile-logo small">{row.merchantProfile.logoUrl ? <img src={row.merchantProfile.logoUrl} alt="" /> : <Store size={18} />}</span><strong>{merchantBrand}</strong>{row.merchantProfile.isVerified && <span className="sales-verified"><BadgeCheck size={15} /> Terverifikasi</span>}</Link>
+        {verifiedReviews.length > 0 && <span className="sales-rating"><Star size={16} fill="currentColor" /> {averageRating.toFixed(1)} dari {verifiedReviews.length} pembeli terverifikasi</span>}
         <div className="sales-price">{landing?.compareAtPrice && landing.compareAtPrice > product.price && <del>{formatRupiah(landing.compareAtPrice)}</del>}<strong>{formatRupiah(product.price)}</strong>{promoActive && <span><Clock3 size={14} /> Promo sampai {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(landing!.promoEndsAt!)}</span>}</div>
         <Link className="btn sales-primary-cta" href={checkoutHref}>{landing?.ctaText || defaultCta} <ArrowRight size={19} /></Link><p className="sales-safe"><ShieldCheck size={15} /> Pembayaran aman · pesanan tercatat di akun</p>
       </div><div className="sales-media">{landing?.heroVideoUrl ? <VideoPlayer url={landing.heroVideoUrl} title={product.name} /> : landing?.coverImageUrl ? <img src={landing.coverImageUrl} alt={`Sampul ${product.name}`} /> : <div className="sales-media-placeholder"><PlayCircle size={54} /><strong>{product.name}</strong><span>Tambahkan cover atau video melalui editor landing page.</span></div>}<div className="floating-proof rating"><Star size={19} fill="currentColor" /><span><strong>{isCourse ? "Materi terstruktur" : product.type === "DIGITAL" ? "Akses privat" : "Proses terpantau"}</strong><small>{isCourse ? `${courseLessons.length} materi siap dipelajari` : product.type === "DIGITAL" ? "Unduh setelah pembayaran" : "Portal khusus pelanggan"}</small></span></div><div className="floating-proof access"><Award size={19} /><span><strong>Akun pelanggan</strong><small>Riwayat dan akses tersimpan</small></span></div></div></div></section>
@@ -87,8 +93,10 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
       {testimonials.length > 0 && <section className="sales-section testimonial-section"><div className="shell"><span className="section-kicker">TESTIMONI</span><h2 className="display">Pengalaman peserta</h2><div className="testimonial-grid">{testimonials.map(([name, role, quote], index) => <blockquote key={`${name}-${index}`}><div className="stars">★★★★★</div><p>“{quote}”</p><footer><strong>{name}</strong><span>{role}</span></footer></blockquote>)}</div></div></section>}
 
+      {verifiedReviews.length > 0 && <section className="sales-section verified-review-section"><div className="shell"><span className="section-kicker">ULASAN PEMBELI TERVERIFIKASI</span><h2 className="display">{averageRating.toFixed(1)} dari 5 berdasarkan transaksi nyata</h2><div className="verified-review-grid">{verifiedReviews.map(({ review, customerName }) => <article key={review.id}><span className="stars">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span><h3>{review.title || "Pengalaman pembeli"}</h3><p>{review.content}</p><small><BadgeCheck size={14} /> {customerName} · Pembelian terverifikasi</small>{review.merchantReply && <blockquote><strong>Balasan {merchantBrand}</strong><p>{review.merchantReply}</p></blockquote>}</article>)}</div></div></section>}
+
       <section className="sales-section final-offer"><div className="shell final-offer-grid"><div><span className="section-kicker">MULAI SEKARANG</span><h2 className="display">Ambil langkah berikutnya bersama {merchantBrand}.</h2>{landing?.guaranteeTitle && <div className="guarantee"><ShieldCheck size={28} /><div><strong>{landing.guaranteeTitle}</strong><p>{landing.guaranteeText}</p></div></div>}</div><aside className="final-price-card">{landing?.compareAtPrice && landing.compareAtPrice > product.price && <del>{formatRupiah(landing.compareAtPrice)}</del>}<strong>{formatRupiah(product.price)}</strong><p>Sekali bayar untuk produk utama.</p><Link className="btn btn-primary btn-large" href={checkoutHref}>{landing?.ctaText || defaultCta} <ArrowRight size={18} /></Link><small>Order bump, bila tersedia, bersifat opsional di checkout.</small></aside></div></section>
 
       {faqs.length > 0 && <section className="sales-section faq-section"><div className="shell narrow"><span className="section-kicker">FAQ</span><h2 className="display">Pertanyaan yang sering diajukan</h2><div className="faq-list">{faqs.map(([question, answer], index) => <details key={`${question}-${index}`}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}</div></div></section>}
-    </main></>;
+    </main><div className="mobile-sticky-cta"><span><small>{product.name}</small><strong>{formatRupiah(product.price)}</strong></span><Link className="btn btn-primary" href={checkoutHref}>{landing?.ctaText || defaultCta}</Link></div></>;
 }

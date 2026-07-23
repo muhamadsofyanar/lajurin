@@ -56,6 +56,7 @@ export const merchantProfiles = pgTable("merchant_profiles", {
   status: merchantStatusEnum("status").default("PENDING").notNull(),
   platformFeeBps: integer("platform_fee_bps"),
   plan: merchantPlanEnum("plan").default("STARTER").notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
   ...timestamps,
 }, (table) => [
   uniqueIndex("merchant_profiles_user_unique").on(table.userId),
@@ -245,6 +246,8 @@ export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(), merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), slug: text("slug").notNull(), headline: text("headline").notNull(), description: text("description").notNull(),
   price: integer("price").notNull(), type: productTypeEnum("type").default("COURSE").notNull(),
+  category: text("category").default("LAINNYA").notNull(),
+  isFeatured: boolean("is_featured").default(false).notNull(),
   status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("products_slug_unique").on(table.slug), index("products_merchant_idx").on(table.merchantId, table.status)]);
 
@@ -472,6 +475,24 @@ export const orders = pgTable("orders", {
   refundedAt: timestamp("refunded_at", { withTimezone: true }), refundAmount: integer("refund_amount"), refundReference: text("refund_reference"),
   refundReason: text("refund_reason"), refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
 }, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
+
+export const productReviews = pgTable("product_reviews", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  customerId: uuid("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  title: text("title"),
+  content: text("content").notNull(),
+  status: text("status").default("PUBLISHED").notNull(),
+  merchantReply: text("merchant_reply"),
+  repliedAt: timestamp("replied_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("product_reviews_order_unique").on(table.orderId),
+  index("product_reviews_product_status_idx").on(table.productId, table.status, table.createdAt),
+  index("product_reviews_customer_idx").on(table.customerId, table.createdAt),
+]);
 
 export const bookingSlots = pgTable("booking_slots", {
   id: uuid("id").primaryKey().defaultRandom(),

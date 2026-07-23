@@ -36,6 +36,7 @@ const roleLinks = {
       { href: "/admin/products", label: "Produk platform" },
       { href: "/admin/members", label: "Member platform" },
       { href: "/admin/integrations", label: "Integrasi" },
+      { href: "/admin/reviews", label: "Moderasi ulasan" },
       { href: "/admin/audit", label: "Audit log" },
       { href: "/admin/settings", label: "Pengaturan" },
     ],
@@ -76,7 +77,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
   const flags = merchantAccess ? await enabledFeatureMap(merchantAccess.ownerId) : null;
 
   if (!app || !user) {
-    return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><Link href="/marketplace">Marketplace</Link><Link href="/#fitur">Fitur</Link><Link href="/#cara-kerja">Cara kerja</Link></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
+    return <header><nav aria-label="Navigasi utama" className="shell nav"><Brand /><div className="nav-links"><Link href="/marketplace">Marketplace</Link><Link href="/filosofi">Filosofi</Link><Link href="/#fitur">Fitur</Link><Link href="/#cara-kerja">Cara kerja</Link></div><div className="actions">{user ? <><Link className="btn" href={dashboard}>{dashboardLabel}</Link><form action={logoutAction}><button className="btn" type="submit">Keluar</button></form></> : <><Link className="btn" href="/login">Masuk</Link><Link className="btn btn-primary" href="/register">Mulai gratis</Link></>}</div></nav></header>;
   }
 
   const effectiveRole = user.role === "ADMIN" ? "ADMIN" : merchantAccess ? "MERCHANT" : "MEMBER";
@@ -91,6 +92,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
     can("manage") && { href: "/dashboard/bookings", label: "Booking & jadwal" },
     can("manage") && { href: "/dashboard/subscriptions", label: "Subscription" },
     can("manage") && { href: "/dashboard/assistant", label: "Asisten copy" },
+    can("manage") && { href: "/dashboard/reviews", label: "Ulasan pembeli" },
     can("finance") && { href: "/dashboard/finance", label: "Saldo & payout" },
     can("manage") && { href: "/dashboard/profile", label: "Profil toko" },
   ].filter((item): item is NavItem => Boolean(item)) : navigation.secondary;

@@ -13,6 +13,7 @@ import {
   Mail,
   FileDown,
   MessageCircle,
+  HeartHandshake,
   Palette,
   PlayCircle,
   ShieldCheck,
@@ -222,6 +223,13 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="section home-philosophy">
+          <div className="shell home-philosophy-grid">
+            <div><span className="home-philosophy-mark">الرَّزَّاقُ</span><small>AR-RAZZĀQ · MAHA PEMBERI REZEKI</small></div>
+            <div><span className="eyebrow"><HeartHandshake size={15} /> Mengapa RizqHub hadir</span><h2 className="display">Bukan sekadar bisnis. Sebuah ikhtiar menjadi jalan rezeki.</h2><p>RizqHub lahir dari keyakinan bahwa Allah adalah Ar-Razzāq. Kami ingin mempertemukan manfaat dengan kebutuhan, potensi dengan peluang, serta manusia dengan ikhtiar terbaiknya—untuk membuka lebih banyak pintu rezeki yang halal, bernilai, dan penuh keberkahan.</p><blockquote>“Menjadi wasilah, bukan tujuan; menjadi penghubung, bukan pemilik.”</blockquote><Link className="home-text-link" href="/filosofi">Baca filosofi RizqHub <ArrowRight size={16} /></Link></div>
+          </div>
+        </section>
+
         <section className="section home-before-after">
           <div className="shell">
             <div className="home-centered-heading">
@@ -295,7 +303,7 @@ export default function Home() {
       <footer className="footer home-footer">
         <div className="shell home-footer-grid">
           <div><Brand /><p>Platform untuk menjual kursus, produk digital, dan jasa dari satu tempat.</p></div>
-          <nav aria-label="Navigasi footer"><Link href="/marketplace">Marketplace</Link><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/refund-policy">Refund</Link><Link href="/login">Masuk</Link></nav>
+          <nav aria-label="Navigasi footer"><Link href="/marketplace">Marketplace</Link><Link href="/filosofi">Filosofi</Link><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a><Link href="/help">Bantuan</Link><Link href="/terms">Ketentuan</Link><Link href="/privacy">Privasi</Link><Link href="/refund-policy">Refund</Link><Link href="/login">Masuk</Link></nav>
           <span>© 2026 Rizqhub. Dibuat untuk bisnis digital Indonesia.</span>
         </div>
       </footer>
