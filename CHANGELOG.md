@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.1 — 23 Juli 2026
+
+### Home dan pemulihan domain utama
+
+- Memperbaiki `legaone.id` dan `www.legaone.id` agar selalu dikenali sebagai domain platform, sehingga root `/` tidak lagi salah diperlakukan sebagai Custom Domain merchant dan berakhir `404`.
+- Menambah dukungan `PLATFORM_HOSTNAMES` opsional untuk alias domain platform tambahan tanpa mengubah source.
+- Memperbarui Home publik menjadi halaman produk lengkap: hero, preview dashboard, ringkasan manfaat, enam kelompok fitur, alur empat langkah, model penggunaan, kontrol akses, FAQ, CTA, dan footer.
+- Menambah metadata Home yang lebih spesifik untuk judul dan deskripsi mesin pencari.
+- Menambah regression test untuk routing domain utama dan kelengkapan konten Home.
+- Tidak menambah migration atau mengubah data merchant, transaksi, payment, ledger, payout, maupun feature flag.
+
 ## 1.3.1 — 23 Juli 2026
 
 ### Workspace recovery

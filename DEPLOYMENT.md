@@ -28,6 +28,14 @@ MANUAL_BANK_HOLDER=nama-pemilik-rekening
 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte-yang-stabil
 ```
 
+`legaone.id` dan `www.legaone.id` dikenali sebagai domain utama platform. Jika
+platform juga memakai alias domain lain, isi hostname tambahannya dalam daftar
+dipisahkan koma:
+
+```env
+PLATFORM_HOSTNAMES=alias-pertama.id,alias-kedua.id
+```
+
 Jika Xendit digunakan:
 
 ```env
