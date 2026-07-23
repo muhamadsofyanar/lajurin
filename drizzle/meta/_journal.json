@@ -148,6 +148,13 @@
       "when": 1784832000000,
       "tag": "0020_launch_commerce",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784836800000,
+      "tag": "0021_workspace_status_alignment",
+      "breakpoints": true
     }
   ]
 }

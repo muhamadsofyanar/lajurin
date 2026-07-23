@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -71,6 +71,14 @@ export async function updateMerchantControlAction(merchantId: string, formData: 
         plan: plan.data,
         updatedAt: new Date(),
       }).where(eq(merchantProfiles.userId, merchantId));
+      const workspaceStatus = parsed.data.status === "ACTIVE" ? "ACTIVE" : parsed.data.status === "SUSPENDED" ? "SUSPENDED" : "DRAFT";
+      await tx.execute(sql`
+        update workspaces set status = ${workspaceStatus}::workspace_status, updated_at = now()
+        where id in (
+          select workspace_id from legacy_merchant_workspace_links
+          where legacy_merchant_user_id = ${merchantId}
+        )
+      `);
       await tx.insert(auditLogs).values({
         actorId: admin.id,
         action: "MERCHANT_CONTROL_UPDATED",
@@ -109,6 +117,14 @@ export async function updateMerchantStatusAction(merchantId: string, status: "PE
   await db.transaction(async (tx) => {
     await tx.update(merchantProfiles).set({ status: parsedStatus, updatedAt: new Date() })
       .where(eq(merchantProfiles.userId, merchant.id));
+    const workspaceStatus = parsedStatus === "ACTIVE" ? "ACTIVE" : parsedStatus === "SUSPENDED" ? "SUSPENDED" : "DRAFT";
+    await tx.execute(sql`
+      update workspaces set status = ${workspaceStatus}::workspace_status, updated_at = now()
+      where id in (
+        select workspace_id from legacy_merchant_workspace_links
+        where legacy_merchant_user_id = ${merchant.id}
+      )
+    `);
     await tx.insert(auditLogs).values({
       actorId: admin.id,
       action: `MERCHANT_${parsedStatus}`,

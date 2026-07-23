@@ -41,3 +41,12 @@ test("dokumen peluncuran publik tersedia", async () => {
     assert.ok((await source(path)).length > 200);
   }
 });
+
+test("status workspace selalu mengikuti status merchant", async () => {
+  const migration = await source("drizzle/0021_workspace_status_alignment.sql");
+  const admin = await source("src/app/actions/admin.ts");
+  assert.match(migration, /profile"."status" = 'ACTIVE'/);
+  assert.match(migration, /workspace"."status" = 'DRAFT'/);
+  assert.match(admin, /update workspaces set status/);
+  assert.match(admin, /legacy_merchant_workspace_links/);
+});
