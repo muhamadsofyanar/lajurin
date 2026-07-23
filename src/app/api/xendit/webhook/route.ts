@@ -6,7 +6,7 @@ import { recordPaidOrderAccounting } from "@/lib/finance";
 import { fulfillPaidOrder } from "@/lib/funnel";
 import { dispatchOrderNotifications } from "@/lib/notifications";
 import { dispatchMerchantAutomations } from "@/lib/automation";
-import { orders, webhookEvents } from "@/lib/schema";
+import { orders, serviceCases, webhookEvents } from "@/lib/schema";
 import { logEvent, requestIdFromHeaders } from "@/lib/security";
 
 const MAX_WEBHOOK_BYTES = 64 * 1024;
@@ -106,6 +106,8 @@ export async function POST(request: Request) {
           status: "PAID", paidAt: new Date(payload.created), xenditPaymentId: payload.data.payment_id,
           webhookPayload: payload, updatedAt: new Date(),
         }).where(eq(orders.id, row.order.id));
+        await tx.update(serviceCases).set({ status: "WAITING_DOCUMENTS", updatedAt: new Date() })
+          .where(eq(serviceCases.orderId, row.order.id));
         await fulfillPaidOrder(tx, row.order.id);
         await recordPaidOrderAccounting(tx, row.order.id);
         return true;

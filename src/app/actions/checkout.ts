@@ -12,7 +12,7 @@ import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { dispatchOrderNotifications } from "@/lib/notifications";
-import { analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, users } from "@/lib/schema";
+import { analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, serviceCases, users } from "@/lib/schema";
 import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 
 export async function checkoutAction(slug: string, formData: FormData) {
@@ -111,6 +111,15 @@ export async function checkoutAction(slug: string, formData: FormData) {
       manualDestinationAccount: manualAccount?.accountNumber ?? null,
       manualDestinationHolder: manualAccount?.accountHolder ?? null,
     }).returning();
+
+  if (product.product.type === "SERVICE") {
+    await db.insert(serviceCases).values({
+      orderId: order.id,
+      merchantId: product.product.merchantId,
+      customerId: customer.id,
+      status: "WAITING_PAYMENT",
+    });
+  }
 
   await db.insert(analyticsEvents).values({
     productId: product.product.id,

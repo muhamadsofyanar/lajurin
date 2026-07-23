@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowDown, ArrowUp, Download, ExternalLink, FileText, Pencil, Trash2 } from "lucide-react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import {
@@ -34,10 +34,12 @@ export default async function EditProductPage({ params, searchParams }: {
   const { id } = await params;
   const { error } = await searchParams;
   const [row] = await db.select({ product: products, course: courses }).from(products)
-    .innerJoin(courses, eq(courses.productId, products.id))
+    .leftJoin(courses, eq(courses.productId, products.id))
     .where(and(eq(products.id, id), eq(products.merchantId, merchant.id))).limit(1);
   if (!row) notFound();
   const { product } = row;
+  if (product.type === "SERVICE") redirect(`/dashboard/services/products/${product.id}`);
+  if (!row.course) notFound();
   const landingBuilderEnabled = await featureEnabled("LANDING_PAGE_BUILDER", merchant.id);
   const modules = await db.select().from(courseModules).where(eq(courseModules.courseId, row.course.id)).orderBy(asc(courseModules.position));
   const courseLessons = await db.select().from(lessons).where(eq(lessons.courseId, row.course.id)).orderBy(asc(lessons.position));
@@ -56,6 +58,7 @@ export default async function EditProductPage({ params, searchParams }: {
     {error && <p className="alert" style={{ marginBottom: 18 }}>{error}</p>}
     <div className="two-col"><div className="stack">
       <section className="panel form-panel"><div className="panel-head" style={{ margin: -24, marginBottom: 24 }}><h2>Informasi produk</h2></div><form className="form" action={updateProductAction.bind(null, product.id)}>
+        <input type="hidden" name="type" value="COURSE" />
         <div className="field"><label htmlFor="name">Nama</label><input className="input" id="name" name="name" defaultValue={product.name} required /></div>
         <div className="field"><label htmlFor="headline">Headline</label><input className="input" id="headline" name="headline" defaultValue={product.headline} required /></div>
         <div className="field"><label htmlFor="description">Deskripsi</label><textarea className="input" id="description" name="description" defaultValue={product.description} required /></div>

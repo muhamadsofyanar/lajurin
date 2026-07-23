@@ -5,6 +5,7 @@ export const commissionProofDirectory = path.join(process.cwd(), "data", "commis
 export const courseFileDirectory = path.join(process.cwd(), "data", "course-files");
 export const landingMediaDirectory = path.join(process.cwd(), "data", "landing-media");
 export const communityMediaDirectory = path.join(process.cwd(), "data", "community-media");
+export const serviceDocumentDirectory = path.join(process.cwd(), "data", "service-documents");
 
 const storageKeyPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$/;
 
@@ -38,4 +39,8 @@ export function communityMediaPath(storageKey: string) {
   return safeStoragePath(communityMediaDirectory, storageKey);
 }
 
-export const persistentStorageDirectories = [paymentProofDirectory, commissionProofDirectory, courseFileDirectory, landingMediaDirectory, communityMediaDirectory] as const;
+export function serviceDocumentPath(storageKey: string) {
+  return safeStoragePath(serviceDocumentDirectory, storageKey);
+}
+
+export const persistentStorageDirectories = [paymentProofDirectory, commissionProofDirectory, courseFileDirectory, landingMediaDirectory, communityMediaDirectory, serviceDocumentDirectory] as const;

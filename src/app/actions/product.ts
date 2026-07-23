@@ -18,6 +18,7 @@ const MAX_COURSE_FILE_SIZE = 15 * 1024 * 1024;
 const allowedCourseFileExtensions = new Set([".pdf", ".epub", ".zip", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt"]);
 
 const productSchema = z.object({
+  type: z.enum(["COURSE", "SERVICE"]).default("COURSE"),
   name: z.string().trim().min(3).max(120),
   headline: z.string().trim().min(10).max(180),
   description: z.string().trim().min(20).max(3000),
@@ -80,7 +81,8 @@ export async function updateProductAction(productId: string, formData: FormData)
 
   const [result] = await db.update(products).set({ ...parsed.data, updatedAt: new Date() }).where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).returning({ id: products.id });
   if (!result) redirect("/dashboard");
-  await db.update(courses).set({ title: parsed.data.name, description: parsed.data.description, updatedAt: new Date() }).where(eq(courses.productId, productId));
+  await db.insert(courses).values({ productId, title: parsed.data.name, description: parsed.data.description })
+    .onConflictDoUpdate({ target: courses.productId, set: { title: parsed.data.name, description: parsed.data.description, updatedAt: new Date() } });
   revalidatePath(`/dashboard/products/${productId}`);
 }
 
@@ -310,10 +312,10 @@ export async function deleteLessonAction(productId: string, lessonId: string) {
 
 export async function togglePublishAction(productId: string) {
   const merchant = await requireMerchant("manage");
-  const [product] = await db.select({ status: products.status, slug: products.slug, courseId: courses.id }).from(products).leftJoin(courses, eq(courses.productId, products.id)).where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
+  const [product] = await db.select({ status: products.status, type: products.type, slug: products.slug, courseId: courses.id }).from(products).leftJoin(courses, eq(courses.productId, products.id)).where(and(eq(products.id, productId), eq(products.merchantId, merchant.id))).limit(1);
   if (!product) redirect("/dashboard");
   const hasLessons = product.courseId ? (await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.courseId, product.courseId)).limit(1)).length > 0 : false;
-  if (product.status === "DRAFT" && !hasLessons) {
+  if (product.type === "COURSE" && product.status === "DRAFT" && !hasLessons) {
     redirect(`/dashboard/products/${productId}?error=Tambahkan+minimal+satu+materi`);
   }
 

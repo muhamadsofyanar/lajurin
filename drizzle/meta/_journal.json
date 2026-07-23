@@ -127,6 +127,13 @@
       "when": 1784811600000,
       "tag": "0017_rizqhub_rebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784815200000,
+      "tag": "0018_service_commerce_foundation",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,11 @@ import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqu
 
 export const roleEnum = pgEnum("role", ["ADMIN", "MERCHANT", "MEMBER"]);
 export const productStatusEnum = pgEnum("product_status", ["DRAFT", "PUBLISHED", "ARCHIVED"]);
+export const productTypeEnum = pgEnum("product_type", ["COURSE", "SERVICE"]);
 export const orderStatusEnum = pgEnum("order_status", ["PENDING", "AWAITING_CONFIRMATION", "PAID", "REJECTED", "EXPIRED", "FAILED", "REFUNDED"]);
+export const serviceCaseStatusEnum = pgEnum("service_case_status", ["WAITING_PAYMENT", "WAITING_DOCUMENTS", "DOCUMENT_REVIEW", "REVISION_REQUIRED", "IN_PROGRESS", "WAITING_AGENCY", "COMPLETED", "CANCELLED"]);
+export const serviceNoteVisibilityEnum = pgEnum("service_note_visibility", ["INTERNAL", "CLIENT"]);
+export const serviceDocumentAudienceEnum = pgEnum("service_document_audience", ["MERCHANT", "CLIENT"]);
 export const notificationChannelEnum = pgEnum("notification_channel", ["EMAIL", "WHATSAPP"]);
 export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "PROCESSING", "SENT", "FAILED", "SKIPPED"]);
@@ -237,7 +241,8 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(), merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(), slug: text("slug").notNull(), headline: text("headline").notNull(), description: text("description").notNull(),
-  price: integer("price").notNull(), status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
+  price: integer("price").notNull(), type: productTypeEnum("type").default("COURSE").notNull(),
+  status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("products_slug_unique").on(table.slug), index("products_merchant_idx").on(table.merchantId, table.status)]);
 
 export const productLandingPages = pgTable("product_landing_pages", {
@@ -375,6 +380,48 @@ export const orders = pgTable("orders", {
   refundedAt: timestamp("refunded_at", { withTimezone: true }), refundAmount: integer("refund_amount"), refundReference: text("refund_reference"),
   refundReason: text("refund_reason"), refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
 }, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
+
+export const serviceCases = pgTable("service_cases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  customerId: uuid("customer_id").references(() => users.id, { onDelete: "set null" }),
+  status: serviceCaseStatusEnum("status").default("WAITING_PAYMENT").notNull(),
+  assignedTo: uuid("assigned_to").references(() => users.id, { onDelete: "set null" }),
+  intakeData: jsonb("intake_data").$type<Record<string, string>>().default({}).notNull(),
+  targetDate: timestamp("target_date", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("service_cases_order_unique").on(table.orderId),
+  index("service_cases_merchant_status_idx").on(table.merchantId, table.status, table.updatedAt),
+  index("service_cases_customer_idx").on(table.customerId, table.updatedAt),
+]);
+
+export const serviceCaseNotes = pgTable("service_case_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serviceCaseId: uuid("service_case_id").notNull().references(() => serviceCases.id, { onDelete: "cascade" }),
+  authorId: uuid("author_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  visibility: serviceNoteVisibilityEnum("visibility").default("CLIENT").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("service_case_notes_case_idx").on(table.serviceCaseId, table.createdAt)]);
+
+export const serviceDocuments = pgTable("service_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  serviceCaseId: uuid("service_case_id").notNull().references(() => serviceCases.id, { onDelete: "cascade" }),
+  uploadedBy: uuid("uploaded_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  audience: serviceDocumentAudienceEnum("audience").notNull(),
+  label: text("label").notNull(),
+  fileName: text("file_name").notNull(),
+  storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("service_documents_storage_unique").on(table.storageKey),
+  index("service_documents_case_idx").on(table.serviceCaseId, table.createdAt),
+]);
 
 export const couponRedemptions = pgTable("coupon_redemptions", {
   id: uuid("id").primaryKey().defaultRandom(),

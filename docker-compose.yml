@@ -44,6 +44,7 @@ services:
       - course_files:/app/data/course-files
       - landing_media:/app/data/landing-media
       - community_media:/app/data/community-media
+      - service_documents:/app/data/service-documents
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,3 +56,4 @@ volumes:
   course_files:
   landing_media:
   community_media:
+  service_documents:

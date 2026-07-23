@@ -41,7 +41,7 @@ const roleLinks = {
       { href: "/dashboard", label: "Ringkasan" },
       { href: "/dashboard/analytics", label: "Analitik" },
       { href: "/dashboard/orders", label: "Transaksi" },
-      { href: "/dashboard/customers", label: "Pelanggan" },
+      { href: "/dashboard/services", label: "Layanan" },
     ],
     secondary: [
       { href: "/dashboard/automation", label: "Automation" },
@@ -78,6 +78,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
   const merchantRole = merchantAccess?.membershipRole;
   const can = (capability: MerchantCapability) => Boolean(merchantRole && merchantCan(merchantRole, capability));
   const merchantSecondary = merchantAccess ? [
+    can("read") && { href: "/dashboard/customers", label: "Pelanggan" },
     can("manage") && { href: "/dashboard/automation", label: "Automation" },
     can("finance") && { href: "/dashboard/finance", label: "Saldo & payout" },
     can("manage") && { href: "/dashboard/profile", label: "Profil toko" },

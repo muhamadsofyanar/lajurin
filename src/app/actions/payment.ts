@@ -14,7 +14,7 @@ import { fulfillPaidOrder } from "@/lib/funnel";
 import { dispatchOrderNotifications } from "@/lib/notifications";
 import { dispatchMerchantAutomations } from "@/lib/automation";
 import { canReviewManualPayment, requiresAdminOverrideReason } from "@/lib/manual-payment";
-import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, platformReceivableEntries, products } from "@/lib/schema";
+import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, platformReceivableEntries, products, serviceCases } from "@/lib/schema";
 import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
 import { currentRequestIdentity, enforceRateLimit, verifyUploadSignature } from "@/lib/security";
 
@@ -158,6 +158,8 @@ async function reviewManualPayment(input: {
       if (!updated) throw new ManualPaymentReviewError("Pesanan sudah diproses oleh pengguna lain");
 
       if (parsedDecision === "approve") {
+        await tx.update(serviceCases).set({ status: "WAITING_DOCUMENTS", updatedAt: new Date() })
+          .where(eq(serviceCases.orderId, row.order.id));
         await fulfillPaidOrder(tx, row.order.id);
         await recordPaidOrderAccounting(tx, row.order.id);
       }
