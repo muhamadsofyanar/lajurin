@@ -39,6 +39,7 @@ export default async function EditProductPage({ params, searchParams }: {
   if (!row) notFound();
   const { product } = row;
   if (product.type === "SERVICE") redirect(`/dashboard/services/products/${product.id}`);
+  if (product.type === "DIGITAL") redirect(`/dashboard/digital-products/${product.id}`);
   if (!row.course) notFound();
   const landingBuilderEnabled = await featureEnabled("LANDING_PAGE_BUILDER", merchant.id);
   const modules = await db.select().from(courseModules).where(eq(courseModules.courseId, row.course.id)).orderBy(asc(courseModules.position));

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-const roots = ["payment-proofs", "commission-proofs", "course-files", "landing-media", "community-media", "service-documents"]
+const roots = ["payment-proofs", "commission-proofs", "course-files", "landing-media", "community-media", "service-documents", "digital-products"]
   .map((name) => path.join(process.cwd(), "data", name));
 
 const files = [];

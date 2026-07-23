@@ -5,7 +5,7 @@ import { saveServiceIntakeAction, uploadClientServiceDocumentAction } from "@/ap
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/order";
-import { orders, products, serviceCaseNotes, serviceCases, serviceDocuments, users } from "@/lib/schema";
+import { orders, products, serviceCaseNotes, serviceCases, serviceDocuments, serviceProductFields, users } from "@/lib/schema";
 import { formatFileSize, serviceStatusLabel } from "@/lib/services";
 
 export default async function ClientServicePage({ params, searchParams }: {
@@ -19,11 +19,12 @@ export default async function ClientServicePage({ params, searchParams }: {
     .innerJoin(products, eq(orders.productId, products.id))
     .where(and(eq(serviceCases.id, id), eq(serviceCases.customerId, user.id), eq(orders.customerId, user.id))).limit(1);
   if (!row) notFound();
-  const [notes, documents] = await Promise.all([
+  const [notes, documents, fields] = await Promise.all([
     db.select({ note: serviceCaseNotes, authorName: users.name }).from(serviceCaseNotes)
       .innerJoin(users, eq(serviceCaseNotes.authorId, users.id))
       .where(and(eq(serviceCaseNotes.serviceCaseId, id), eq(serviceCaseNotes.visibility, "CLIENT"))).orderBy(asc(serviceCaseNotes.createdAt)),
     db.select().from(serviceDocuments).where(eq(serviceDocuments.serviceCaseId, id)).orderBy(asc(serviceDocuments.createdAt)),
+    db.select().from(serviceProductFields).where(eq(serviceProductFields.productId, row.product.id)).orderBy(asc(serviceProductFields.position)),
   ]);
   const intake = row.serviceCase.intakeData;
   const paid = row.order.status === "PAID";
@@ -33,11 +34,7 @@ export default async function ClientServicePage({ params, searchParams }: {
     {error && <p className="alert">{error}</p>}{!paid && <p className="alert">Formulir dan upload dokumen terbuka setelah pembayaran dikonfirmasi.</p>}
     <div className="two-col"><div className="stack">
       <section className="panel form-panel"><div className="panel-head" style={{ margin: -24, marginBottom: 24 }}><h2>Data kebutuhan</h2></div><form className="form" action={saveServiceIntakeAction.bind(null, id)}>
-        <div className="field"><label htmlFor="companyName">Nama badan usaha saat ini</label><input className="input" id="companyName" name="companyName" defaultValue={intake.companyName ?? ""} disabled={!paid} /></div>
-        <div className="field"><label htmlFor="desiredName">Nama badan usaha yang diinginkan</label><input className="input" id="desiredName" name="desiredName" defaultValue={intake.desiredName ?? ""} disabled={!paid} /></div>
-        <div className="field"><label htmlFor="businessActivity">Kegiatan usaha</label><textarea className="input" id="businessActivity" name="businessActivity" defaultValue={intake.businessActivity ?? ""} disabled={!paid} /></div>
-        <div className="field"><label htmlFor="address">Alamat usaha</label><textarea className="input" id="address" name="address" defaultValue={intake.address ?? ""} disabled={!paid} /></div>
-        <div className="field"><label htmlFor="notes">Catatan tambahan</label><textarea className="input" id="notes" name="notes" defaultValue={intake.notes ?? ""} disabled={!paid} /></div>
+        {fields.map((field) => <div className="field" key={field.id}><label htmlFor={field.fieldKey}>{field.label}{field.required ? " *" : ""}</label>{field.type === "TEXTAREA" ? <textarea className="input" id={field.fieldKey} name={field.fieldKey} defaultValue={intake[field.fieldKey] ?? ""} disabled={!paid} required={field.required} /> : <input className="input" id={field.fieldKey} name={field.fieldKey} defaultValue={intake[field.fieldKey] ?? ""} disabled={!paid} required={field.required} />}</div>)}
         <button className="btn btn-primary" type="submit" disabled={!paid}>Simpan data</button>
       </form></section>
       <section className="panel"><div className="panel-head"><h2>Pembaruan pengerjaan</h2></div>{notes.length ? notes.map(({ note, authorName }) => <article className="service-note" key={note.id}><p>{note.body}</p><small>{authorName} · {formatDate(note.createdAt)}</small></article>) : <p className="muted">Belum ada pembaruan dari tim.</p>}</section>

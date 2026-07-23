@@ -46,6 +46,7 @@ services:
       - landing_media_staging:/app/data/landing-media
       - community_media_staging:/app/data/community-media
       - service_documents_staging:/app/data/service-documents
+      - digital_products_staging:/app/data/digital-products
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,3 +59,4 @@ volumes:
   landing_media_staging:
   community_media_staging:
   service_documents_staging:
+  digital_products_staging:

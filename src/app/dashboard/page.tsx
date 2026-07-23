@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { getMerchantBalance } from "@/lib/finance";
 import { formatRupiah } from "@/lib/format";
 import { merchantPayouts, merchantProfiles, orders, products } from "@/lib/schema";
+import { productEditHref, productTypeLabel } from "@/lib/catalog";
 
 export default async function DashboardPage() {
   const merchant = await requireMerchant();
@@ -107,9 +108,9 @@ export default async function DashboardPage() {
               <span className="dashboard-count">{productData.length} produk</span>
             </div>
             {productData.length ? productData.map((product) => (
-              <Link className="product-row dashboard-product-row" href={`/dashboard/products/${product.id}`} key={product.id}>
+              <Link className="product-row dashboard-product-row" href={productEditHref(product)} key={product.id}>
                 <span className="dashboard-product-icon"><Package size={19} /></span>
-                <div className="dashboard-product-copy"><h3>{product.name}</h3><p>/p/{product.slug} · {product.orderCount} pesanan</p></div>
+                <div className="dashboard-product-copy"><h3>{product.name}</h3><p>{productTypeLabel[product.type]} · /p/{product.slug} · {product.orderCount} pesanan</p></div>
                 <strong className="price-cell">{formatRupiah(product.price)}</strong>
                 <span className={`badge ${product.status === "PUBLISHED" ? "badge-live" : ""}`}>{product.status === "PUBLISHED" ? "Aktif" : product.status === "ARCHIVED" ? "Arsip" : "Draf"}</span>
                 <ArrowRight className="dashboard-product-arrow" size={17} aria-hidden="true" />

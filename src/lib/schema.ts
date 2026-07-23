@@ -2,11 +2,12 @@ import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqu
 
 export const roleEnum = pgEnum("role", ["ADMIN", "MERCHANT", "MEMBER"]);
 export const productStatusEnum = pgEnum("product_status", ["DRAFT", "PUBLISHED", "ARCHIVED"]);
-export const productTypeEnum = pgEnum("product_type", ["COURSE", "SERVICE"]);
+export const productTypeEnum = pgEnum("product_type", ["COURSE", "DIGITAL", "SERVICE"]);
 export const orderStatusEnum = pgEnum("order_status", ["PENDING", "AWAITING_CONFIRMATION", "PAID", "REJECTED", "EXPIRED", "FAILED", "REFUNDED"]);
 export const serviceCaseStatusEnum = pgEnum("service_case_status", ["WAITING_PAYMENT", "WAITING_DOCUMENTS", "DOCUMENT_REVIEW", "REVISION_REQUIRED", "IN_PROGRESS", "WAITING_AGENCY", "COMPLETED", "CANCELLED"]);
 export const serviceNoteVisibilityEnum = pgEnum("service_note_visibility", ["INTERNAL", "CLIENT"]);
 export const serviceDocumentAudienceEnum = pgEnum("service_document_audience", ["MERCHANT", "CLIENT"]);
+export const serviceFieldTypeEnum = pgEnum("service_field_type", ["TEXT", "TEXTAREA"]);
 export const notificationChannelEnum = pgEnum("notification_channel", ["EMAIL", "WHATSAPP"]);
 export const notificationEventEnum = pgEnum("notification_event", ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["PENDING", "PROCESSING", "SENT", "FAILED", "SKIPPED"]);
@@ -244,6 +245,33 @@ export const products = pgTable("products", {
   price: integer("price").notNull(), type: productTypeEnum("type").default("COURSE").notNull(),
   status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
 }, (table) => [uniqueIndex("products_slug_unique").on(table.slug), index("products_merchant_idx").on(table.merchantId, table.status)]);
+
+export const productFiles = pgTable("product_files", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  fileName: text("file_name").notNull(),
+  storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("product_files_storage_unique").on(table.storageKey),
+  index("product_files_product_idx").on(table.productId, table.createdAt),
+]);
+
+export const serviceProductFields = pgTable("service_product_fields", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  fieldKey: text("field_key").notNull(),
+  label: text("label").notNull(),
+  type: serviceFieldTypeEnum("type").default("TEXT").notNull(),
+  required: boolean("required").default(false).notNull(),
+  position: integer("position").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("service_product_fields_key_unique").on(table.productId, table.fieldKey),
+  uniqueIndex("service_product_fields_position_unique").on(table.productId, table.position),
+]);
 
 export const productLandingPages = pgTable("product_landing_pages", {
   id: uuid("id").primaryKey().defaultRandom(),

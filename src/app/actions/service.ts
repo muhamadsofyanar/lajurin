@@ -3,14 +3,14 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireMerchant, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { verifyUploadSignature } from "@/lib/security";
-import { auditLogs, orders, products, serviceCaseNotes, serviceCases, serviceDocuments, workspaceMemberships } from "@/lib/schema";
+import { auditLogs, orders, products, serviceCaseNotes, serviceCases, serviceDocuments, serviceProductFields, workspaceMemberships } from "@/lib/schema";
 import { serviceDocumentDirectory, serviceDocumentPath } from "@/lib/storage";
 
 const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
@@ -82,23 +82,58 @@ export async function addServiceNoteAction(caseId: string, formData: FormData) {
 
 export async function saveServiceIntakeAction(caseId: string, formData: FormData) {
   const user = await requireUser();
-  const parsed = z.object({
-    companyName: z.string().trim().max(160).optional(),
-    desiredName: z.string().trim().max(160).optional(),
-    businessActivity: z.string().trim().max(1000).optional(),
-    address: z.string().trim().max(1000).optional(),
-    notes: z.string().trim().max(3000).optional(),
-  }).safeParse(Object.fromEntries(formData));
   const row = await clientCase(caseId, user.id);
-  if (!parsed.success || !row) redirect(`/member/services/${caseId}?error=Data+belum+valid`);
+  if (!row) redirect(`/member/services/${caseId}?error=Data+belum+valid`);
   if (row.order.status !== "PAID") redirect(`/member/services/${caseId}?error=Lengkapi+setelah+pembayaran+dikonfirmasi`);
+  const fields = await db.select().from(serviceProductFields)
+    .where(eq(serviceProductFields.productId, row.order.productId)).orderBy(asc(serviceProductFields.position));
+  const intakeData: Record<string, string> = {};
+  for (const field of fields) {
+    const value = String(formData.get(field.fieldKey) ?? "").trim();
+    const max = field.type === "TEXTAREA" ? 3000 : 200;
+    if ((field.required && !value) || value.length > max) redirect(`/member/services/${caseId}?error=Data+belum+valid`);
+    if (value) intakeData[field.fieldKey] = value;
+  }
   await db.update(serviceCases).set({
-    intakeData: Object.fromEntries(Object.entries(parsed.data).filter(([, value]) => value)),
+    intakeData,
     status: row.serviceCase.status === "WAITING_DOCUMENTS" ? "DOCUMENT_REVIEW" : row.serviceCase.status,
     updatedAt: new Date(),
   }).where(eq(serviceCases.id, caseId));
   revalidatePath(`/member/services/${caseId}`);
   revalidatePath(`/dashboard/services/${caseId}`);
+}
+
+function fieldKey(label: string) {
+  const base = label.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_-]+/g, "_").slice(0, 40) || "field";
+  return `${base}_${randomUUID().slice(0, 6)}`;
+}
+
+export async function addServiceFieldAction(productId: string, formData: FormData) {
+  const merchant = await requireMerchant("manage");
+  const parsed = z.object({
+    label: z.string().trim().min(2).max(100),
+    type: z.enum(["TEXT", "TEXTAREA"]),
+  }).safeParse(Object.fromEntries(formData));
+  const [product] = await db.select({ id: products.id }).from(products)
+    .where(and(eq(products.id, productId), eq(products.merchantId, merchant.id), eq(products.type, "SERVICE"))).limit(1);
+  if (!product || !parsed.success) redirect(`/dashboard/services/products/${productId}?error=Kolom+tidak+valid`);
+  const existing = await db.select({ position: serviceProductFields.position }).from(serviceProductFields)
+    .where(eq(serviceProductFields.productId, productId)).orderBy(asc(serviceProductFields.position));
+  await db.insert(serviceProductFields).values({
+    productId, fieldKey: fieldKey(parsed.data.label), label: parsed.data.label, type: parsed.data.type,
+    required: formData.get("required") === "on", position: (existing.at(-1)?.position ?? 0) + 1,
+  });
+  revalidatePath(`/dashboard/services/products/${productId}`);
+}
+
+export async function deleteServiceFieldAction(fieldId: string) {
+  const merchant = await requireMerchant("manage");
+  const [row] = await db.select({ field: serviceProductFields, product: products }).from(serviceProductFields)
+    .innerJoin(products, eq(serviceProductFields.productId, products.id))
+    .where(and(eq(serviceProductFields.id, fieldId), eq(products.merchantId, merchant.id), eq(products.type, "SERVICE"))).limit(1);
+  if (!row) redirect("/dashboard/services?error=Kolom+tidak+ditemukan");
+  await db.delete(serviceProductFields).where(eq(serviceProductFields.id, fieldId));
+  revalidatePath(`/dashboard/services/products/${row.product.id}`);
 }
 
 async function storeDocument(input: { caseId: string; uploadedBy: string; audience: "MERCHANT" | "CLIENT"; label: string; file: File }) {

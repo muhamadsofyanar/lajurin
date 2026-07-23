@@ -5,7 +5,7 @@ import { addServiceNoteAction, updateServiceCaseAction, uploadMerchantServiceDoc
 import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/order";
-import { orders, products, serviceCaseNotes, serviceCases, serviceDocuments, users, workspaceMemberships } from "@/lib/schema";
+import { orders, products, serviceCaseNotes, serviceCases, serviceDocuments, serviceProductFields, users, workspaceMemberships } from "@/lib/schema";
 import { formatFileSize, serviceStatusLabel, serviceStatusOptions } from "@/lib/services";
 
 export default async function MerchantServiceCasePage({ params, searchParams }: {
@@ -19,13 +19,14 @@ export default async function MerchantServiceCasePage({ params, searchParams }: 
     .innerJoin(products, eq(orders.productId, products.id))
     .where(and(eq(serviceCases.id, id), eq(serviceCases.merchantId, merchant.id))).limit(1);
   if (!row) notFound();
-  const [notes, documents, team] = await Promise.all([
+  const [notes, documents, team, fields] = await Promise.all([
     db.select({ note: serviceCaseNotes, authorName: users.name }).from(serviceCaseNotes)
       .innerJoin(users, eq(serviceCaseNotes.authorId, users.id)).where(eq(serviceCaseNotes.serviceCaseId, id)).orderBy(asc(serviceCaseNotes.createdAt)),
     db.select().from(serviceDocuments).where(eq(serviceDocuments.serviceCaseId, id)).orderBy(asc(serviceDocuments.createdAt)),
     merchant.workspaceId ? db.select({ id: users.id, name: users.name }).from(workspaceMemberships)
       .innerJoin(users, eq(workspaceMemberships.userId, users.id))
       .where(and(eq(workspaceMemberships.workspaceId, merchant.workspaceId), eq(workspaceMemberships.status, "ACTIVE"))) : Promise.resolve([{ id: merchant.id, name: merchant.name }]),
+    db.select().from(serviceProductFields).where(eq(serviceProductFields.productId, row.product.id)).orderBy(asc(serviceProductFields.position)),
   ]);
   const intake = row.serviceCase.intakeData;
 
@@ -42,7 +43,7 @@ export default async function MerchantServiceCasePage({ params, searchParams }: 
         </form>
       </section>
       <section className="panel"><div className="panel-head"><h2>Data kebutuhan klien</h2></div>
-        {Object.keys(intake).length ? <dl className="service-intake"><dt>Nama badan usaha</dt><dd>{intake.companyName || "—"}</dd><dt>Nama yang diinginkan</dt><dd>{intake.desiredName || "—"}</dd><dt>Kegiatan usaha</dt><dd>{intake.businessActivity || "—"}</dd><dt>Alamat</dt><dd>{intake.address || "—"}</dd><dt>Catatan</dt><dd>{intake.notes || "—"}</dd></dl> : <p className="muted">Klien belum mengisi formulir kebutuhan.</p>}
+        {Object.keys(intake).length ? <dl className="service-intake">{fields.map((field) => <div key={field.id}><dt>{field.label}</dt><dd>{intake[field.fieldKey] || "—"}</dd></div>)}</dl> : <p className="muted">Klien belum mengisi formulir kebutuhan.</p>}
       </section>
       <section className="panel form-panel"><div className="panel-head" style={{ margin: -24, marginBottom: 24 }}><h2>Tambah catatan</h2></div>
         <form className="form" action={addServiceNoteAction.bind(null, id)}><div className="field"><label htmlFor="visibility">Jenis catatan</label><select className="input" id="visibility" name="visibility"><option value="CLIENT">Pembaruan untuk klien</option><option value="INTERNAL">Catatan internal tim</option></select></div><div className="field"><label htmlFor="body">Isi</label><textarea className="input" id="body" name="body" required minLength={2} /></div><button className="btn" type="submit">Tambahkan catatan</button></form>

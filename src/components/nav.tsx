@@ -12,6 +12,7 @@ type NavItem = { href: string; label: string };
 const commonLinks: NavItem[] = [
   { href: "/member", label: "Kelas saya" },
   { href: "/member/orders", label: "Pesanan saya" },
+  { href: "/member/downloads", label: "Unduhan" },
   { href: "/community", label: "Komunitas" },
   { href: "/inbox", label: "Inbox" },
 ];
@@ -39,6 +40,7 @@ const roleLinks = {
   MERCHANT: {
     primary: [
       { href: "/dashboard", label: "Ringkasan" },
+      { href: "/dashboard/products", label: "Produk" },
       { href: "/dashboard/analytics", label: "Analitik" },
       { href: "/dashboard/orders", label: "Transaksi" },
       { href: "/dashboard/services", label: "Layanan" },
@@ -78,6 +80,7 @@ export async function Nav({ app = false }: { app?: boolean }) {
   const merchantRole = merchantAccess?.membershipRole;
   const can = (capability: MerchantCapability) => Boolean(merchantRole && merchantCan(merchantRole, capability));
   const merchantSecondary = merchantAccess ? [
+    can("read") && { href: "/dashboard/getting-started", label: "Panduan mulai" },
     can("read") && { href: "/dashboard/customers", label: "Pelanggan" },
     can("manage") && { href: "/dashboard/automation", label: "Automation" },
     can("finance") && { href: "/dashboard/finance", label: "Saldo & payout" },

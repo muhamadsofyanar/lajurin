@@ -10,7 +10,7 @@ import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { requireMerchant } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/format";
-import { courseModules, courses, lessonAttachments, lessons, products } from "@/lib/schema";
+import { courseModules, courses, lessonAttachments, lessons, productFiles, products, serviceProductFields } from "@/lib/schema";
 import { courseFileDirectory, courseFilePath } from "@/lib/storage";
 import { verifyUploadSignature } from "@/lib/security";
 
@@ -18,7 +18,7 @@ const MAX_COURSE_FILE_SIZE = 15 * 1024 * 1024;
 const allowedCourseFileExtensions = new Set([".pdf", ".epub", ".zip", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt"]);
 
 const productSchema = z.object({
-  type: z.enum(["COURSE", "SERVICE"]).default("COURSE"),
+  type: z.enum(["COURSE", "DIGITAL", "SERVICE"]).default("COURSE"),
   name: z.string().trim().min(3).max(120),
   headline: z.string().trim().min(10).max(180),
   description: z.string().trim().min(20).max(3000),
@@ -68,6 +68,14 @@ export async function createProductAction(formData: FormData) {
       slug: await uniqueSlug(parsed.data.name),
     }).returning();
     await tx.insert(courses).values({ productId: created.id, title: created.name, description: created.description });
+    if (created.type === "SERVICE") {
+      await tx.insert(serviceProductFields).values([
+        { productId: created.id, fieldKey: "business_name", label: "Nama usaha atau organisasi", type: "TEXT", required: false, position: 1 },
+        { productId: created.id, fieldKey: "desired_result", label: "Hasil yang dibutuhkan", type: "TEXTAREA", required: true, position: 2 },
+        { productId: created.id, fieldKey: "address", label: "Alamat atau lokasi", type: "TEXTAREA", required: false, position: 3 },
+        { productId: created.id, fieldKey: "notes", label: "Catatan tambahan", type: "TEXTAREA", required: false, position: 4 },
+      ]);
+    }
     return created;
   });
 
@@ -317,6 +325,10 @@ export async function togglePublishAction(productId: string) {
   const hasLessons = product.courseId ? (await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.courseId, product.courseId)).limit(1)).length > 0 : false;
   if (product.type === "COURSE" && product.status === "DRAFT" && !hasLessons) {
     redirect(`/dashboard/products/${productId}?error=Tambahkan+minimal+satu+materi`);
+  }
+  if (product.type === "DIGITAL" && product.status === "DRAFT") {
+    const hasFile = (await db.select({ id: productFiles.id }).from(productFiles).where(eq(productFiles.productId, productId)).limit(1)).length > 0;
+    if (!hasFile) redirect(`/dashboard/digital-products/${productId}?error=Unggah+minimal+satu+file`);
   }
 
   await db.update(products).set({ status: product.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED", updatedAt: new Date() }).where(eq(products.id, productId));
