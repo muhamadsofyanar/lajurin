@@ -7,18 +7,13 @@
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
 - Deployment pengguna: Coolify, domain `legaone.id`
-- Migration terbaru: `0026_v5_platform_kernel.sql`.
-- Quality gate source v5 alpha: unit/static test, lint, TypeScript, build, checksum migration, dependency audit, dan database integration/RLS test pada CI PostgreSQL.
+- Migration terbaru: `0026_v500_platform_kernel.sql`.
+- Quality gate target v5 alpha: checksum migration, unit/static test, lint, TypeScript, production build, PostgreSQL integration test, payment sandbox, dan restore drill. Pada paket ini, checksum/configuration validation telah lulus; install dependency penuh tertahan oleh respons 503 registry internal sehingga quality gate lengkap wajib dijalankan kembali di CI/staging.
+
 
 ## Rizqhub v5.0.0-alpha.1
 
-- `products`, `orders`, dan `webhook_events` mendapat workspace scope langsung melalui migration aditif dan backfill.
-- Pembayaran Xendit serta review transfer manual menerbitkan domain event dalam transaksi database yang sama dengan perubahan status order.
-- Worker outbox memakai `FOR UPDATE SKIP LOCKED`, stale-lock recovery, exponential backoff, attempt log, idempotent consumption, dead-letter, dan manual replay.
-- RLS pilot pada `outbox_events` membatasi read/write berdasarkan `app.workspace_id`; worker control-plane memakai scope eksplisit.
-- `OUTBOX_PROCESSING_ENABLED=false` mempertahankan jalur side effect v4 selama shadow rollout. Cutover dilakukan setelah scheduler dan backlog terverifikasi.
-- Pusat operasional menampilkan event menunggu/retry dan dead-letter.
-- Phase 2 commerce/payment/double-entry ledger, entitlement, UI v5, automation v2, serta AI belum diklaim selesai.
+Fase 0–1 blueprint v5 telah diterapkan secara aditif: transactional outbox, worker, retry/dead-letter, correlation context, policy engine, observability, dan integrasi alur payment kritis. RLS, finance v5, entitlement v2, redesign UI, CRM, analytics, dan AI belum termasuk pada alpha ini.
 
 ## Rizqhub v4.0.1
 
@@ -213,7 +208,7 @@
 
 ## Database terbaru
 
-Migration terbaru: `drizzle/0025_financial_integrity.sql`.
+Migration terbaru: `drizzle/0026_v500_platform_kernel.sql`.
 
 Migration integritas finansial (`0025`):
 

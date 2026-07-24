@@ -5,11 +5,9 @@ import { db } from "@/lib/db";
 import { recordPaidOrderAccounting } from "@/lib/finance";
 import { fulfillPaidOrder } from "@/lib/funnel";
 import { reacquireReleasedOrderStock, releaseOrderReservedStock } from "@/lib/inventory";
-import { dispatchOrderNotifications } from "@/lib/notifications";
-import { dispatchMerchantAutomations } from "@/lib/automation";
 import { orders, serviceCases, webhookEvents } from "@/lib/schema";
 import { logEvent, requestIdFromHeaders } from "@/lib/security";
-import { publishOrderPaidEvent } from "@/platform/events/outbox";
+import { enqueueDomainEvent, merchantAutomationEvent, orderNotificationEvent } from "@/platform/events/outbox";
 
 const MAX_WEBHOOK_BYTES = 64 * 1024;
 const webhookSchema = z.object({
@@ -93,11 +91,7 @@ export async function POST(request: Request) {
       await db.update(webhookEvents).set({ status: "FAILED", responseStatus: 404, errorMessage: "Order atau payment session belum ditemukan", updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));
       return jsonResponse({ error: "Order not found" }, 404, requestId);
     }
-    await db.update(webhookEvents).set({
-      orderId: row.order.id,
-      workspaceId: row.order.workspaceId,
-      updatedAt: new Date(),
-    }).where(eq(webhookEvents.id, eventRecord.id));
+    await db.update(webhookEvents).set({ orderId: row.order.id, updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));
 
     if (payload.event === "payment_session.completed") {
       if (payload.data.status !== "COMPLETED" || payload.data.amount !== row.order.amount || !row.order.customerId || row.order.paymentMethod !== "XENDIT") {
@@ -120,20 +114,21 @@ export async function POST(request: Request) {
           .where(eq(serviceCases.orderId, row.order.id));
         await fulfillPaidOrder(tx, row.order.id);
         await recordPaidOrderAccounting(tx, row.order.id);
-        await publishOrderPaidEvent(tx, {
+        await enqueueDomainEvent(tx, orderNotificationEvent({
           orderId: row.order.id,
+          notificationEvent: "PAYMENT_APPROVED",
           correlationId: requestId,
-          causationId: eventRecord.id,
-        });
+        }));
+        await enqueueDomainEvent(tx, merchantAutomationEvent({
+          sourceId: row.order.id,
+          trigger: "PURCHASED",
+          correlationId: requestId,
+        }));
         return true;
       });
       if (!applied) {
         await db.update(webhookEvents).set({ status: "IGNORED", responseStatus: 200, errorMessage: "Order sudah diproses atau direfund", processedAt: new Date(), updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));
         return jsonResponse({ received: true, ignored: true }, 200, requestId);
-      }
-      if (process.env.OUTBOX_PROCESSING_ENABLED !== "true") {
-        await dispatchOrderNotifications(row.order.id, "PAYMENT_APPROVED");
-        await dispatchMerchantAutomations("PURCHASED", row.order.id);
       }
     } else if (payload.data.status !== "EXPIRED") {
       await db.update(webhookEvents).set({ status: "REJECTED", responseStatus: 422, errorMessage: "Status event expired tidak sesuai", processedAt: new Date(), updatedAt: new Date() }).where(eq(webhookEvents.id, eventRecord.id));

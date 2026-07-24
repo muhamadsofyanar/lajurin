@@ -11,13 +11,12 @@ import { db } from "@/lib/db";
 import { recordPaidOrderAccounting } from "@/lib/finance";
 import { featureEnabled, requireFeature } from "@/lib/feature-flags";
 import { fulfillPaidOrder } from "@/lib/funnel";
-import { dispatchOrderNotifications } from "@/lib/notifications";
-import { dispatchMerchantAutomations } from "@/lib/automation";
 import { canReviewManualPayment, requiresAdminOverrideReason } from "@/lib/manual-payment";
 import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, platformReceivableEntries, products, serviceCases } from "@/lib/schema";
 import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
 import { currentRequestIdentity, enforceRateLimit, verifyUploadSignature } from "@/lib/security";
-import { publishOrderPaidEvent, publishPaymentRejectedEvent } from "@/platform/events/outbox";
+import { enqueueDomainEvent, merchantAutomationEvent, orderNotificationEvent } from "@/platform/events/outbox";
+import { currentCorrelationContext } from "@/platform/observability/server-context";
 
 const proofTypes: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -127,11 +126,9 @@ async function reviewManualPayment(input: {
 }) {
   const parsedDecision = z.enum(["approve", "reject"]).parse(input.decision);
   const destination = input.reviewerRole === "ADMIN" ? "/admin/payments" : "/dashboard/payments";
-  const correlationId = randomUUID();
-  let reviewedOrder: { id: string; amount: number };
-
+  const requestContext = await currentCorrelationContext();
   try {
-    reviewedOrder = await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`order:${input.orderId}`}))`);
       const [row] = await tx.select({ order: orders, merchantId: products.merchantId }).from(orders)
         .innerJoin(products, eq(orders.productId, products.id))
@@ -164,20 +161,10 @@ async function reviewManualPayment(input: {
           .where(eq(serviceCases.orderId, row.order.id));
         await fulfillPaidOrder(tx, row.order.id);
         await recordPaidOrderAccounting(tx, row.order.id);
-        await publishOrderPaidEvent(tx, {
-          orderId: row.order.id,
-          actorId: input.reviewerId,
-          correlationId,
-        });
-      } else {
-        await publishPaymentRejectedEvent(tx, {
-          orderId: row.order.id,
-          actorId: input.reviewerId,
-          correlationId,
-        });
       }
       await tx.insert(auditLogs).values({
         actorId: input.reviewerId,
+        requestId: requestContext.requestId,
         action: parsedDecision === "approve" ? "MANUAL_PAYMENT_APPROVED" : "MANUAL_PAYMENT_REJECTED",
         entityType: "ORDER",
         entityId: row.order.id,
@@ -189,17 +176,25 @@ async function reviewManualPayment(input: {
           adminOverride: input.reviewerRole === "ADMIN" && row.order.settlementMode === "MERCHANT_DIRECT",
         },
       });
-      return { id: row.order.id, amount: row.order.amount };
+      await enqueueDomainEvent(tx, orderNotificationEvent({
+        orderId: row.order.id,
+        notificationEvent: parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED",
+        correlationId: requestContext.correlationId,
+      }));
+      if (parsedDecision === "approve") {
+        await enqueueDomainEvent(tx, merchantAutomationEvent({
+          sourceId: row.order.id,
+          trigger: "PURCHASED",
+          correlationId: requestContext.correlationId,
+        }));
+      }
+      return undefined;
     });
   } catch (error) {
     if (error instanceof ManualPaymentReviewError) redirect(`${destination}?error=${encodeURIComponent(error.message)}`);
     throw error;
   }
 
-  if (process.env.OUTBOX_PROCESSING_ENABLED !== "true") {
-    await dispatchOrderNotifications(reviewedOrder.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
-    if (parsedDecision === "approve") await dispatchMerchantAutomations("PURCHASED", reviewedOrder.id);
-  }
   revalidatePath("/admin");
   revalidatePath("/admin/payments");
   revalidatePath("/admin/integrations");

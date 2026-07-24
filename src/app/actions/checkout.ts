@@ -11,10 +11,13 @@ import { featureEnabled } from "@/lib/feature-flags";
 import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
-import { dispatchOrderNotifications } from "@/lib/notifications";
 import { releaseOrderReservedStock } from "@/lib/inventory";
 import { affiliatePartners, affiliatePrograms, analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, productVariants, serviceCases, users } from "@/lib/schema";
 import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
+import { enqueueDomainEvent, orderNotificationEvent } from "@/platform/events/outbox";
+import { currentCorrelationContext } from "@/platform/observability/server-context";
+
+class CheckoutStockUnavailableError extends Error {}
 
 export async function checkoutAction(slug: string, formData: FormData) {
   const parsed = z
@@ -104,70 +107,88 @@ export async function checkoutAction(slug: string, formData: FormData) {
   }
 
   const externalId = `LJR-${Date.now()}-${randomUUID().slice(0, 8)}`;
-  const [order] = await db.insert(orders).values({
-      externalId,
-      productId: product.product.id,
-      workspaceId: product.product.workspaceId,
-      productVariantId: variant?.id ?? null,
-      productVariantName: variant?.name ?? null,
-      customerId: customer.id,
-      customerName: parsed.data.name,
-      customerEmail: parsed.data.email,
-      customerPhone: parsed.data.phone,
-      marketingConsent: parsed.data.marketingConsent,
-      marketingConsentAt: parsed.data.marketingConsent ? new Date() : null,
-      marketingConsentSource: parsed.data.marketingConsent ? "CHECKOUT" : null,
-      amount: finalAmount,
-      subtotalAmount,
-      discountAmount,
-      couponId: coupon?.id ?? null,
-      couponCode: coupon?.code ?? null,
-      orderBumpProductId: bumpProduct?.id ?? null,
-      orderBumpAmount: bumpAmount,
-      utmSource: parsed.data.utmSource || null,
-      utmMedium: parsed.data.utmMedium || null,
-      utmCampaign: parsed.data.utmCampaign || null,
-      affiliatePartnerId: affiliate?.id ?? null,
-      paymentMethod: parsed.data.paymentMethod,
-      ...accounting,
-      settlementMode: manualAccount ? "MERCHANT_DIRECT" : "PLATFORM",
-      manualDestinationBank: manualAccount?.bankName ?? null,
-      manualDestinationAccount: manualAccount?.accountNumber ?? null,
-      manualDestinationHolder: manualAccount?.accountHolder ?? null,
-    }).returning();
+  const requestContext = await currentCorrelationContext();
+  let order: typeof orders.$inferSelect;
 
-  if (variant?.stock !== null && variant?.stock !== undefined) {
-    const [reserved] = await db.update(productVariants).set({
-      stock: variant.stock - 1, updatedAt: new Date(),
-    }).where(and(eq(productVariants.id, variant.id), gt(productVariants.stock, 0))).returning({ id: productVariants.id });
-    if (!reserved) {
-      await db.delete(orders).where(eq(orders.id, order.id));
+  try {
+    order = await db.transaction(async (tx) => {
+      const [createdOrder] = await tx.insert(orders).values({
+        externalId,
+        productId: product.product.id,
+        productVariantId: variant?.id ?? null,
+        productVariantName: variant?.name ?? null,
+        customerId: customer.id,
+        customerName: parsed.data.name,
+        customerEmail: parsed.data.email,
+        customerPhone: parsed.data.phone,
+        marketingConsent: parsed.data.marketingConsent,
+        marketingConsentAt: parsed.data.marketingConsent ? new Date() : null,
+        marketingConsentSource: parsed.data.marketingConsent ? "CHECKOUT" : null,
+        amount: finalAmount,
+        subtotalAmount,
+        discountAmount,
+        couponId: coupon?.id ?? null,
+        couponCode: coupon?.code ?? null,
+        orderBumpProductId: bumpProduct?.id ?? null,
+        orderBumpAmount: bumpAmount,
+        utmSource: parsed.data.utmSource || null,
+        utmMedium: parsed.data.utmMedium || null,
+        utmCampaign: parsed.data.utmCampaign || null,
+        affiliatePartnerId: affiliate?.id ?? null,
+        paymentMethod: parsed.data.paymentMethod,
+        ...accounting,
+        settlementMode: manualAccount ? "MERCHANT_DIRECT" : "PLATFORM",
+        manualDestinationBank: manualAccount?.bankName ?? null,
+        manualDestinationAccount: manualAccount?.accountNumber ?? null,
+        manualDestinationHolder: manualAccount?.accountHolder ?? null,
+      }).returning();
+
+      if (variant?.stock !== null && variant?.stock !== undefined) {
+        const [reserved] = await tx.update(productVariants).set({
+          stock: sql`${productVariants.stock} - 1`,
+          updatedAt: new Date(),
+        }).where(and(eq(productVariants.id, variant.id), gt(productVariants.stock, 0)))
+          .returning({ id: productVariants.id });
+        if (!reserved) throw new CheckoutStockUnavailableError();
+      }
+
+      if (product.product.type === "SERVICE") {
+        await tx.insert(serviceCases).values({
+          orderId: createdOrder.id,
+          merchantId: product.product.merchantId,
+          customerId: customer.id,
+          status: "WAITING_PAYMENT",
+        });
+      }
+
+      await tx.insert(analyticsEvents).values({
+        productId: product.product.id,
+        orderId: createdOrder.id,
+        event: "CHECKOUT_STARTED",
+        utmSource: parsed.data.utmSource || null,
+        utmMedium: parsed.data.utmMedium || null,
+        utmCampaign: parsed.data.utmCampaign || null,
+      }).onConflictDoNothing({ target: [analyticsEvents.orderId, analyticsEvents.event] });
+
+      if (parsed.data.paymentMethod === "MANUAL_TRANSFER") {
+        await enqueueDomainEvent(tx, orderNotificationEvent({
+          orderId: createdOrder.id,
+          notificationEvent: "ORDER_CREATED",
+          correlationId: requestContext.correlationId,
+        }));
+      }
+      return createdOrder;
+    });
+  } catch (error) {
+    if (error instanceof CheckoutStockUnavailableError) {
       redirect(`/checkout/${slug}?error=Kuota+paket+baru+saja+habis`);
     }
+    throw error;
   }
-
-  if (product.product.type === "SERVICE") {
-    await db.insert(serviceCases).values({
-      orderId: order.id,
-      merchantId: product.product.merchantId,
-      customerId: customer.id,
-      status: "WAITING_PAYMENT",
-    });
-  }
-
-  await db.insert(analyticsEvents).values({
-    productId: product.product.id,
-    orderId: order.id,
-    event: "CHECKOUT_STARTED",
-    utmSource: parsed.data.utmSource || null,
-    utmMedium: parsed.data.utmMedium || null,
-    utmCampaign: parsed.data.utmCampaign || null,
-  }).onConflictDoNothing({ target: [analyticsEvents.orderId, analyticsEvents.event] });
 
   await createSession(customer.id);
 
   if (parsed.data.paymentMethod === "MANUAL_TRANSFER") {
-    await dispatchOrderNotifications(order.id, "ORDER_CREATED");
     redirect(`/payment/manual/${order.id}`);
   }
 
@@ -199,7 +220,17 @@ export async function checkoutAction(slug: string, formData: FormData) {
     redirect(`/checkout/${slug}?error=Layanan+pembayaran+belum+tersedia`);
   }
 
-  await db.update(orders).set({ xenditSessionId: paymentSession.payment_session_id, xenditPaymentUrl: paymentSession.payment_link_url, updatedAt: new Date() }).where(eq(orders.id, order.id));
-  await dispatchOrderNotifications(order.id, "ORDER_CREATED");
+  await db.transaction(async (tx) => {
+    await tx.update(orders).set({
+      xenditSessionId: paymentSession.payment_session_id,
+      xenditPaymentUrl: paymentSession.payment_link_url,
+      updatedAt: new Date(),
+    }).where(eq(orders.id, order.id));
+    await enqueueDomainEvent(tx, orderNotificationEvent({
+      orderId: order.id,
+      notificationEvent: "ORDER_CREATED",
+      correlationId: requestContext.correlationId,
+    }));
+  });
   redirect(paymentSession.payment_link_url);
 }

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { pool } from "@/lib/db";
+import { structuredLog } from "@/platform/observability/logger";
 
 export type RateLimitRule = { limit: number; windowMs: number; blockMs: number };
 
@@ -61,8 +62,5 @@ export function verifyUploadSignature(buffer: Buffer, mimeType: string) {
 }
 
 export function logEvent(level: "info" | "warn" | "error", event: string, metadata: Record<string, unknown> = {}) {
-  const entry = JSON.stringify({ timestamp: new Date().toISOString(), level, event, ...metadata });
-  if (level === "error") console.error(entry);
-  else if (level === "warn") console.warn(entry);
-  else console.info(entry);
+  structuredLog(level, event, metadata);
 }

@@ -7,17 +7,15 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Rizqhub berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_v5.0.0-alpha.1.md, dan AGENTS.md. Versi aktif harus 5.0.0-alpha.1 dengan migration 0026. Pertahankan reservasi payout affiliate, pelepasan stok idempoten, transactional outbox, RLS pilot, dan shadow rollout. Rilis wajib melewati migration database staging, test:db, provider sandbox, backup/restore drill, dan smoke test sebelum produksi. Jangan mengaktifkan OUTBOX_PROCESSING_ENABLED sebelum scheduler dan backlog terverifikasi. Jangan memperluas hak Staff ke finance, team, broadcast, atau domain. Automatic payout dan automatic refund belum boleh diaktifkan.
+Lanjutkan Rizqhub berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_v4.0.1.md, dan AGENTS.md. Versi aktif harus 4.0.1 dengan migration 0025. Pertahankan reservasi payout affiliate, pelepasan stok idempoten, dan normalisasi level verifikasi. Rilis wajib melewati migration database staging, test:db, provider sandbox, backup/restore drill, dan smoke test sebelum produksi. Jangan memperluas hak Staff ke finance, team, broadcast, atau domain. Draft builder tidak boleh mengubah publik sebelum publish. Broadcast wajib consent, antrean, batas, attempt log, dan retry maksimal tiga. Automatic payout dan automatic refund belum boleh diaktifkan.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `5.0.0-alpha.1` atau lebih baru.
-- Migration terbaru minimal `drizzle/0026_v5_platform_kernel.sql`.
-- Ada `src/platform/events/outbox.ts`, `handlers.ts`, dan `worker.ts`.
-- Ada tabel `outbox_events`, `event_consumptions`, `job_runs`, `job_attempts`, dan `dead_letter_events`.
+- `package.json` memiliki versi `4.0.1` atau lebih baru.
+- Migration terbaru minimal `drizzle/0025_financial_integrity.sql`.
 - `affiliate_commissions.payout_request_id` mengikat komisi ke payout tertentu.
 - `orders.stock_released_at` mencegah pengembalian stok ganda.
 - Ada `src/modules/workspace`, `src/platform/auth/workspace-context.ts`, dan `src/platform/feature-flags/workspace.ts`.

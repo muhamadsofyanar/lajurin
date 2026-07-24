@@ -6,4 +6,6 @@ export async function register() {
   if (failed.length) logEvent("warn", "runtime_configuration_incomplete", { failed: failed.map((check) => check.key) });
   const { registerProcessMonitoring } = await import("@/lib/process-monitoring");
   registerProcessMonitoring();
+  const { registerOutboxWorker } = await import("@/platform/jobs/register-outbox-worker");
+  registerOutboxWorker();
 }

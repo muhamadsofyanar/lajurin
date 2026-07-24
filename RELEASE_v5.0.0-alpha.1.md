@@ -1,54 +1,24 @@
 # Rizqhub v5.0.0-alpha.1 — Platform Kernel
 
-Rilis ini adalah fase pertama blueprint v5, bukan klaim bahwa seluruh v5 sudah
-selesai. Schema bersifat aditif dan jalur v4 dipertahankan selama shadow rollout.
+Rilis alpha pertama v5 mengimplementasikan fondasi reliabilitas tanpa rewrite total dan tanpa menghapus fitur v4.
 
-## Isi rilis
+## Perubahan utama
 
-- Workspace scope langsung pada `products`, `orders`, dan `webhook_events`.
-- Backfill workspace dari compatibility link merchant.
-- Transactional outbox untuk pembayaran berhasil dan ditolak.
-- Worker `SKIP LOCKED`, retry eksponensial, stale-lock recovery, consumption
-  idempoten, attempt log, dead-letter, dan replay.
-- RLS pilot pada `outbox_events`.
-- Backlog dan dead-letter pada pusat operasional.
-- Migration `0026_v5_platform_kernel.sql`.
+- transactional outbox dan worker;
+- retry, lease, idempotent consumption, dead-letter, dan replay;
+- request/correlation/trace ID propagation;
+- structured logging;
+- generic policy engine;
+- payment completion dan manual payment review tidak lagi memanggil provider eksternal dalam transaksi request utama;
+- checkout stock reservation diperbaiki menjadi decrement atomik;
+- operational dashboard untuk outbox dan job runs;
+- migration `0026_v500_platform_kernel.sql`;
+- test platform kernel dan integration test outbox.
 
-## Rollout produksi
+## Aktivasi
 
-1. Rotasi semua secret yang pernah terekspos dan buat backup PostgreSQL.
-2. Restore backup ke staging dan jalankan seluruh migration serta `npm run test:db`.
-3. Deploy dengan:
+Setelah migration, gunakan worker tertanam (`OUTBOX_WORKER_ENABLED=true`) pada deployment Coolify. Sebagai alternatif, matikan worker tertanam dan jadwalkan `POST /api/jobs/outbox` minimal setiap satu menit dengan `INTERNAL_JOB_SECRET`. Jangan mengaktifkan dua mode tanpa kebutuhan operasional yang jelas.
 
-   ```env
-   DEPLOYMENT_ENV=production
-   OUTBOX_PROCESSING_ENABLED=false
-   OUTBOX_BATCH_SIZE=20
-   ```
+## Status
 
-4. Pastikan `/api/ready` sehat dan `/admin/operations` tidak menampilkan error.
-5. Buat scheduler Coolify setiap satu menit:
-
-   ```text
-   POST https://rizqhub.id/api/jobs/events
-   Authorization: Bearer <INTERNAL_JOB_SECRET>
-   ```
-
-6. Amati event `PENDING`, `RETRY`, dan `DEAD`. Shadow mode tetap menjalankan
-   side effect legacy; unique delivery mencegah pengiriman ulang.
-7. Setelah staging dan produksi canary stabil, ubah
-   `OUTBOX_PROCESSING_ENABLED=true`, lalu redeploy.
-
-## Rollback aman
-
-Jika worker bermasalah, kembalikan `OUTBOX_PROCESSING_ENABLED=false` dan
-redeploy. Jangan menghapus migration atau tabel outbox. Event yang tertunda dapat
-diproses kembali setelah worker diperbaiki.
-
-## Gate wajib
-
-- Migration dan rerun migration lulus pada PostgreSQL.
-- Cross-workspace read/write ditolak oleh negative test RLS.
-- Duplicate webhook tidak membuat dua event finansial atau dua delivery.
-- Retry dan dead-letter terbukti dengan provider mock/sandbox.
-- Backup dan restore memiliki bukti, bukan hanya status jadwal.
+Alpha. Wajib staging, PostgreSQL integration test, provider sandbox, dan restore drill sebelum production.

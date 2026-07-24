@@ -31,10 +31,9 @@ export const workspaceDomainStatusEnum = pgEnum("workspace_domain_status", ["PEN
 export const featureFlagRolloutEnum = pgEnum("feature_flag_rollout", ["OFF", "ALL", "USERS"]);
 export const commissionPaymentStatusEnum = pgEnum("commission_payment_status", ["SUBMITTED", "APPROVED", "REJECTED"]);
 export const workspaceInvitationStatusEnum = pgEnum("workspace_invitation_status", ["PENDING", "ACCEPTED", "REVOKED", "EXPIRED"]);
-export const outboxEventStatusEnum = pgEnum("outbox_event_status", ["PENDING", "PROCESSING", "RETRY", "PROCESSED", "DEAD"]);
-export const eventConsumptionStatusEnum = pgEnum("event_consumption_status", ["PROCESSING", "PROCESSED", "FAILED"]);
-export const jobRunStatusEnum = pgEnum("job_run_status", ["RUNNING", "SUCCEEDED", "PARTIAL", "FAILED"]);
-export const jobAttemptStatusEnum = pgEnum("job_attempt_status", ["RUNNING", "SUCCEEDED", "FAILED"]);
+export const outboxEventStatusEnum = pgEnum("outbox_event_status", ["PENDING", "PROCESSING", "RETRY", "COMPLETED", "DEAD_LETTER"]);
+export const jobRunStatusEnum = pgEnum("job_run_status", ["RUNNING", "SUCCEEDED", "FAILED", "PARTIAL"]);
+export const jobAttemptStatusEnum = pgEnum("job_attempt_status", ["SUCCEEDED", "FAILED", "SKIPPED"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -250,17 +249,12 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(), merchantId: uuid("merchant_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "restrict" }),
   name: text("name").notNull(), slug: text("slug").notNull(), headline: text("headline").notNull(), description: text("description").notNull(),
   price: integer("price").notNull(), type: productTypeEnum("type").default("COURSE").notNull(),
   category: text("category").default("LAINNYA").notNull(),
   isFeatured: boolean("is_featured").default(false).notNull(),
   status: productStatusEnum("status").default("DRAFT").notNull(), ...timestamps,
-}, (table) => [
-  uniqueIndex("products_slug_unique").on(table.slug),
-  index("products_merchant_idx").on(table.merchantId, table.status),
-  index("products_workspace_status_idx").on(table.workspaceId, table.status),
-]);
+}, (table) => [uniqueIndex("products_slug_unique").on(table.slug), index("products_merchant_idx").on(table.merchantId, table.status)]);
 
 export const affiliatePrograms = pgTable("affiliate_programs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -494,7 +488,6 @@ export const lessonProgress = pgTable("lesson_progress", {
 
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(), externalId: text("external_id").notNull(), productId: uuid("product_id").notNull().references(() => products.id),
-  workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "restrict" }),
   customerId: uuid("customer_id").references(() => users.id), customerName: text("customer_name").notNull(), customerEmail: text("customer_email").notNull(), customerPhone: text("customer_phone"),
   marketingConsent: boolean("marketing_consent").default(false).notNull(),
   marketingConsentAt: timestamp("marketing_consent_at", { withTimezone: true }),
@@ -519,12 +512,7 @@ export const orders = pgTable("orders", {
   refundedAt: timestamp("refunded_at", { withTimezone: true }), refundAmount: integer("refund_amount"), refundReference: text("refund_reference"),
   refundReason: text("refund_reason"), refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
   stockReleasedAt: timestamp("stock_released_at", { withTimezone: true }),
-}, (table) => [
-  uniqueIndex("orders_external_unique").on(table.externalId),
-  uniqueIndex("orders_invoice_unique").on(table.xenditSessionId),
-  index("orders_product_idx").on(table.productId, table.status),
-  index("orders_workspace_status_idx").on(table.workspaceId, table.status, table.createdAt),
-]);
+}, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
 
 export const productReviews = pgTable("product_reviews", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -734,7 +722,6 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const webhookEvents = pgTable("webhook_events", {
   id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "restrict" }),
   provider: text("provider").default("XENDIT").notNull(),
   fingerprint: text("fingerprint").notNull(),
   requestId: text("request_id").notNull(),
@@ -751,97 +738,91 @@ export const webhookEvents = pgTable("webhook_events", {
   uniqueIndex("webhook_events_fingerprint_unique").on(table.provider, table.fingerprint),
   index("webhook_events_created_idx").on(table.createdAt),
   index("webhook_events_order_idx").on(table.orderId, table.createdAt),
-  index("webhook_events_workspace_created_idx").on(table.workspaceId, table.createdAt),
   index("webhook_events_status_idx").on(table.status, table.createdAt),
 ]);
 
 export const outboxEvents = pgTable("outbox_events", {
   id: uuid("id").primaryKey().defaultRandom(),
-  eventName: text("event_name").notNull(),
+  workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "restrict" }),
+  aggregateType: text("aggregate_type").notNull(),
+  aggregateId: text("aggregate_id").notNull(),
+  eventType: text("event_type").notNull(),
   eventVersion: integer("event_version").default(1).notNull(),
-  occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
-  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
-  subjectType: text("subject_type").notNull(),
-  subjectId: text("subject_id").notNull(),
-  correlationId: text("correlation_id").notNull(),
-  causationId: text("causation_id"),
   payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
   status: outboxEventStatusEnum("status").default("PENDING").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  maxAttempts: integer("max_attempts").default(8).notNull(),
   availableAt: timestamp("available_at", { withTimezone: true }).defaultNow().notNull(),
-  attemptCount: integer("attempt_count").default(0).notNull(),
-  maxAttempts: integer("max_attempts").default(5).notNull(),
   lockedAt: timestamp("locked_at", { withTimezone: true }),
   lockedBy: text("locked_by"),
   lastError: text("last_error"),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  deduplicationKey: text("deduplication_key"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [
-  index("outbox_events_status_available_idx").on(table.status, table.availableAt, table.occurredAt),
-  index("outbox_events_workspace_occurred_idx").on(table.workspaceId, table.occurredAt),
-  index("outbox_events_correlation_idx").on(table.correlationId),
+  index("outbox_events_ready_idx").on(table.status, table.availableAt, table.occurredAt),
+  index("outbox_events_workspace_idx").on(table.workspaceId, table.occurredAt),
+  index("outbox_events_aggregate_idx").on(table.aggregateType, table.aggregateId, table.occurredAt),
+  uniqueIndex("outbox_events_deduplication_unique").on(table.eventType, table.deduplicationKey),
 ]);
 
 export const eventConsumptions = pgTable("event_consumptions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  eventId: uuid("event_id").notNull().references(() => outboxEvents.id, { onDelete: "restrict" }),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+  eventId: uuid("event_id").notNull().references(() => outboxEvents.id, { onDelete: "cascade" }),
   consumerName: text("consumer_name").notNull(),
-  status: eventConsumptionStatusEnum("status").default("PROCESSING").notNull(),
-  attemptCount: integer("attempt_count").default(1).notNull(),
-  lastError: text("last_error"),
-  processedAt: timestamp("processed_at", { withTimezone: true }),
-  ...timestamps,
+  processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
+  result: jsonb("result").$type<Record<string, unknown>>().default({}).notNull(),
 }, (table) => [
-  uniqueIndex("event_consumptions_consumer_event_unique").on(table.consumerName, table.eventId),
-  index("event_consumptions_workspace_status_idx").on(table.workspaceId, table.status, table.updatedAt),
+  uniqueIndex("event_consumptions_event_consumer_unique").on(table.eventId, table.consumerName),
+  index("event_consumptions_consumer_idx").on(table.consumerName, table.processedAt),
 ]);
 
 export const jobRuns = pgTable("job_runs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  workerName: text("worker_name").notNull(),
-  correlationId: text("correlation_id").notNull(),
-  requestedBy: text("requested_by"),
+  jobName: text("job_name").notNull(),
+  workerId: text("worker_id").notNull(),
   status: jobRunStatusEnum("status").default("RUNNING").notNull(),
+  correlationId: text("correlation_id").notNull(),
   claimedCount: integer("claimed_count").default(0).notNull(),
-  processedCount: integer("processed_count").default(0).notNull(),
+  succeededCount: integer("succeeded_count").default(0).notNull(),
   failedCount: integer("failed_count").default(0).notNull(),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  errorMessage: text("error_message"),
   startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
 }, (table) => [
-  index("job_runs_worker_started_idx").on(table.workerName, table.startedAt),
+  index("job_runs_name_started_idx").on(table.jobName, table.startedAt),
   index("job_runs_status_started_idx").on(table.status, table.startedAt),
 ]);
 
 export const jobAttempts = pgTable("job_attempts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  jobRunId: uuid("job_run_id").notNull().references(() => jobRuns.id, { onDelete: "restrict" }),
-  eventId: uuid("event_id").notNull().references(() => outboxEvents.id, { onDelete: "restrict" }),
+  jobRunId: uuid("job_run_id").notNull().references(() => jobRuns.id, { onDelete: "cascade" }),
+  outboxEventId: uuid("outbox_event_id").references(() => outboxEvents.id, { onDelete: "set null" }),
   attemptNumber: integer("attempt_number").notNull(),
-  status: jobAttemptStatusEnum("status").default("RUNNING").notNull(),
+  status: jobAttemptStatusEnum("status").notNull(),
   errorMessage: text("error_message"),
   startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
-  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  uniqueIndex("job_attempts_event_number_unique").on(table.eventId, table.attemptNumber),
-  index("job_attempts_run_status_idx").on(table.jobRunId, table.status),
+  index("job_attempts_run_idx").on(table.jobRunId, table.startedAt),
+  index("job_attempts_event_idx").on(table.outboxEventId, table.startedAt),
 ]);
 
 export const deadLetterEvents = pgTable("dead_letter_events", {
   id: uuid("id").primaryKey().defaultRandom(),
-  eventId: uuid("event_id").notNull().references(() => outboxEvents.id, { onDelete: "restrict" }),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
-  eventName: text("event_name").notNull(),
-  payload: jsonb("payload").$type<Record<string, unknown>>().default({}).notNull(),
-  attemptCount: integer("attempt_count").notNull(),
-  lastError: text("last_error").notNull(),
+  outboxEventId: uuid("outbox_event_id").notNull().references(() => outboxEvents.id, { onDelete: "restrict" }),
+  reason: text("reason").notNull(),
+  payloadSnapshot: jsonb("payload_snapshot").$type<Record<string, unknown>>().default({}).notNull(),
   failedAt: timestamp("failed_at", { withTimezone: true }).defaultNow().notNull(),
   replayedAt: timestamp("replayed_at", { withTimezone: true }),
-  replayedBy: text("replayed_by"),
+  replayedBy: uuid("replayed_by").references(() => users.id, { onDelete: "set null" }),
 }, (table) => [
-  uniqueIndex("dead_letter_events_event_unique").on(table.eventId),
-  index("dead_letter_events_workspace_failed_idx").on(table.workspaceId, table.failedAt),
+  uniqueIndex("dead_letter_events_outbox_unique").on(table.outboxEventId),
+  index("dead_letter_events_failed_idx").on(table.failedAt),
 ]);
 
 export const rateLimits = pgTable("rate_limits", {

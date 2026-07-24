@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { normalizeHostname, platformHostnameSet } from "@/lib/hostnames";
+import { correlationContextFromHeaders, correlationHeaders } from "@/platform/observability/context";
 
 function requestHostnameCandidates(request: NextRequest) {
   const candidates = [
@@ -11,16 +12,32 @@ function requestHostnameCandidates(request: NextRequest) {
 }
 
 export function proxy(request: NextRequest) {
+  const context = correlationContextFromHeaders(request.headers);
+  const propagatedHeaders = new Headers(request.headers);
+  for (const [key, value] of Object.entries(correlationHeaders(context))) propagatedHeaders.set(key, value);
+
   const requestHostnames = requestHostnameCandidates(request);
   const platformHostnames = platformHostnameSet();
-  if (requestHostnames.some((hostname) => platformHostnames.has(hostname))) return NextResponse.next();
-
   const requestHostname = requestHostnames[0];
-  if (!requestHostname) return NextResponse.next();
+  const shouldRewriteCustomDomainRoot = Boolean(
+    requestHostname
+    && request.nextUrl.pathname === "/"
+    && !requestHostnames.some((hostname) => platformHostnames.has(hostname)),
+  );
 
-  const destination = request.nextUrl.clone();
-  destination.pathname = `/d/${encodeURIComponent(requestHostname)}`;
-  return NextResponse.rewrite(destination);
+  let response: NextResponse;
+  if (shouldRewriteCustomDomainRoot) {
+    const destination = request.nextUrl.clone();
+    destination.pathname = `/d/${encodeURIComponent(requestHostname!)}`;
+    response = NextResponse.rewrite(destination, { request: { headers: propagatedHeaders } });
+  } else {
+    response = NextResponse.next({ request: { headers: propagatedHeaders } });
+  }
+
+  for (const [key, value] of Object.entries(correlationHeaders(context))) response.headers.set(key, value);
+  return response;
 }
 
-export const config = { matcher: "/" };
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+};

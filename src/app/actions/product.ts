@@ -64,7 +64,6 @@ export async function createProductAction(formData: FormData) {
   const product = await db.transaction(async (tx) => {
     const [created] = await tx.insert(products).values({
       merchantId: merchant.id,
-      workspaceId: merchant.workspaceId,
       ...parsed.data,
       slug: await uniqueSlug(parsed.data.name),
     }).returning();

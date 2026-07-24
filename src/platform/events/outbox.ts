@@ -1,105 +1,86 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
-import type { AppTransaction } from "@/lib/finance";
-import { legacyMerchantWorkspaceLinks, orders, outboxEvents, products } from "@/lib/schema";
+import { sql, type SQL } from "drizzle-orm";
+import type { EnqueueDomainEventInput } from "./types";
 
-export type DomainEventInput = Readonly<{
-  eventName: string;
-  eventVersion?: number;
-  workspaceId: string;
-  actorId?: string | null;
-  subjectType: string;
-  subjectId: string;
-  correlationId?: string;
-  causationId?: string | null;
-  payload?: Record<string, unknown>;
-  availableAt?: Date;
-  maxAttempts?: number;
+export type SqlExecutor = Readonly<{
+  execute(query: SQL): unknown;
 }>;
 
-export async function setWorkspaceTransactionScope(tx: AppTransaction, workspaceId: string) {
-  await tx.execute(sql`select set_config('app.workspace_id', ${workspaceId}, true)`);
+function positiveInteger(value: number | undefined, fallback: number) {
+  return Number.isInteger(value) && (value ?? 0) > 0 ? value! : fallback;
 }
 
-export async function ensureOrderWorkspaceId(tx: AppTransaction, orderId: string) {
-  const [row] = await tx.select({
-    productId: orders.productId,
-    orderWorkspaceId: orders.workspaceId,
-    productWorkspaceId: products.workspaceId,
-    linkedWorkspaceId: legacyMerchantWorkspaceLinks.workspaceId,
-  }).from(orders)
-    .innerJoin(products, eq(products.id, orders.productId))
-    .leftJoin(legacyMerchantWorkspaceLinks, eq(legacyMerchantWorkspaceLinks.legacyMerchantUserId, products.merchantId))
-    .where(eq(orders.id, orderId))
-    .limit(1);
+export async function enqueueDomainEvent(
+  executor: SqlExecutor,
+  input: EnqueueDomainEventInput,
+) {
+  const eventId = input.id ?? randomUUID();
+  const eventVersion = positiveInteger(input.eventVersion, 1);
+  const maxAttempts = positiveInteger(input.maxAttempts, 8);
+  const payload = JSON.stringify(input.payload);
 
-  const workspaceId = row?.orderWorkspaceId ?? row?.productWorkspaceId ?? row?.linkedWorkspaceId;
-  if (!workspaceId) throw new Error("Workspace order belum tersedia");
+  await executor.execute(sql`
+    INSERT INTO outbox_events (
+      id, workspace_id, aggregate_type, aggregate_id, event_type, event_version,
+      payload, status, attempts, max_attempts, available_at, correlation_id,
+      causation_id, deduplication_key, occurred_at, created_at, updated_at
+    ) VALUES (
+      ${eventId}::uuid,
+      ${input.workspaceId ?? null}::uuid,
+      ${input.aggregateType},
+      ${input.aggregateId},
+      ${input.eventType},
+      ${eventVersion},
+      ${payload}::jsonb,
+      'PENDING',
+      0,
+      ${maxAttempts},
+      ${input.availableAt ?? new Date()},
+      ${input.correlationId},
+      ${input.causationId ?? null},
+      ${input.deduplicationKey ?? null},
+      now(),
+      now(),
+      now()
+    )
+    ON CONFLICT (event_type, deduplication_key) DO NOTHING
+  `);
 
-  if (!row.orderWorkspaceId) {
-    await tx.update(orders).set({ workspaceId, updatedAt: new Date() }).where(eq(orders.id, orderId));
-  }
-  if (!row.productWorkspaceId) {
-    await tx.update(products).set({ workspaceId, updatedAt: new Date() }).where(eq(products.id, row.productId));
-  }
-  return workspaceId;
+  return eventId;
 }
 
-export async function publishOutboxEvent(tx: AppTransaction, input: DomainEventInput) {
-  if (!/^[a-z][a-z0-9_.-]+\.v[1-9][0-9]*$/.test(input.eventName)) {
-    throw new Error(`Nama event tidak valid: ${input.eventName}`);
-  }
-  const eventVersion = input.eventVersion ?? Number(input.eventName.match(/\.v([0-9]+)$/)?.[1] ?? 1);
-  const correlationId = input.correlationId ?? randomUUID();
-  await setWorkspaceTransactionScope(tx, input.workspaceId);
-  const [event] = await tx.insert(outboxEvents).values({
-    eventName: input.eventName,
-    eventVersion,
-    workspaceId: input.workspaceId,
-    actorId: input.actorId ?? null,
-    subjectType: input.subjectType,
-    subjectId: input.subjectId,
-    correlationId,
-    causationId: input.causationId ?? null,
-    payload: input.payload ?? {},
-    availableAt: input.availableAt ?? new Date(),
-    maxAttempts: input.maxAttempts ?? 5,
-  }).returning();
-  return event;
-}
-
-export async function publishOrderPaidEvent(tx: AppTransaction, input: {
+export function orderNotificationEvent(input: {
   orderId: string;
-  actorId?: string | null;
-  correlationId?: string;
-  causationId?: string | null;
+  notificationEvent: "ORDER_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_REJECTED" | "CHECKOUT_REMINDER";
+  correlationId: string;
+  workspaceId?: string | null;
 }) {
-  const workspaceId = await ensureOrderWorkspaceId(tx, input.orderId);
-  return publishOutboxEvent(tx, {
-    eventName: "order.paid.v1",
-    workspaceId,
-    actorId: input.actorId,
-    subjectType: "ORDER",
-    subjectId: input.orderId,
+  return {
+    workspaceId: input.workspaceId ?? null,
+    aggregateType: "ORDER",
+    aggregateId: input.orderId,
+    eventType: "notification.order.v1",
+    eventVersion: 1,
+    payload: { orderId: input.orderId, notificationEvent: input.notificationEvent },
     correlationId: input.correlationId,
-    causationId: input.causationId,
-    payload: { orderId: input.orderId },
-  });
+    deduplicationKey: `${input.orderId}:${input.notificationEvent}`,
+  } as const;
 }
 
-export async function publishPaymentRejectedEvent(tx: AppTransaction, input: {
-  orderId: string;
-  actorId: string;
-  correlationId?: string;
+export function merchantAutomationEvent(input: {
+  sourceId: string;
+  trigger: "PURCHASED" | "COURSE_COMPLETED";
+  correlationId: string;
+  workspaceId?: string | null;
 }) {
-  const workspaceId = await ensureOrderWorkspaceId(tx, input.orderId);
-  return publishOutboxEvent(tx, {
-    eventName: "payment.rejected.v1",
-    workspaceId,
-    actorId: input.actorId,
-    subjectType: "ORDER",
-    subjectId: input.orderId,
+  return {
+    workspaceId: input.workspaceId ?? null,
+    aggregateType: "AUTOMATION_SOURCE",
+    aggregateId: input.sourceId,
+    eventType: "automation.merchant.v1",
+    eventVersion: 1,
+    payload: { sourceId: input.sourceId, trigger: input.trigger },
     correlationId: input.correlationId,
-    payload: { orderId: input.orderId },
-  });
+    deduplicationKey: `${input.sourceId}:${input.trigger}`,
+  } as const;
 }

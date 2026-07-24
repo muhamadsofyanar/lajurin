@@ -1,8 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { and, eq, inArray, lte } from "drizzle-orm";
-import { dispatchOrderNotifications } from "@/lib/notifications";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/schema";
+import { enqueueDomainEvent, orderNotificationEvent } from "@/platform/events/outbox";
+import { correlationContextFromHeaders } from "@/platform/observability/context";
 
 function tokenMatches(received: string | null, expected: string | undefined) {
   if (!received || !expected) return false;
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
     eq(orders.marketingConsent, true),
     lte(orders.createdAt, threshold),
   )).limit(100);
-  await Promise.all(rows.map((row) => dispatchOrderNotifications(row.id, "CHECKOUT_REMINDER")));
-  return Response.json({ ok: true, processed: rows.length }, { headers: { "cache-control": "no-store" } });
+  const context = correlationContextFromHeaders(request.headers);
+  await db.transaction(async (tx) => {
+    for (const row of rows) {
+      await enqueueDomainEvent(tx, orderNotificationEvent({
+        orderId: row.id,
+        notificationEvent: "CHECKOUT_REMINDER",
+        correlationId: context.correlationId,
+      }));
+    }
+  });
+  return Response.json({ ok: true, queued: rows.length, requestId: context.requestId }, {
+    headers: { "cache-control": "no-store", "x-request-id": context.requestId },
+  });
 }

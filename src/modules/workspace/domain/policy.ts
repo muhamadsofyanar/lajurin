@@ -1,4 +1,5 @@
 import { WorkspaceAccessError } from "./errors";
+import { evaluatePolicy, type PolicyRule } from "@/platform/policy/engine";
 import type { WorkspaceContext, WorkspaceMembershipRole, WorkspaceMembershipStatus, WorkspacePermission } from "./types";
 
 const permissionsByRole: Record<WorkspaceMembershipRole, readonly WorkspacePermission[]> = {
@@ -9,10 +10,18 @@ const permissionsByRole: Record<WorkspaceMembershipRole, readonly WorkspacePermi
   MEMBER: ["workspace.read"],
 };
 
+const workspacePermissionRule: PolicyRule<WorkspaceContext, WorkspacePermission> = {
+  name: "workspace.permission",
+  evaluate: (context, permission) => {
+    if (context.workspaceStatus !== "ACTIVE") return { allowed: false, reason: "WORKSPACE_NOT_ACTIVE" };
+    if (context.membershipStatus !== "ACTIVE") return { allowed: false, reason: "MEMBERSHIP_NOT_ACTIVE" };
+    const allowed = permissionsByRole[context.membershipRole].includes(permission);
+    return { allowed, reason: allowed ? "ROLE_PERMISSION_GRANTED" : "ROLE_PERMISSION_MISSING" };
+  },
+};
+
 export function hasWorkspacePermission(context: WorkspaceContext, permission: WorkspacePermission) {
-  return context.membershipStatus === "ACTIVE"
-    && context.workspaceStatus === "ACTIVE"
-    && permissionsByRole[context.membershipRole].includes(permission);
+  return evaluatePolicy(workspacePermissionRule, context, permission).allowed;
 }
 
 export function requireWorkspacePermission(context: WorkspaceContext, permission: WorkspacePermission) {

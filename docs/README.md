@@ -2,6 +2,12 @@
 
 Dokumentasi ini menjadi sumber keputusan produk, arsitektur, implementasi, dan operasi Rizqhub.
 
+## Blueprint dan implementasi v5
+
+- [`Rizqhub_v5_Blueprint.md`](Rizqhub_v5_Blueprint.md): target arsitektur dan roadmap v5.
+- [`implementation/V5_PHASE_0_1_STATUS.md`](implementation/V5_PHASE_0_1_STATUS.md): status implementasi Fase 0–1.
+- [`operations/OUTBOX_WORKER.md`](operations/OUTBOX_WORKER.md): runbook transactional outbox, worker, retry, dan replay.
+
 ## Fondasi platform
 
 - [`Rizqhub_Platform_Foundation_v1.1.md`](Rizqhub_Platform_Foundation_v1.1.md): Product Vision, Product Principles, Platform Blueprint, Domain Model, strategi migrasi, dan roadmap.

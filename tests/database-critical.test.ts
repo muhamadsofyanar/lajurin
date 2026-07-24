@@ -1,22 +1,19 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { reserveAffiliatePayout, settleAffiliatePayout } from "../src/lib/affiliate-payout";
 import { db, pool } from "../src/lib/db";
 import { reacquireReleasedOrderStock, releaseOrderReservedStock } from "../src/lib/inventory";
-import { publishOutboxEvent, setWorkspaceTransactionScope } from "../src/platform/events/outbox";
 import {
   affiliateCommissions,
   affiliatePartners,
   affiliatePayoutRequests,
   affiliatePrograms,
   orders,
-  outboxEvents,
   products,
   productVariants,
   users,
-  workspaces,
 } from "../src/lib/schema";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "true";
@@ -25,10 +22,7 @@ const rollback = Symbol("ROLLBACK_TEST_TRANSACTION");
 test("database menjaga reservasi payout affiliate dan pelepasan stok secara idempoten", {
   skip: !enabled,
 }, async () => {
-  const rlsRole = `rizqhub_rls_${randomUUID().replaceAll("-", "")}`;
   try {
-    await pool.query(`CREATE ROLE "${rlsRole}" NOLOGIN`);
-    await pool.query(`GRANT SELECT, INSERT ON outbox_events TO "${rlsRole}"`);
     await db.transaction(async (tx) => {
       const suffix = randomUUID();
       const [merchant, affiliate, admin] = await tx.insert(users).values([
@@ -36,25 +30,8 @@ test("database menjaga reservasi payout affiliate dan pelepasan stok secara idem
         { name: "Affiliate Test", email: `affiliate-${suffix}@example.test`, passwordHash: "test", role: "MEMBER" },
         { name: "Admin Test", email: `admin-${suffix}@example.test`, passwordHash: "test", role: "ADMIN" },
       ]).returning();
-      const [workspaceA, workspaceB] = await tx.insert(workspaces).values([
-        {
-          name: "Workspace Integritas A",
-          slug: `workspace-a-${suffix}`,
-          kind: "EXTERNAL",
-          status: "ACTIVE",
-          createdBy: merchant.id,
-        },
-        {
-          name: "Workspace Integritas B",
-          slug: `workspace-b-${suffix}`,
-          kind: "EXTERNAL",
-          status: "ACTIVE",
-          createdBy: admin.id,
-        },
-      ]).returning();
       const [product] = await tx.insert(products).values({
         merchantId: merchant.id,
-        workspaceId: workspaceA.id,
         name: "Produk Integritas",
         slug: `produk-integritas-${suffix}`,
         headline: "Produk untuk pengujian integritas transaksi",
@@ -74,7 +51,6 @@ test("database menjaga reservasi payout affiliate dan pelepasan stok secara idem
       const [failedOrder] = await tx.insert(orders).values({
         externalId: `STOCK-${suffix}`,
         productId: product.id,
-        workspaceId: workspaceA.id,
         productVariantId: variant.id,
         productVariantName: variant.name,
         customerId: affiliate.id,
@@ -108,7 +84,6 @@ test("database menjaga reservasi payout affiliate dan pelepasan stok secara idem
         {
           externalId: `AFF-1-${suffix}`,
           productId: product.id,
-          workspaceId: workspaceA.id,
           customerId: affiliate.id,
           customerName: affiliate.name,
           customerEmail: affiliate.email,
@@ -118,7 +93,6 @@ test("database menjaga reservasi payout affiliate dan pelepasan stok secara idem
         {
           externalId: `AFF-2-${suffix}`,
           productId: product.id,
-          workspaceId: workspaceA.id,
           customerId: affiliate.id,
           customerName: affiliate.name,
           customerEmail: affiliate.email,
@@ -163,56 +137,11 @@ test("database menjaga reservasi payout affiliate dan pelepasan stok secara idem
         .where(eq(affiliatePayoutRequests.id, secondRequest.id));
       assert.equal(paidRequest.status, "PAID");
 
-      const eventA = await publishOutboxEvent(tx, {
-        eventName: "order.paid.v1",
-        workspaceId: workspaceA.id,
-        subjectType: "ORDER",
-        subjectId: paidOrders[0].id,
-        payload: { orderId: paidOrders[0].id },
-      });
-      await publishOutboxEvent(tx, {
-        eventName: "order.paid.v1",
-        workspaceId: workspaceB.id,
-        subjectType: "ORDER",
-        subjectId: paidOrders[1].id,
-        payload: { orderId: paidOrders[1].id },
-      });
-
-      await tx.execute(sql.raw(`SET LOCAL ROLE "${rlsRole}"`));
-      await setWorkspaceTransactionScope(tx, workspaceA.id);
-      const scopedEvents = await tx.select({ id: outboxEvents.id, workspaceId: outboxEvents.workspaceId }).from(outboxEvents);
-      assert.ok(scopedEvents.some((event) => event.id === eventA.id));
-      assert.ok(scopedEvents.every((event) => event.workspaceId === workspaceA.id));
-
-      await tx.execute(sql.raw("SAVEPOINT cross_workspace_write"));
-      let crossWorkspaceWriteRejected = false;
-      let crossWorkspaceWriteError = "";
-      try {
-        await tx.execute(sql`
-          INSERT INTO outbox_events (
-            event_name, event_version, workspace_id, subject_type, subject_id,
-            correlation_id, payload
-          ) VALUES (
-            'order.paid.v1', 1, ${workspaceB.id}, 'ORDER', ${paidOrders[1].id},
-            ${randomUUID()}, '{}'::jsonb
-          )
-        `);
-      } catch (error) {
-        crossWorkspaceWriteRejected = true;
-        crossWorkspaceWriteError = error instanceof Error ? error.message : String(error);
-        await tx.execute(sql.raw("ROLLBACK TO SAVEPOINT cross_workspace_write"));
-      }
-      assert.equal(crossWorkspaceWriteRejected, true);
-      assert.match(crossWorkspaceWriteError, /row-level security policy/i);
-      await tx.execute(sql.raw("RESET ROLE"));
-
       throw rollback;
     });
   } catch (error) {
     if (error !== rollback) throw error;
   } finally {
-    await pool.query(`DROP OWNED BY "${rlsRole}"`).catch(() => undefined);
-    await pool.query(`DROP ROLE IF EXISTS "${rlsRole}"`).catch(() => undefined);
     await pool.end();
   }
 });

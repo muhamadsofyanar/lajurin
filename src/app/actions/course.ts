@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { enrollments, lessonProgress, lessons } from "@/lib/schema";
-import { dispatchMerchantAutomations } from "@/lib/automation";
+import { enqueueDomainEvent, merchantAutomationEvent } from "@/platform/events/outbox";
+import { currentCorrelationContext } from "@/platform/observability/server-context";
 
 export async function toggleLessonCompleteAction(courseId: string, lessonId: string) {
   const user = await requireUser();
@@ -35,7 +36,12 @@ export async function toggleLessonCompleteAction(courseId: string, lessonId: str
   const completed = allLessons.length ? await db.select({ id: lessonProgress.id }).from(lessonProgress)
     .where(and(eq(lessonProgress.userId, user.id), inArray(lessonProgress.lessonId, allLessons.map((lesson) => lesson.id)))) : [];
   if (allLessons.length > 0 && completed.length === allLessons.length) {
-    await dispatchMerchantAutomations("COURSE_COMPLETED", authorizedLesson.enrollmentId);
+    const requestContext = await currentCorrelationContext();
+    await enqueueDomainEvent(db, merchantAutomationEvent({
+      sourceId: authorizedLesson.enrollmentId,
+      trigger: "COURSE_COMPLETED",
+      correlationId: requestContext.correlationId,
+    }));
   }
   const next = allLessons.find((lesson) => lesson.position > authorizedLesson.position);
   revalidatePath(`/member/courses/${courseId}`);

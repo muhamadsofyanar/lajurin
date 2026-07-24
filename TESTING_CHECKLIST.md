@@ -1,20 +1,4 @@
-# Checklist Pengujian Rizqhub v5.0.0-alpha.1
-
-## Gate Platform Kernel v5
-
-- [ ] Backup PostgreSQL dan restore drill berhasil sebelum migration `0026`.
-- [ ] Migration `0026_v5_platform_kernel.sql` berhasil dan rerun migrator tidak menambah journal.
-- [ ] Backfill `workspace_id` pada produk dan order tidak menyisakan record tenant tanpa workspace.
-- [ ] Event `order.paid.v1` commit dalam transaksi yang sama dengan status order `PAID`.
-- [ ] Dua worker paralel tidak mengambil event yang sama.
-- [ ] Provider failure mengubah event menjadi `RETRY` dengan exponential backoff.
-- [ ] Attempt terakhir memindahkan event ke `DEAD` dan membuat satu dead-letter.
-- [ ] Replay mengembalikan event dead-letter ke antrean tanpa menggandakan notifikasi.
-- [ ] RLS negative test menolak read dan write lintas workspace.
-- [ ] Shadow mode `OUTBOX_PROCESSING_ENABLED=false` tidak menggandakan notifikasi.
-- [ ] Scheduler `POST /api/jobs/events` berjalan setiap menit dengan Bearer secret yang sudah dirotasi.
-- [ ] Backlog dan dead-letter dapat dipantau melalui `/admin/operations`.
-- [ ] Setelah observasi stabil, flag `OUTBOX_PROCESSING_ENABLED=true` diuji di staging sebelum produksi.
+# Checklist Pengujian Rizqhub v4.0.1
 
 ## Gate integritas finansial v4.0.1
 

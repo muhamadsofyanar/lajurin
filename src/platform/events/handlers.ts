@@ -1,40 +1,57 @@
-import { z } from "zod";
-import { dispatchMerchantAutomations } from "@/lib/automation";
-import { dispatchOrderNotifications } from "@/lib/notifications";
+import type { DomainEvent, DomainEventHandler } from "./types";
 
-export type OutboxHandlerEvent = Readonly<{
-  id: string;
-  eventName: string;
-  eventVersion: number;
-  workspaceId: string;
-  correlationId: string;
-  payload: Record<string, unknown>;
-}>;
-
-type EventHandler = (event: OutboxHandlerEvent) => Promise<void>;
-
-const orderPayload = z.object({ orderId: z.string().uuid() }).strict();
-
-const handlers: Readonly<Record<string, EventHandler>> = {
-  "order.paid.v1": async (event) => {
-    const { orderId } = orderPayload.parse(event.payload);
-    await dispatchOrderNotifications(orderId, "PAYMENT_APPROVED", { throwOnFailure: true });
-    await dispatchMerchantAutomations("PURCHASED", orderId, { throwOnFailure: true });
-  },
-  "payment.rejected.v1": async (event) => {
-    const { orderId } = orderPayload.parse(event.payload);
-    await dispatchOrderNotifications(orderId, "PAYMENT_REJECTED", { throwOnFailure: true });
-  },
+type OrderNotificationPayload = {
+  orderId: string;
+  notificationEvent: "ORDER_CREATED" | "PAYMENT_APPROVED" | "PAYMENT_REJECTED" | "CHECKOUT_REMINDER";
 };
 
-export const OUTBOX_CONSUMER_NAME = "rizqhub-core-v1";
+type MerchantAutomationPayload = {
+  sourceId: string;
+  trigger: "PURCHASED" | "COURSE_COMPLETED";
+};
 
-export function supportedEventNames() {
-  return Object.keys(handlers);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export async function handleOutboxEvent(event: OutboxHandlerEvent) {
-  const handler = handlers[event.eventName];
-  if (!handler) throw new Error(`Handler event belum tersedia: ${event.eventName}`);
-  await handler(event);
+function orderNotificationPayload(event: DomainEvent): OrderNotificationPayload {
+  if (!isRecord(event.payload)) throw new Error("PAYLOAD_NOT_OBJECT");
+  const orderId = event.payload.orderId;
+  const notificationEvent = event.payload.notificationEvent;
+  const validEvents = ["ORDER_CREATED", "PAYMENT_APPROVED", "PAYMENT_REJECTED", "CHECKOUT_REMINDER"];
+  if (typeof orderId !== "string" || !validEvents.includes(String(notificationEvent))) {
+    throw new Error("INVALID_ORDER_NOTIFICATION_PAYLOAD");
+  }
+  return { orderId, notificationEvent: notificationEvent as OrderNotificationPayload["notificationEvent"] };
+}
+
+function merchantAutomationPayload(event: DomainEvent): MerchantAutomationPayload {
+  if (!isRecord(event.payload)) throw new Error("PAYLOAD_NOT_OBJECT");
+  const sourceId = event.payload.sourceId;
+  const trigger = event.payload.trigger;
+  if (typeof sourceId !== "string" || (trigger !== "PURCHASED" && trigger !== "COURSE_COMPLETED")) {
+    throw new Error("INVALID_MERCHANT_AUTOMATION_PAYLOAD");
+  }
+  return { sourceId, trigger };
+}
+
+const handlers: Readonly<Record<string, DomainEventHandler>> = Object.freeze({
+  "notification.order.v1": async (event) => {
+    const payload = orderNotificationPayload(event);
+    const { dispatchOrderNotifications } = await import("@/lib/notifications");
+    await dispatchOrderNotifications(payload.orderId, payload.notificationEvent);
+  },
+  "automation.merchant.v1": async (event) => {
+    const payload = merchantAutomationPayload(event);
+    const { dispatchMerchantAutomations } = await import("@/lib/automation");
+    await dispatchMerchantAutomations(payload.trigger, payload.sourceId);
+  },
+});
+
+export function resolveDomainEventHandler(eventType: string) {
+  return handlers[eventType] ?? null;
+}
+
+export function registeredDomainEventTypes() {
+  return Object.keys(handlers);
 }
