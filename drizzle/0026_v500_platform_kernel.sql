@@ -1,6 +1,56 @@
-CREATE TYPE "public"."outbox_event_status" AS ENUM('PENDING', 'PROCESSING', 'RETRY', 'COMPLETED', 'DEAD_LETTER');--> statement-breakpoint
-CREATE TYPE "public"."job_run_status" AS ENUM('RUNNING', 'SUCCEEDED', 'FAILED', 'PARTIAL');--> statement-breakpoint
-CREATE TYPE "public"."job_attempt_status" AS ENUM('SUCCEEDED', 'FAILED', 'SKIPPED');--> statement-breakpoint
+DO $$
+DECLARE
+  existing_labels text[];
+BEGIN
+  SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+  INTO existing_labels
+  FROM pg_type t
+  JOIN pg_namespace n ON n.oid = t.typnamespace
+  JOIN pg_enum e ON e.enumtypid = t.oid
+  WHERE n.nspname = 'public' AND t.typname = 'outbox_event_status';
+
+  IF existing_labels IS NULL THEN
+    CREATE TYPE "public"."outbox_event_status" AS ENUM('PENDING', 'PROCESSING', 'RETRY', 'COMPLETED', 'DEAD_LETTER');
+  ELSIF existing_labels <> ARRAY['PENDING', 'PROCESSING', 'RETRY', 'COMPLETED', 'DEAD_LETTER']::text[] THEN
+    RAISE EXCEPTION 'Existing enum public.outbox_event_status has unexpected labels: %', existing_labels;
+  END IF;
+END $$;--> statement-breakpoint
+
+DO $$
+DECLARE
+  existing_labels text[];
+BEGIN
+  SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+  INTO existing_labels
+  FROM pg_type t
+  JOIN pg_namespace n ON n.oid = t.typnamespace
+  JOIN pg_enum e ON e.enumtypid = t.oid
+  WHERE n.nspname = 'public' AND t.typname = 'job_run_status';
+
+  IF existing_labels IS NULL THEN
+    CREATE TYPE "public"."job_run_status" AS ENUM('RUNNING', 'SUCCEEDED', 'FAILED', 'PARTIAL');
+  ELSIF existing_labels <> ARRAY['RUNNING', 'SUCCEEDED', 'FAILED', 'PARTIAL']::text[] THEN
+    RAISE EXCEPTION 'Existing enum public.job_run_status has unexpected labels: %', existing_labels;
+  END IF;
+END $$;--> statement-breakpoint
+
+DO $$
+DECLARE
+  existing_labels text[];
+BEGIN
+  SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+  INTO existing_labels
+  FROM pg_type t
+  JOIN pg_namespace n ON n.oid = t.typnamespace
+  JOIN pg_enum e ON e.enumtypid = t.oid
+  WHERE n.nspname = 'public' AND t.typname = 'job_attempt_status';
+
+  IF existing_labels IS NULL THEN
+    CREATE TYPE "public"."job_attempt_status" AS ENUM('SUCCEEDED', 'FAILED', 'SKIPPED');
+  ELSIF existing_labels <> ARRAY['SUCCEEDED', 'FAILED', 'SKIPPED']::text[] THEN
+    RAISE EXCEPTION 'Existing enum public.job_attempt_status has unexpected labels: %', existing_labels;
+  END IF;
+END $$;--> statement-breakpoint
 
 CREATE TABLE "outbox_events" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
