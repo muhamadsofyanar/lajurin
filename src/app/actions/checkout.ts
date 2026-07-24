@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { calculateDiscount } from "@/lib/discount";
 import { calculateOrderAccounting, DEFAULT_PLATFORM_FEE_BPS } from "@/lib/finance";
@@ -12,6 +12,7 @@ import { findValidCoupon } from "@/lib/funnel";
 import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { createPaymentSession } from "@/lib/xendit";
 import { dispatchOrderNotifications } from "@/lib/notifications";
+import { releaseOrderReservedStock } from "@/lib/inventory";
 import { affiliatePartners, affiliatePrograms, analyticsEvents, courses, merchantManualPaymentAccounts, merchantProfiles, orders, platformSettings, productFunnels, products, productVariants, serviceCases, users } from "@/lib/schema";
 import { currentRequestIdentity, enforceRateLimit } from "@/lib/security";
 
@@ -184,7 +185,16 @@ export async function checkoutAction(slug: string, formData: FormData) {
       failureUrl: `${appUrl}/checkout/${product.product.slug}?error=Pembayaran+belum+berhasil`,
     });
   } catch {
-    await db.update(orders).set({ status: "FAILED", updatedAt: new Date() }).where(eq(orders.id, order.id));
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`order:${order.id}`}))`);
+      const [current] = await tx.select({ status: orders.status }).from(orders)
+        .where(eq(orders.id, order.id)).limit(1);
+      if (current && current.status !== "PAID" && current.status !== "REFUNDED") {
+        await tx.update(orders).set({ status: "FAILED", updatedAt: new Date() })
+          .where(eq(orders.id, order.id));
+        await releaseOrderReservedStock(tx, order.id);
+      }
+    });
     redirect(`/checkout/${slug}?error=Layanan+pembayaran+belum+tersedia`);
   }
 

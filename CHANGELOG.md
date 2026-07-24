@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.0.1 — 24 Juli 2026
+
+### Integritas finansial dan keamanan
+
+- Komisi affiliate kini dicadangkan dan diikat ke payout request tertentu.
+- Permintaan dan review payout memakai advisory lock serta validasi jumlah.
+- Stok terbatas dilepas idempoten ketika pembayaran Xendit gagal atau kedaluwarsa.
+- Level verifikasi legacy yang tidak valid dinormalisasi.
+- Next.js, PostCSS, dan Sharp diperbarui untuk menutup temuan dependency audit.
+- CI menambahkan integration test PostgreSQL untuk payout dan stok.
+- Migration aditif terbaru adalah `0025_financial_integrity.sql`.
+
 ## 1.5.1 — 23 Juli 2026
 
 ### Rebrand Rizqhub dan perbaikan deployment

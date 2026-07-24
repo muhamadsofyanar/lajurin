@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { recordPaidOrderAccounting } from "@/lib/finance";
 import { fulfillPaidOrder } from "@/lib/funnel";
+import { reacquireReleasedOrderStock, releaseOrderReservedStock } from "@/lib/inventory";
 import { dispatchOrderNotifications } from "@/lib/notifications";
 import { dispatchMerchantAutomations } from "@/lib/automation";
 import { orders, serviceCases, webhookEvents } from "@/lib/schema";
@@ -100,8 +101,12 @@ export async function POST(request: Request) {
       }
       const applied = await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`order:${row.order.id}`}))`);
-        const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, row.order.id)).limit(1);
+        const [current] = await tx.select({
+          status: orders.status,
+          stockReleasedAt: orders.stockReleasedAt,
+        }).from(orders).where(eq(orders.id, row.order.id)).limit(1);
         if (!current || current.status === "PAID" || current.status === "REFUNDED") return false;
+        if (current.stockReleasedAt) await reacquireReleasedOrderStock(tx, row.order.id);
         await tx.update(orders).set({
           status: "PAID", paidAt: new Date(payload.created), xenditPaymentId: payload.data.payment_id,
           webhookPayload: payload, updatedAt: new Date(),
@@ -127,6 +132,7 @@ export async function POST(request: Request) {
         const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, row.order.id)).limit(1);
         if (current && current.status !== "PAID" && current.status !== "REFUNDED") {
           await tx.update(orders).set({ status: "EXPIRED", webhookPayload: payload, updatedAt: new Date() }).where(eq(orders.id, row.order.id));
+          await releaseOrderReservedStock(tx, row.order.id);
         }
       });
     }

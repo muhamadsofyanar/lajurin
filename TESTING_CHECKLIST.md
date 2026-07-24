@@ -1,4 +1,17 @@
-# Checklist Pengujian Rizqhub v1.5.1 Candidate
+# Checklist Pengujian Rizqhub v4.0.1
+
+## Gate integritas finansial v4.0.1
+
+- [ ] `npm audit --omit=dev` tidak menemukan vulnerability.
+- [ ] Migration `0025_financial_integrity.sql` berhasil pada salinan database staging.
+- [ ] Dua permintaan payout affiliate paralel tidak dapat mencadangkan komisi yang sama.
+- [ ] Payout ditolak mengembalikan komisi `RESERVED` menjadi `PENDING`.
+- [ ] Payout dibayar hanya menutup komisi yang terikat ke request tersebut.
+- [ ] Xendit gagal dibuat mengembalikan satu unit stok terbatas.
+- [ ] Webhook expired berulang hanya mengembalikan stok satu kali.
+- [ ] Webhook completed yang bersaing dengan expired tidak mengembalikan stok order PAID.
+- [ ] Level verifikasi legacy `VERIFIED` berubah menjadi `IDENTITY`.
+- [ ] `npm run test:db` lulus pada PostgreSQL setelah seluruh migration.
 
 Gunakan database staging dan Xendit Test Mode. Jangan memakai transaksi uang nyata untuk pemeriksaan awal.
 

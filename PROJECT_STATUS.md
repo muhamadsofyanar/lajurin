@@ -2,12 +2,25 @@
 
 ## Versi aktif source
 
-- Versi paket source: **1.5.1 — Rizqhub Rebrand & Configuration Fix**
+- Versi paket source: **4.0.1 — Financial Integrity & Security Fix**
 - Dasar pengembangan: branch `main` repository `muhamadsofyanar/lajurin`
 - Commit dasar: `4d36e11b066ebe8b504505de56d3ec44650be854` (`v2`, 22 Juli 2026)
 - Database: PostgreSQL + Drizzle ORM
 - Deployment pengguna: Coolify, domain `legaone.id`
-- Source v1.5.1 menambahkan rebrand Rizqhub, kompatibilitas transisi, migration `0017`, dan runbook perbaikan `INTERNAL_JOB_SECRET`. Promosi produksi tetap wajib melewati migration staging, provider sandbox, DNS canary, backup/restore drill, dan smoke test.
+- Migration terbaru: `0025_financial_integrity.sql`.
+- Quality gate source v4.0.1: unit/static test, lint, TypeScript, build, checksum migration, dependency audit, dan database integration test pada CI PostgreSQL.
+
+## Rizqhub v4.0.1
+
+- Komisi affiliate yang diajukan untuk payout berubah dari `PENDING` menjadi `RESERVED` dan terikat ke satu permintaan payout.
+- Advisory lock dan validasi jumlah mencegah permintaan paralel, perubahan saldo saat payout diproses, dan penutupan komisi yang tidak termasuk snapshot.
+- Penolakan payout mengembalikan komisi ke `PENDING`; persetujuan hanya menandai komisi yang dicadangkan sebagai `PAID`.
+- Stok paket berbayar dikembalikan satu kali ketika pembuatan pembayaran Xendit gagal atau webhook menyatakan order kedaluwarsa.
+- Level verifikasi legacy `VERIFIED` dinormalisasi menjadi `IDENTITY`.
+- Next.js diperbarui ke 16.2.11 dengan override PostCSS dan Sharp yang telah menutup temuan audit dependensi.
+- CI menjalankan test integrasi transaksi kritis pada PostgreSQL setelah seluruh migration berhasil.
+
+## Riwayat pra-v4
 
 ## Rizqhub v1.5.1
 
@@ -190,7 +203,14 @@
 
 ## Database terbaru
 
-Migration terbaru: `drizzle/0012_numerous_marvel_boy.sql`.
+Migration terbaru: `drizzle/0025_financial_integrity.sql`.
+
+Migration integritas finansial (`0025`):
+
+1. Mengikat komisi affiliate ke satu permintaan payout.
+2. Menambah penanda pelepasan stok idempoten pada order.
+3. Menormalisasi level verifikasi legacy yang tidak lagi valid.
+4. Tidak mengubah nominal order, komisi, atau payout historis.
 
 Migration direct manual settlement (`0012`):
 
@@ -235,10 +255,16 @@ Migration tidak menghapus tabel, kolom, lesson, pesanan, enrollment, atau data v
 - Masa berlaku akses kelas.
 - Refund otomatis melalui API, invoice pajak, rekonsiliasi bank otomatis, dan manajemen dispute formal.
 - Integrasi disbursement otomatis; payout v0.7 masih ditransfer manual oleh admin sebelum dikonfirmasi.
-- Builder blok bebas/drag-and-drop dan custom domain merchant.
-- Broadcast massal, abandoned checkout terjadwal, dan automation dengan delay/branch.
-- Cakupan automated integration/E2E yang lebih luas dan uji transaksi nyata dengan database staging/Xendit Test Mode.
+- Builder blok bebas/drag-and-drop.
+- Recurring payment otomatis; subscription saat ini masih diaktifkan manual.
+- Object storage S3-compatible, antivirus scanning, dan signed delivery URL.
+- Automation dengan delay/branch serta cakupan browser E2E yang lebih luas.
+- Pencarian marketplace full-text, pagination database, dan agregasi rating berskala besar.
 
 ## Rekomendasi tahap berikutnya
 
-Tahap berikut adalah **validasi M1 dan migration `0012` pada staging terpisah**: backfill M1 dua kali, rekonsiliasi, negative isolation test, lalu uji transfer platform, transfer langsung, override admin, race konfirmasi, refund, Xendit, dan payout. Kandidat belum boleh dipromosikan sebelum seluruh regression lulus.
+Tahap berikut adalah **validasi migration `0025` pada staging terpisah** lalu
+menjalankan skenario payout affiliate reject/pay, checkout stok terbatas,
+Xendit failed/expired/completed, refund, dan race webhook. Produksi harus
+menunggu database integration test, provider sandbox, backup/restore drill,
+dan smoke test browser lulus.

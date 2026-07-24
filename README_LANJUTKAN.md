@@ -7,15 +7,17 @@ Unggah ZIP source rilis terbaru secara utuh. Jangan hanya mengunggah beberapa fi
 ## Pesan pembuka yang dapat disalin
 
 ```text
-Lanjutkan Rizqhub berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_v1.5.1.md, dan AGENTS.md. Versi kandidat terakhir harus 1.5.1 dengan migration 0017. Rebrand harus tetap kompatibel dengan cookie, analytics, dan TXT domain legacy. Lima tahap sudah diimplementasikan pada source, tetapi rilis tetap wajib melewati migration database staging, domain canary, provider sandbox, backup/restore drill, dan smoke test sebelum produksi. Jangan memperluas hak Staff ke finance, team, broadcast, atau domain. Draft builder tidak boleh mengubah publik sebelum publish. Broadcast wajib consent, antrean, batas, attempt log, dan retry maksimal tiga. Automatic payout dan automatic refund belum boleh diaktifkan.
+Lanjutkan Rizqhub berdasarkan source final ini. Baca README_LANJUTKAN.md, PROJECT_STATUS.md, DEPLOYMENT.md, CHANGELOG.md, TESTING_CHECKLIST.md, RELEASE_v4.0.1.md, dan AGENTS.md. Versi aktif harus 4.0.1 dengan migration 0025. Pertahankan reservasi payout affiliate, pelepasan stok idempoten, dan normalisasi level verifikasi. Rilis wajib melewati migration database staging, test:db, provider sandbox, backup/restore drill, dan smoke test sebelum produksi. Jangan memperluas hak Staff ke finance, team, broadcast, atau domain. Draft builder tidak boleh mengubah publik sebelum publish. Broadcast wajib consent, antrean, batas, attempt log, dan retry maksimal tiga. Automatic payout dan automatic refund belum boleh diaktifkan.
 ```
 
 ## Cara memastikan source benar
 
 Periksa hal berikut:
 
-- `package.json` memiliki versi `1.5.1` atau lebih baru.
-- Migration terbaru minimal `drizzle/0017_rizqhub_rebrand.sql`.
+- `package.json` memiliki versi `4.0.1` atau lebih baru.
+- Migration terbaru minimal `drizzle/0025_financial_integrity.sql`.
+- `affiliate_commissions.payout_request_id` mengikat komisi ke payout tertentu.
+- `orders.stock_released_at` mencegah pengembalian stok ganda.
 - Ada `src/modules/workspace`, `src/platform/auth/workspace-context.ts`, dan `src/platform/feature-flags/workspace.ts`.
 - Ada tabel `workspaces`, `workspaceMemberships`, `workspaceBranding`, `workspaceModules`, `workspaceDomains`, dan `legacyMerchantWorkspaceLinks`.
 - Feature flag Workspace default nonaktif dan canary memakai UUID eksplisit.

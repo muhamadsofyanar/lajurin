@@ -277,6 +277,7 @@ export const affiliateCommissions = pgTable("affiliate_commissions", {
   id: uuid("id").primaryKey().defaultRandom(),
   partnerId: uuid("partner_id").notNull().references(() => affiliatePartners.id, { onDelete: "restrict" }),
   orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
+  payoutRequestId: uuid("payout_request_id").references(() => affiliatePayoutRequests.id, { onDelete: "restrict" }),
   amount: integer("amount").notNull(),
   status: text("status").default("PENDING").notNull(),
   paidAt: timestamp("paid_at", { withTimezone: true }),
@@ -284,6 +285,7 @@ export const affiliateCommissions = pgTable("affiliate_commissions", {
 }, (table) => [
   uniqueIndex("affiliate_commissions_order_unique").on(table.orderId),
   index("affiliate_commissions_partner_idx").on(table.partnerId, table.status, table.createdAt),
+  index("affiliate_commissions_payout_idx").on(table.payoutRequestId, table.status),
 ]);
 
 export const affiliateClicks = pgTable("affiliate_clicks", {
@@ -506,6 +508,7 @@ export const orders = pgTable("orders", {
   paidAt: timestamp("paid_at", { withTimezone: true }), webhookPayload: jsonb("webhook_payload"), ...timestamps,
   refundedAt: timestamp("refunded_at", { withTimezone: true }), refundAmount: integer("refund_amount"), refundReference: text("refund_reference"),
   refundReason: text("refund_reason"), refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
+  stockReleasedAt: timestamp("stock_released_at", { withTimezone: true }),
 }, (table) => [uniqueIndex("orders_external_unique").on(table.externalId), uniqueIndex("orders_invoice_unique").on(table.xenditSessionId), index("orders_product_idx").on(table.productId, table.status)]);
 
 export const productReviews = pgTable("product_reviews", {

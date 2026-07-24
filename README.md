@@ -1,6 +1,11 @@
-# Rizqhub v1.5.1
+# Rizqhub v4.0.1
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
+
+Versi 4.0.1 adalah patch integritas finansial dan keamanan untuk v4.0.0. Patch
+ini menambah reservasi komisi affiliate per payout, pelepasan stok idempoten
+untuk order gateway yang gagal/kedaluwarsa, normalisasi level verifikasi lama,
+serta pembaruan dependensi keamanan.
 
 ## Fitur
 

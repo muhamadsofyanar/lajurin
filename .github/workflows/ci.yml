@@ -62,3 +62,4 @@ jobs:
       - run: npm ci
       - run: npm run migrations:check
       - run: npm run migrations:test
+      - run: npm run test:db
