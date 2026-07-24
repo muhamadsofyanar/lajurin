@@ -107,6 +107,7 @@ export async function checkoutAction(slug: string, formData: FormData) {
   const [order] = await db.insert(orders).values({
       externalId,
       productId: product.product.id,
+      workspaceId: product.product.workspaceId,
       productVariantId: variant?.id ?? null,
       productVariantName: variant?.name ?? null,
       customerId: customer.id,

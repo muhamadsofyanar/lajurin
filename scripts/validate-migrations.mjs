@@ -10,6 +10,7 @@ const requiredTables = [
   "users", "merchant_profiles", "products", "orders", "enrollments", "merchant_ledger_entries", "webhook_events",
   "workspaces", "workspace_memberships", "workspace_branding", "workspace_modules", "workspace_domains", "legacy_merchant_workspace_links",
   "merchant_manual_payment_accounts", "platform_receivable_entries",
+  "outbox_events", "event_consumptions", "job_runs", "job_attempts", "dead_letter_events",
 ];
 
 try {

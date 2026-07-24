@@ -1,4 +1,4 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { createInAppNotification } from "@/lib/in-app-notifications";
 import { getNotificationConfig, normalizedPhone, sendExternalNotification } from "@/lib/notifications";
@@ -57,7 +57,7 @@ async function sourceContext(trigger: Trigger, sourceId: string) {
   return row ?? null;
 }
 
-export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: string) {
+export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: string, options: { throwOnFailure?: boolean } = {}) {
   try {
     const context = await sourceContext(trigger, sourceId);
     if (!context) return;
@@ -77,6 +77,7 @@ export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: st
       link_kelas: `${baseUrl}/member`,
     };
     const config = getNotificationConfig();
+    const failures: string[] = [];
 
     for (const rule of rules) {
       const text = fillTemplate(rule.messageTemplate, values);
@@ -89,7 +90,7 @@ export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: st
       for (const candidate of candidates) {
         if (!candidate.enabled || !candidate.recipient) continue;
         const sourceKey = `${trigger}:${context.sourceId}`;
-        const [delivery] = await db.insert(automationDeliveries).values({
+        const [createdDelivery] = await db.insert(automationDeliveries).values({
           ruleId: rule.id,
           sourceKey,
           userId: context.userId,
@@ -97,7 +98,13 @@ export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: st
           recipient: candidate.recipient,
           provider: candidate.provider,
         }).onConflictDoNothing({ target: [automationDeliveries.ruleId, automationDeliveries.sourceKey, automationDeliveries.channel] }).returning();
-        if (!delivery) continue;
+        const [existingDelivery] = createdDelivery ? [] : await db.select().from(automationDeliveries).where(and(
+          eq(automationDeliveries.ruleId, rule.id),
+          eq(automationDeliveries.sourceKey, sourceKey),
+          eq(automationDeliveries.channel, candidate.channel),
+        )).limit(1);
+        const delivery = createdDelivery ?? existingDelivery;
+        if (!delivery || delivery.status === "SENT" || delivery.status === "PROCESSING") continue;
         if (!candidate.active) {
           await db.update(automationDeliveries).set({
             status: "SKIPPED",
@@ -107,18 +114,28 @@ export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: st
           }).where(eq(automationDeliveries.id, delivery.id));
           continue;
         }
+        const [claimed] = await db.update(automationDeliveries).set({
+          status: "PROCESSING",
+          errorMessage: null,
+          updatedAt: new Date(),
+        }).where(and(
+          eq(automationDeliveries.id, delivery.id),
+          inArray(automationDeliveries.status, ["PENDING", "FAILED", "SKIPPED"]),
+        )).returning();
+        if (!claimed) continue;
         try {
           const result = await sendExternalNotification({ channel: candidate.channel, recipient: candidate.recipient, subject, text });
           await db.update(automationDeliveries).set({
-            status: "SENT", attemptCount: 1, responseCode: result.responseCode,
+            status: "SENT", attemptCount: claimed.attemptCount + 1, responseCode: result.responseCode,
             providerResponse: result.providerResponse, sentAt: new Date(), updatedAt: new Date(),
           }).where(eq(automationDeliveries.id, delivery.id));
         } catch (error) {
           await db.update(automationDeliveries).set({
-            status: "FAILED", attemptCount: 1,
+            status: "FAILED", attemptCount: claimed.attemptCount + 1,
             errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Pengiriman gagal",
             updatedAt: new Date(),
           }).where(eq(automationDeliveries.id, delivery.id));
+          failures.push(`${rule.id}:${candidate.channel}`);
         }
       }
       if (context.userId) {
@@ -132,7 +149,11 @@ export async function dispatchMerchantAutomations(trigger: Trigger, sourceId: st
         });
       }
     }
+    if (options.throwOnFailure && failures.length) {
+      throw new Error(`${failures.length} aksi automation belum berhasil`);
+    }
   } catch (error) {
+    if (options.throwOnFailure) throw error;
     console.error("Merchant automation dispatch failed", error instanceof Error ? error.message : error);
   }
 }

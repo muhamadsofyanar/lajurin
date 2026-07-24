@@ -183,6 +183,13 @@
       "when": 1784883600000,
       "tag": "0025_financial_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784887200000,
+      "tag": "0026_v5_platform_kernel",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.0.0-alpha.1 — 24 Juli 2026
+
+### Platform Kernel v5
+
+- Menambah workspace scope langsung pada produk, order, dan webhook dengan backfill aditif.
+- Menambah transactional outbox, event consumption, job run/attempt, retry eksponensial, dead-letter, dan replay.
+- Memindahkan side effect pembayaran ke event `order.paid.v1` dan `payment.rejected.v1` dengan shadow rollout yang dapat dibalik melalui feature flag environment.
+- Menambah RLS pilot pada outbox dan negative test read/write lintas workspace.
+- Menambah endpoint worker `/api/jobs/events` dan replay `/api/jobs/events/replay` yang dilindungi `INTERNAL_JOB_SECRET`.
+- Menambah metrik backlog/retry/dead-letter pada pusat operasional.
+- Migration aditif terbaru adalah `0026_v5_platform_kernel.sql`.
+
 ## 4.0.1 — 24 Juli 2026
 
 ### Integritas finansial dan keamanan

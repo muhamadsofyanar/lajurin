@@ -1,11 +1,12 @@
-# Rizqhub v4.0.1
+# Rizqhub v5.0.0-alpha.1
 
 Platform penjualan produk digital berbasis Next.js, PostgreSQL, dan Drizzle ORM.
 
-Versi 4.0.1 adalah patch integritas finansial dan keamanan untuk v4.0.0. Patch
-ini menambah reservasi komisi affiliate per payout, pelepasan stok idempoten
-untuk order gateway yang gagal/kedaluwarsa, normalisasi level verifikasi lama,
-serta pembaruan dependensi keamanan.
+Versi 5.0.0-alpha.1 adalah implementasi pertama Platform Kernel v5 di atas
+baseline v4.0.1. Rilis ini menambah workspace scope langsung pada produk dan
+order, transactional outbox, worker dengan retry/dead-letter/replay, RLS pilot,
+dan correlation ID. Cutover side effect memakai pola shadow mode agar perilaku
+produksi lama tetap tersedia sampai scheduler baru terbukti stabil.
 
 ## Fitur
 
@@ -40,6 +41,7 @@ serta pembaruan dependensi keamanan.
 - Laporan penjualan berperiode dengan ringkasan bruto, net, komisi, metode pembayaran, performa produk, dan ekspor CSV aman.
 - Custom Domain dengan verifikasi TXT, routing host toko, dan panduan CNAME/Coolify.
 - Broadcast pelanggan dan tindak lanjut checkout terbengkalai melalui Mailketing/StarSender dengan riwayat pengiriman.
+- Platform Kernel v5: event pembayaran atomik, outbox worker `SKIP LOCKED`, exponential backoff, idempotent consumption, dead-letter, replay, job timeline, workspace scope, dan RLS pilot.
 
 ## Dokumentasi proyek
 
@@ -81,6 +83,8 @@ MAILKETING_FROM_EMAIL=sender-terverifikasi@domain-anda.id
 INTERNAL_JOB_SECRET=rahasia-acak-minimal-32-karakter
 BROADCAST_BATCH_SIZE=20
 BROADCAST_DAILY_RECIPIENT_LIMIT=500
+OUTBOX_PROCESSING_ENABLED=false
+OUTBOX_BATCH_SIZE=20
 
 # Tujuan transfer manual
 MANUAL_BANK_NAME=BCA
@@ -94,6 +98,11 @@ SEED_ADMIN_PASSWORD=password-kuat-minimal-12-karakter
 # Stabilkan Server Actions saat redeploy
 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte
 ```
+
+`OUTBOX_PROCESSING_ENABLED=false` adalah mode rollout awal. Event tetap ditulis,
+tetapi side effect pembayaran lama tetap dijalankan langsung. Setelah scheduler
+`POST /api/jobs/events` berjalan stabil dengan Bearer `INTERNAL_JOB_SECRET`,
+ubah flag menjadi `true` untuk melakukan cutover ke worker.
 
 ## Alur transfer manual
 
@@ -117,7 +126,13 @@ Nilai awal yang aman adalah komisi 0% dan minimum payout Rp100.000. Admin perlu 
 
 Bukti disimpan di `/app/data/payment-proofs`. Pada Docker Compose, direktori tersebut sudah memakai volume `payment_proofs`, sehingga berkas tetap tersedia setelah container dibuat ulang. Untuk deployment non-Compose, pasang persistent volume ke direktori yang sama.
 
-File pendamping course disimpan di `/app/data/course-files`, media landing page di `/app/data/landing-media`, dan gambar komunitas di `/app/data/community-media`. Ketiganya memakai volume persisten terpisah. Batas file course 15 MB, sedangkan cover/foto landing page dan gambar komunitas 5 MB. Jangan menaruh keempat folder data—termasuk bukti pembayaran—di repository GitHub.
+File pendamping course disimpan di `/app/data/course-files`, media landing page
+di `/app/data/landing-media`, gambar komunitas di
+`/app/data/community-media`, dokumen jasa di
+`/app/data/service-documents`, dan produk digital di
+`/app/data/digital-products`. Seluruh direktori data, termasuk
+`payment-proofs` dan `commission-proofs`, wajib memakai persistent volume.
+Jangan menaruh file pengguna di repository GitHub.
 
 ## Xendit
 

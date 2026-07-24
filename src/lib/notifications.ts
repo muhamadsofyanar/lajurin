@@ -170,7 +170,25 @@ async function reserveDelivery(input: {
   const [created] = await db.insert(notificationDeliveries).values({ ...input, status: "PENDING" })
     .onConflictDoNothing({ target: [notificationDeliveries.orderId, notificationDeliveries.channel, notificationDeliveries.event] })
     .returning();
-  return created ?? null;
+  if (created) return created;
+  const [existing] = await db.select().from(notificationDeliveries).where(and(
+    eq(notificationDeliveries.orderId, input.orderId),
+    eq(notificationDeliveries.channel, input.channel),
+    eq(notificationDeliveries.event, input.event),
+  )).limit(1);
+  return existing ?? null;
+}
+
+async function claimDeliveryForSend(delivery: typeof notificationDeliveries.$inferSelect) {
+  const [claimed] = await db.update(notificationDeliveries).set({
+    status: "PROCESSING",
+    errorMessage: null,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(notificationDeliveries.id, delivery.id),
+    inArray(notificationDeliveries.status, ["PENDING", "FAILED", "SKIPPED"]),
+  )).returning();
+  return claimed ?? null;
 }
 
 async function deliver(delivery: typeof notificationDeliveries.$inferSelect, copy: ReturnType<typeof notificationCopy>) {
@@ -209,7 +227,7 @@ async function orderNotificationContext(orderId: string) {
   return row ?? null;
 }
 
-export async function dispatchOrderNotifications(orderId: string, event: NotificationEvent) {
+export async function dispatchOrderNotifications(orderId: string, event: NotificationEvent, options: { throwOnFailure?: boolean } = {}) {
   try {
     const row = await orderNotificationContext(orderId);
     if (!row) return;
@@ -238,22 +256,30 @@ export async function dispatchOrderNotifications(orderId: string, event: Notific
       { channel: "EMAIL", recipient: row.order.customerEmail, provider: "MAILKETING", active: config.mailketingActive },
       { channel: "WHATSAPP", recipient: phone, provider: "STARSENDER", active: config.starSenderActive },
     ];
-    await Promise.all(candidates.map(async (candidate) => {
-      if (!candidate.recipient) return;
+    const results = await Promise.all(candidates.map(async (candidate) => {
+      if (!candidate.recipient) return true;
       const delivery = await reserveDelivery({ orderId, event, channel: candidate.channel, recipient: candidate.recipient, provider: candidate.provider });
-      if (!delivery) return;
+      if (!delivery || delivery.status === "SENT" || delivery.status === "PROCESSING") return true;
       if (!candidate.active) {
         await db.update(notificationDeliveries).set({
           status: "SKIPPED",
           errorMessage: config.enabled ? "Konfigurasi provider belum lengkap" : "Notifikasi dinonaktifkan",
           updatedAt: new Date(),
         }).where(eq(notificationDeliveries.id, delivery.id));
-        return;
+        return true;
       }
-      await deliver(delivery, copy);
+      const claimed = await claimDeliveryForSend(delivery);
+      if (!claimed) return true;
+      return deliver(claimed, copy);
     }));
+    if (options.throwOnFailure && results.some((result) => !result)) {
+      throw new Error(`Pengiriman notifikasi ${event} belum berhasil`);
+    }
+    return results.every(Boolean);
   } catch (error) {
+    if (options.throwOnFailure) throw error;
     console.error("Notification dispatch failed", error instanceof Error ? error.message : error);
+    return false;
   }
 }
 

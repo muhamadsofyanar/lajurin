@@ -56,6 +56,7 @@ if (strict) {
 for (const [name, minimum, maximum] of [
   ["BROADCAST_BATCH_SIZE", 1, 50],
   ["BROADCAST_DAILY_RECIPIENT_LIMIT", 1, 10000],
+  ["OUTBOX_BATCH_SIZE", 1, 50],
 ]) {
   const raw = process.env[name]?.trim();
   if (raw && (!/^\d+$/.test(raw) || Number(raw) < minimum || Number(raw) > maximum)) {
@@ -66,6 +67,11 @@ for (const [name, minimum, maximum] of [
 const workspaceFoundationEnabled = process.env.WORKSPACE_FOUNDATION_ENABLED?.trim().toLowerCase();
 if (workspaceFoundationEnabled && !new Set(["true", "false"]).has(workspaceFoundationEnabled)) {
   errors.push("WORKSPACE_FOUNDATION_ENABLED harus true atau false");
+}
+
+const outboxProcessingEnabled = process.env.OUTBOX_PROCESSING_ENABLED?.trim().toLowerCase();
+if (outboxProcessingEnabled && !new Set(["true", "false"]).has(outboxProcessingEnabled)) {
+  errors.push("OUTBOX_PROCESSING_ENABLED harus true atau false");
 }
 if (workspaceFoundationEnabled === "true") {
   const canaryIds = (process.env.WORKSPACE_CANARY_USER_IDS ?? "").split(",").map((value) => value.trim()).filter(Boolean);

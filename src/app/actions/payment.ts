@@ -17,6 +17,7 @@ import { canReviewManualPayment, requiresAdminOverrideReason } from "@/lib/manua
 import { auditLogs, enrollments, inAppNotifications, merchantLedgerEntries, orders, platformReceivableEntries, products, serviceCases } from "@/lib/schema";
 import { paymentProofDirectory, paymentProofPath } from "@/lib/storage";
 import { currentRequestIdentity, enforceRateLimit, verifyUploadSignature } from "@/lib/security";
+import { publishOrderPaidEvent, publishPaymentRejectedEvent } from "@/platform/events/outbox";
 
 const proofTypes: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -126,6 +127,7 @@ async function reviewManualPayment(input: {
 }) {
   const parsedDecision = z.enum(["approve", "reject"]).parse(input.decision);
   const destination = input.reviewerRole === "ADMIN" ? "/admin/payments" : "/dashboard/payments";
+  const correlationId = randomUUID();
   let reviewedOrder: { id: string; amount: number };
 
   try {
@@ -162,6 +164,17 @@ async function reviewManualPayment(input: {
           .where(eq(serviceCases.orderId, row.order.id));
         await fulfillPaidOrder(tx, row.order.id);
         await recordPaidOrderAccounting(tx, row.order.id);
+        await publishOrderPaidEvent(tx, {
+          orderId: row.order.id,
+          actorId: input.reviewerId,
+          correlationId,
+        });
+      } else {
+        await publishPaymentRejectedEvent(tx, {
+          orderId: row.order.id,
+          actorId: input.reviewerId,
+          correlationId,
+        });
       }
       await tx.insert(auditLogs).values({
         actorId: input.reviewerId,
@@ -183,8 +196,10 @@ async function reviewManualPayment(input: {
     throw error;
   }
 
-  await dispatchOrderNotifications(reviewedOrder.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
-  if (parsedDecision === "approve") await dispatchMerchantAutomations("PURCHASED", reviewedOrder.id);
+  if (process.env.OUTBOX_PROCESSING_ENABLED !== "true") {
+    await dispatchOrderNotifications(reviewedOrder.id, parsedDecision === "approve" ? "PAYMENT_APPROVED" : "PAYMENT_REJECTED");
+    if (parsedDecision === "approve") await dispatchMerchantAutomations("PURCHASED", reviewedOrder.id);
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/payments");
   revalidatePath("/admin/integrations");

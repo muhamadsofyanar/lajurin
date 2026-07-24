@@ -33,10 +33,12 @@ secret pada screenshot.
 6. Tambahkan persistent storage dengan mount path **`/app/data/course-files`**.
 7. Tambahkan persistent storage dengan mount path **`/app/data/landing-media`**.
 8. Tambahkan persistent storage dengan mount path **`/app/data/community-media`**.
-9. Jangan gunakan `/app/uploads`; path tersebut berasal dari catatan versi lama.
-10. Jangan menghapus, membuat ulang, atau me-restart PostgreSQL hanya untuk deploy source ini.
+9. Tambahkan persistent storage dengan mount path **`/app/data/service-documents`**.
+10. Tambahkan persistent storage dengan mount path **`/app/data/digital-products`**.
+11. Jangan gunakan `/app/uploads`; path tersebut berasal dari catatan versi lama.
+12. Jangan menghapus, membuat ulang, atau me-restart PostgreSQL hanya untuk deploy source ini.
 
-Kelima storage dapat memakai volume berbeda. Untuk **Volume Mount** di Coolify, isi nama volume dan Destination Path; Source Path dikosongkan.
+Ketujuh storage dapat memakai volume berbeda. Untuk **Volume Mount** di Coolify, isi nama volume dan Destination Path; Source Path dikosongkan. Status healthcheck `storage=true` hanya membuktikan direktori dapat ditulis; periksa daftar volume Coolify untuk memastikan data tetap ada setelah rolling update.
 
 ## Environment variable wajib
 
@@ -50,6 +52,8 @@ NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=base64-32-byte-yang-stabil
 INTERNAL_JOB_SECRET=rahasia-acak-minimal-32-karakter
 BROADCAST_BATCH_SIZE=20
 BROADCAST_DAILY_RECIPIENT_LIMIT=500
+OUTBOX_PROCESSING_ENABLED=false
+OUTBOX_BATCH_SIZE=20
 ```
 
 `legaone.id` dan `www.legaone.id` dikenali sebagai domain utama platform. Jika
@@ -93,6 +97,13 @@ untuk memanggil endpoint tersebut dengan header `Authorization: Bearer <secret>`
 Pengiriman per batch juga dapat dijalankan manual dari detail kampanye. Nilai
 `BROADCAST_BATCH_SIZE` dibatasi maksimal 50 dan batas harian maksimal 10.000 oleh
 aplikasi.
+
+Secret yang sama melindungi `POST /api/jobs/events`. Untuk rollout Platform
+Kernel v5, buat scheduler setiap satu menit ke endpoint tersebut. Mulai dengan
+`OUTBOX_PROCESSING_ENABLED=false`, pastikan event dapat diproses tanpa backlog
+atau dead-letter, kemudian ubah menjadi `true` untuk cutover. Endpoint
+`POST /api/jobs/events/replay` menerima JSON `{"eventId":"<uuid>"}` dan hanya
+digunakan untuk replay dead-letter yang sudah ditinjau.
 
 ## Membuat kunci Server Actions
 
